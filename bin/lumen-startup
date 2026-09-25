@@ -29,6 +29,11 @@ if [ -z "${LUMEN_NESTED:-}" ]; then
     run wl-paste --type image --watch cliphist store
 fi
 
+# Cursor theme for the compositor (apps read XCURSOR_* from the environment)
+cur=$(jq -r '.cursor.theme // "Bibata-Modern-Classic"' "$LUMEN_ROOT/generated/tokens.json" 2>/dev/null)
+size=$(jq -r '.cursor.size // 24' "$LUMEN_ROOT/generated/tokens.json" 2>/dev/null)
+hyprctl setcursor "$cur" "$size" >>"$LOG" 2>&1
+
 # Wallpaper: the shell draws it (cross-fades); hyprpaper only if there is no shell
 if [ -f "$LUMEN_ROOT/shell/shell.qml" ]; then
     "$LUMEN_ROOT/scripts/wallpaper.sh" init >>"$LOG" 2>&1

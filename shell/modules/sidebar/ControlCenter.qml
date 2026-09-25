@@ -223,6 +223,12 @@ Item {
                 }
                 RoundToggle {
                     action: true
+                    icon: "document_scanner"
+                    label: "Copy text"
+                    onToggled: { Sidebar.hide(); root.later([Theme.lumenRoot + "/scripts/screen-text.sh"]); }
+                }
+                RoundToggle {
+                    action: true
                     icon: "colorize"
                     label: "Pick colour"
                     onToggled: { Sidebar.hide(); root.later(["hyprpicker", "-a"]); }

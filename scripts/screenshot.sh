@@ -1,6 +1,7 @@
 #!/bin/sh
 # screenshot.sh — capture the screen, a region, or the focused window.
-#   screenshot.sh screen | region | window
+#   screenshot.sh screen | region | window | edit
+#   edit: pick a region, then annotate it in swappy (arrows, text, blur…)
 # Saves to $XDG_PICTURES_DIR/Screenshots and copies the image to the clipboard.
 # The island shows a confirmation; a notification also goes to history.
 set -eu
@@ -28,8 +29,18 @@ case $mode in
         geom=$(hyprctl activewindow -j | jq -r 'if .at then "\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])" else empty end')
         [ -n "$geom" ] || exit 0
         grim -g "$geom" "$file" ;;
+    edit)
+        command -v swappy >/dev/null || { echo "screenshot.sh: swappy not installed" >&2; exit 1; }
+        tokens=${LUMEN_ROOT:-$HOME/.config/lumen}/generated/tokens.json
+        bg=$(jq -r '.colors.bg' "$tokens" 2>/dev/null || echo 0d1014)
+        accent=$(jq -r '.colors.accent' "$tokens" 2>/dev/null || echo 52d1e9)
+        geom=$(slurp -d -b "${bg}88" -c "${accent}ff" -w 2) || exit 0
+        grim -g "$geom" "$file"
+        # Annotate; saving writes back to the same file, and it's copied too
+        swappy -f "$file" -o "$file"
+        [ -s "$file" ] || exit 0 ;;
     *)
-        echo "usage: screenshot.sh screen|region|window" >&2; exit 2 ;;
+        echo "usage: screenshot.sh screen|region|window|edit" >&2; exit 2 ;;
 esac
 
 wl-copy --type image/png < "$file"

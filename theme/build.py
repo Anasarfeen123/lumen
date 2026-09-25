@@ -169,6 +169,7 @@ def resolve(theme_name: str | None, accent_name: str | None, accent_hue: float |
     for k in ("micro", "normal", "large", "window"):
         motion[k] = round(motion[k] * speed)
     window["follow_mouse"] = 0 if state.get("follow_mouse") == "off" else 1
+    cursor = {"theme": state.get("cursor", "Bibata-Modern-Classic"), "size": int(state.get("cursor_size", 24))}
 
     return {
         "theme": theme_name,
@@ -184,7 +185,9 @@ def resolve(theme_name: str | None, accent_name: str | None, accent_hue: float |
         "window": window,
         "motion": motion,
         "prefs": {k: state.get(k, d) for k, d in (("gaps", "normal"), ("corners", "soft"), ("border", "normal"),
-                                                  ("anim_speed", "normal"), ("follow_mouse", "on"))},
+                                                  ("anim_speed", "normal"), ("follow_mouse", "on"),
+                                                  ("cursor", "Bibata-Modern-Classic"), ("cursor_size", "24"))},
+        "cursor": cursor,
         "blur": tokens["blur"],
         "shadow": tokens["shadow"],
         "island": tokens["island"],
@@ -294,6 +297,7 @@ def emit_hypr_lua(t: dict) -> str:
         "radius_window": r["md"], "squircle": r["squircle"],
         "border_size": w["border"], "gaps_in": w["gaps_in"], "gaps_out": w["gaps_out"],
         "follow_mouse": w["follow_mouse"],
+        "cursor": t["cursor"]["theme"], "cursor_size": t["cursor"]["size"],
         "opacity": {"terminal": op(w["terminal_opacity"]), "app_active": op(w["app_active"]),
                     "app_inactive": op(w["app_inactive"]), "glass_active": op(w["glass_app_active"]),
                     "glass_inactive": op(w["glass_app_inactive"])},

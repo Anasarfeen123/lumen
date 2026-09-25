@@ -115,6 +115,28 @@ Page {
             }
         }
         SetRow {
+            icon: "arrow_selector_tool"
+            title: "Pointer"
+            description: "Bibata: soft, rounded pointers that stay crisp at any size"
+            Segmented {
+                width: 330
+                options: [{ id: "Bibata-Modern-Classic", label: "Dark" }, { id: "Bibata-Modern-Ice", label: "Light" },
+                          { id: "Bibata-Modern-Amber", label: "Amber" }, { id: "breeze_cursors", label: "Breeze" }]
+                current: (Theme.tokens.prefs ?? {}).cursor ?? "Bibata-Modern-Classic"
+                onPicked: id => SettingsState.lumen(["set", "cursor", id])
+            }
+        }
+        SetRow {
+            icon: "format_size"
+            title: "Pointer size"
+            Segmented {
+                width: 240
+                options: [{ id: "24", label: "Normal" }, { id: "28", label: "Large" }, { id: "32", label: "Larger" }]
+                current: String((Theme.tokens.prefs ?? {}).cursor_size ?? "24")
+                onPicked: id => SettingsState.lumen(["set", "cursor_size", id])
+            }
+        }
+        SetRow {
             icon: "music_note"
             title: "UI sounds"
             description: "Soft cues for notifications, volume, screenshots, lock and devices. Quiet during Focus and Game mode"

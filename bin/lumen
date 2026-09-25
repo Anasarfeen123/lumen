@@ -6,7 +6,7 @@
 #   lumen transparency [on|off|toggle]   window transparency (shell glass stays)
 #   lumen accent-hue <0-360>         set the wallpaper-derived accent hue (used by the picker)
 #   lumen clock <12h|24h>  ·  lumen motion <full|reduced>  ·  lumen reload
-#   lumen set <gaps|corners|border|anim_speed|follow_mouse> <value>
+#   lumen set <gaps|corners|border|anim_speed|follow_mouse|cursor|cursor_size> <value>
 #   lumen check                     contrast report for the active theme
 set -eu
 LUMEN_ROOT=${LUMEN_ROOT:-$HOME/.config/lumen}
@@ -75,6 +75,11 @@ case ${1:-} in
             border=off|border=thin|border=normal|anim_speed=fast|anim_speed=normal|anim_speed=relaxed|\
             follow_mouse=on|follow_mouse=off)
                 set_state "$2" "$3"; reload ;;
+            cursor=Bibata-Modern-Classic|cursor=Bibata-Modern-Ice|cursor=Bibata-Modern-Amber|cursor=breeze_cursors|\
+            cursor_size=24|cursor_size=28|cursor_size=32)
+                set_state "$2" "$3"; reload
+                hyprctl setcursor "$(jq -r .cursor.theme "$LUMEN_ROOT/generated/tokens.json")" \
+                                  "$(jq -r .cursor.size "$LUMEN_ROOT/generated/tokens.json")" >/dev/null 2>&1 || true ;;
             *) echo "lumen: unknown setting '${2:-}=${3:-}'" >&2; exit 2 ;;
         esac ;;
     reload)

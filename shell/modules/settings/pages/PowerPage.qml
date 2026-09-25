@@ -1,12 +1,14 @@
 // Power: mode, battery, idle behaviour.
 import QtQuick
 import Quickshell.Services.UPower
+import Quickshell.Io
 import qs.theme
 import qs.components
 import qs.services
 import ".."
 
 Page {
+    id: page
     title: "Power"
 
     Group {
@@ -40,6 +42,43 @@ Page {
             title: "Battery health"
             visible: UPower.displayDevice?.healthSupported ?? false
             description: Math.round(UPower.displayDevice?.healthPercentage ?? 0) + "% of original capacity"
+        }
+    }
+
+    // Battery charge limit (root helper via pkexec; re-applied at every boot)
+    property int chargeLimit: 100
+    property bool limitSupported: false
+    property bool applying: false
+    Process {
+        id: limitRead
+        running: true
+        command: ["sh", "-c", "for b in /sys/class/power_supply/BAT*; do [ -r \"$b/charge_control_end_threshold\" ] && cat \"$b/charge_control_end_threshold\" && exit 0; done; exit 1"]
+        stdout: StdioCollector { onStreamFinished: { const v = parseInt(text); if (v > 0) { chargeLimit = v; limitSupported = true; } } }
+    }
+    Process {
+        id: limitSet
+        onExited: { applying = false; limitRead.running = true; }
+    }
+
+    Group {
+        title: "Battery care"
+        visible: limitSupported
+        SetRow {
+            icon: "eco"
+            title: "Charge limit"
+            description: chargeLimit >= 100 ? "Charges to 100 %."
+                : "Stops at " + chargeLimit + " % — gentler on a battery that lives on the charger" + (Battery.pluggedIn && !Battery.charging && Battery.percentage * 100 >= chargeLimit - 1 ? " (paused now)" : "") + "."
+            Segmented {
+                width: 300
+                enabled: !applying
+                options: [{ id: "100", label: "Full" }, { id: "90", label: "90 %" }, { id: "80", label: "80 %" }, { id: "60", label: "60 %" }]
+                current: String(chargeLimit)
+                onPicked: id => {
+                    applying = true;
+                    limitSet.command = ["pkexec", Theme.lumenRoot + "/scripts/power-admin.sh", "charge-limit", id];
+                    limitSet.running = true;
+                }
+            }
         }
     }
 

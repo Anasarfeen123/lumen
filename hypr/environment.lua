@@ -25,6 +25,8 @@ hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
 if not os.getenv("QT_QPA_PLATFORMTHEME") then hl.env("QT_QPA_PLATFORMTHEME", "kde") end
 hl.env("XDG_MENU_PREFIX", "plasma-")
 
--- Cursor
-hl.env("XCURSOR_SIZE", "24")
-hl.env("HYPRCURSOR_SIZE", "24")
+-- Cursor (Lumen Settings → Appearance; default Bibata Modern Classic)
+hl.env("XCURSOR_THEME", LM.cursor)
+hl.env("XCURSOR_SIZE", tostring(LM.cursor_size))
+hl.env("HYPRCURSOR_THEME", LM.cursor)
+hl.env("HYPRCURSOR_SIZE", tostring(LM.cursor_size))
