@@ -7,6 +7,7 @@ import Quickshell
 import Quickshell.Hyprland
 import qs.theme
 import qs.components
+import qs.services
 
 GlassSurface {
     id: root
@@ -102,7 +103,9 @@ GlassSurface {
                 height: Theme.barHeight
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: Hypr.workspace(wsId)
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                // Right-click: the tray drawer (background apps)
+                onClicked: m => m.button === Qt.RightButton ? TrayState.toggle(root.screen?.name ?? "") : Hypr.workspace(wsId)
 
                 Rectangle {
                     anchors.centerIn: parent

@@ -16,7 +16,8 @@ Page {
         SetRow {
             icon: Power.icon
             title: "Mode"
-            description: Power.saver ? "Battery saver also turns off blur" : "Balanced suits most days"
+            description: Power.saver ? "Longer battery · also turns off blur"
+                : Power.profile === PowerProfile.Performance ? "Full speed · more heat and fan" : "Balanced suits most days"
             Segmented {
                 width: 330
                 options: [{ id: "saver", label: "Saver" }, { id: "balanced", label: "Balanced" }, { id: "performance", label: "Performance" }]
@@ -82,11 +83,38 @@ Page {
         }
     }
 
+    // Idle timings → generated hypridle.conf (lumen set idle_lock|idle_sleep)
+    readonly property var idle: Theme.tokens.idle ?? { lock: "5", sleep: "15" }
+    function mins(v) { return v === "60" ? "1 hour" : v + " minutes"; }
+
     Group {
         title: "When idle"
-        SetRow { icon: "brightness_low"; title: "Dim the screen"; description: "After 4 minutes" }
-        SetRow { icon: "lock"; title: "Lock"; description: "After 5 minutes, and always before sleep" }
-        SetRow { icon: "monitor"; title: "Turn off the screen"; description: "After 5½ minutes" }
-        SetRow { icon: "bedtime"; title: "Sleep"; description: "After 15 minutes · fullscreen video and games keep the screen awake" }
+        SetRow {
+            icon: "lock"
+            title: "Lock after"
+            description: idle.lock === "never" ? "Never on its own — still locks before sleep and with Super+L"
+                : "Dims a minute before · screen off 30 s after"
+            Segmented {
+                width: 330
+                options: [{ id: "2", label: "2 m" }, { id: "5", label: "5 m" }, { id: "10", label: "10 m" },
+                          { id: "30", label: "30 m" }, { id: "never", label: "Never" }]
+                current: idle.lock
+                onPicked: id => SettingsState.lumen(["set", "idle_lock", id])
+            }
+        }
+        SetRow {
+            icon: "bedtime"
+            title: "Sleep after"
+            description: idle.sleep === "never" ? "Never sleeps on its own"
+                : idle.sleep === "battery" ? "15 minutes, only when unplugged"
+                : mins(idle.sleep) + " · fullscreen video and games keep it awake"
+            Segmented {
+                width: 330
+                options: [{ id: "15", label: "15 m" }, { id: "30", label: "30 m" }, { id: "60", label: "1 h" },
+                          { id: "battery", label: "Battery" }, { id: "never", label: "Never" }]
+                current: idle.sleep
+                onPicked: id => SettingsState.lumen(["set", "idle_sleep", id])
+            }
+        }
     }
 }

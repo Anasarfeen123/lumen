@@ -17,7 +17,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import re
 import os
 import sys
 import tomllib
@@ -187,6 +186,7 @@ def resolve(theme_name: str | None, accent_name: str | None, accent_hue: float |
         "prefs": {k: state.get(k, d) for k, d in (("gaps", "normal"), ("corners", "soft"), ("border", "normal"),
                                                   ("anim_speed", "normal"), ("follow_mouse", "on"),
                                                   ("cursor", "Bibata-Modern-Classic"), ("cursor_size", "24"))},
+        "idle": idle_prefs(state),
         "cursor": cursor,
         "blur": tokens["blur"],
         "shadow": tokens["shadow"],
@@ -409,233 +409,48 @@ vimcmd_symbol = "[❮](success)"
 """
 
 
-def emit_kitty(t: dict) -> str:
-    c, term = t["colors"], t["terminal"]
-    opacity = t["window"]["terminal_opacity"] if t["transparency"] else 1.0
-    order = ["black", "red", "green", "yellow", "blue", "magenta", "cyan", "white"]
-    lines = [f"# {HEADER}",
-             f"background #{c['bg']}", f"foreground #{c['text']}",
-             f"cursor #{c['accent']}", f"cursor_text_color #{c['on_accent']}",
-             f"selection_background #{c['accent']}", f"selection_foreground #{c['on_accent']}",
-             f"url_color #{c['accent']}",
-             f"active_border_color #{c['accent']}", f"inactive_border_color #{c['surface_hover']}",
-             f"active_tab_background #{c['surface_hover']}", f"active_tab_foreground #{c['text']}",
-             f"inactive_tab_background #{c['bg']}", f"inactive_tab_foreground #{c['text_muted']}",
-             f"tab_bar_background #{c['bg']}",
-             f"mark1_background #{c['accent']}", f"mark1_foreground #{c['on_accent']}",
-             f"background_opacity {opacity}"]
-    for i, name in enumerate(order):
-        lines.append(f"color{i} #{term[name]}")
-        lines.append(f"color{i + 8} #{term['bright_' + name]}")
-    return "\n".join(lines) + "\n"
+IDLE_LOCK = {"2": 120, "5": 300, "10": 600, "15": 900, "30": 1800, "never": 0}
+IDLE_SLEEP = {"15": 900, "30": 1800, "60": 3600, "battery": 900, "never": 0}
 
 
-def emit_starship(t: dict) -> str:
-    c = t["colors"]
-    return f"""# {HEADER}
-# Lumen prompt: calm, one line, information only when it matters.
-#   ~/Projects/lumen  main ●  2.3s  ❯
-add_newline = false
-format = "$directory$git_branch$git_status$python$nodejs$rust$cmd_duration$jobs$character"
-palette = "lumen"
-
-[palettes.lumen]
-accent = "#{c['accent']}"
-text = "#{c['text']}"
-muted = "#{c['text_muted']}"
-secondary = "#{c['text_secondary']}"
-success = "#{c['success']}"
-warning = "#{c['warning']}"
-error = "#{c['error']}"
-
-[directory]
-style = "bold accent"
-truncation_length = 3
-truncation_symbol = "…/"
-read_only = " 󰌾"
-read_only_style = "muted"
-
-[git_branch]
-format = "[$symbol$branch]($style) "
-symbol = " "
-style = "secondary"
-
-[git_status]
-format = "([$all_status$ahead_behind]($style) )"
-style = "warning"
-conflicted = "="
-modified = "●"
-staged = "+"
-untracked = "?"
-deleted = "✕"
-renamed = "»"
-ahead = "↑$count"
-behind = "↓$count"
-diverged = "↕"
-stashed = ""
-
-[python]
-format = "[$symbol$virtualenv]($style) "
-symbol = " "
-style = "muted"
-detect_extensions = []
-detect_files = []
-
-[nodejs]
-format = "[$symbol$version]($style) "
-symbol = " "
-style = "muted"
-
-[rust]
-format = "[$symbol$version]($style) "
-symbol = " "
-style = "muted"
-
-[cmd_duration]
-min_time = 2000
-format = "[$duration]($style) "
-style = "muted"
-
-[jobs]
-format = "[$symbol$number]($style) "
-symbol = "✦"
-style = "accent"
-
-[character]
-success_symbol = "[❯](accent)"
-error_symbol = "[❯](error)"
-vimcmd_symbol = "[❮](success)"
-"""
+def idle_prefs(state: dict) -> dict:
+    lock = state.get("idle_lock", "5")
+    sleep = state.get("idle_sleep", "15")
+    return {"lock": lock if lock in IDLE_LOCK else "5", "sleep": sleep if sleep in IDLE_SLEEP else "15"}
 
 
-# ── keybind cheatsheet ──────────────────────────────────────────────────────
+def emit_hypridle(state: dict) -> str:
+    """hypridle.conf from Settings → Power → When idle.
+    dim (1 min before the lock) → lock → screen off (30 s after) → suspend."""
+    p = idle_prefs(state)
+    lock, sleep = IDLE_LOCK[p["lock"]], IDLE_SLEEP[p["sleep"]]
+    ipc = "~/.config/lumen/bin/lumen-shell-ipc"
+    dpms = "hyprctl dispatch 'hl.dsp.dpms(\"%s\")'"
+    out = [f"# {HEADER}", f"# lock: {p['lock']} · sleep: {p['sleep']}  (lumen set idle_lock|idle_sleep …)", "",
+           "general {",
+           "    # The Lumen shell draws the lock; hyprlock is the fallback if the shell isn't running",
+           f"    lock_cmd = {ipc} lock lock || pidof hyprlock || hyprlock -c ~/.config/lumen/hypr/hyprlock.conf",
+           "    before_sleep_cmd = loginctl lock-session",
+           "    # Screen on, then let Face ID look straight away (you just opened the lid)",
+           f"    after_sleep_cmd = {dpms % 'on'}; {ipc} lock wake",
+           "    ignore_dbus_inhibit = false",
+           "    # Hold suspend until the lock screen is really up (ext-session-lock confirmed),",
+           "    # so waking never flashes the desktop.",
+           "    inhibit_sleep = 3",
+           "}"]
 
-GLOBAL_NAMES = {
-    "overview": "Overview & search", "overviewTap": "Overview & search (tap)", "overviewOpen": "Open overview",
-    "overviewClose": "Close overview", "clipboard": "Clipboard history", "emoji": "Emoji picker",
-    "sidebar": "Control centre & notifications", "controlCenter": "Control centre", "dnd": "Do Not Disturb",
-    "clearNotifications": "Clear notifications", "island": "Expand the island (media)", "powerMenu": "Power menu",
-    "lock": "Lock", "wallpapers": "Wallpaper picker", "wallpaperRandom": "Random wallpaper",
-    "cheatsheet": "This cheatsheet",
-}
-VAR_NAMES = {"$terminal": "Terminal", "$fileManager": "Files", "$browser": "Browser", "$editor": "Code editor",
-             "$taskManager": "Task manager", "$launcher": "Launcher"}
-DIRS = {"l": "left", "r": "right", "u": "up", "d": "down"}
-KEY_NAMES = {"Return": "Enter", "grave": "`", "Semicolon": ";", "Apostrophe": "'", "Page_Up": "PgUp",
-             "Page_Down": "PgDn", "mouse_down": "Scroll ↓", "mouse_up": "Scroll ↑", "mouse:272": "Drag",
-             "mouse:273": "Right-drag", "mouse:275": "Back button", "mouse:276": "Forward button",
-             "Super_L": "(tap)", "period": ".", "Equal": "=", "Minus": "−", "Space": "Space", "Escape": "Esc",
-             "Delete": "Del", "Slash": "/", "Print": "PrtSc", "left": "←", "right": "→", "up": "↑", "down": "↓", "Tab": "Tab"}
+    def listener(timeout: int, on: str, resume: str | None = None) -> None:
+        out.extend(["", "listener {", f"    timeout = {timeout}", f"    on-timeout = {on}"]
+                   + ([f"    on-resume = {resume}"] if resume else []) + ["}"])
 
-
-def describe(disp: str, args: str, comment: str) -> str | None:
-    if comment:
-        return comment[0].upper() + comment[1:]
-    a = args.strip()
-    if disp == "global":
-        return GLOBAL_NAMES.get(a.split(":", 1)[-1])
-    if disp == "exec":
-        for var, name in VAR_NAMES.items():
-            if a.startswith(var):
-                return name
-        for key, name in (("screenshot.sh screen", "Screenshot (screen)"), ("screenshot.sh region", "Screenshot (region)"),
-                          ("screenshot.sh window", "Screenshot (window)"), ("hyprpicker", "Colour picker"),
-                          ("pavucontrol", "Volume mixer"), ("transparency", "Window transparency on/off"),
-                          ("lock lock", "Lock"), ("systemctl suspend", "Sleep"), ("hyprctl reload", "Reload config"),
-                          (".float * 1.25", "Zoom in"), (".float / 1.25", "Zoom out"),
-                          ("hyprctl kill", "Force-kill a window"), ("play-pause", "Play / pause"),
-                          ("playerctl next", "Next track"), ("playerctl previous", "Previous track"),
-                          ("@DEFAULT_AUDIO_SOURCE@ toggle", "Mute microphone")):
-            if key in a:
-                return name
-        return None
-    simple = {"killactive": "Close window", "togglefloating": "Float / tile", "centerwindow": None, "pin": "Pin (all workspaces)",
-              "pseudo": "Pseudo-tile", "togglegroup": "Group windows (tabs)", "changegroupactive": "Next tab in group",
-              "exit": "Exit Hyprland (emergency)", "movewindow": "Move window" if not a else f"Move window {DIRS.get(a, a)}",
-              "resizewindow": "Resize window", "movefocus": f"Focus {DIRS.get(a, a)}"}
-    if disp in simple:
-        return simple[disp]
-    if disp == "fullscreen":
-        return "Maximise" if a == "1" else "Fullscreen"
-    if disp == "layoutmsg":
-        return {"togglesplit": "Flip split"}.get(a, "Resize split")
-    if disp == "resizeactive":
-        return "Resize window"
-    if disp == "workspace":
-        return {"r+1": "Next workspace", "r-1": "Previous workspace"}.get(a, "Go to workspace")
-    if disp == "movetoworkspace":
-        return {"r+1": "Send window to next workspace", "r-1": "Send window to previous workspace"}.get(a, "Send window to workspace (follow)")
-    if disp == "movetoworkspacesilent":
-        return "Send window to scratchpad" if "special" in a else "Send window to workspace (stay)"
-    if disp == "togglespecialworkspace":
-        return {"scratch": "Scratchpad", "term": "Drop-down terminal", "music": "Music scratchpad"}.get(a, "Scratchpad")
-    return None
-
-
-def parse_keybinds(path: Path) -> list:
-    sections, cur = [], None
-    for raw in path.read_text().splitlines():
-        line = raw.strip()
-        m = re.match(r"#\s*──\s*(.+?)\s*─", line)
-        if m:
-            cur = {"title": re.sub(r"\s*\(.*\)$", "", m.group(1)).strip(), "binds": []}
-            sections.append(cur)
-            continue
-        m = re.match(r"(bind[a-z]*)\s*=\s*([^,]*),\s*([^,]+),\s*([^,#]+)(?:,\s*([^#]*))?(?:#\s*(.*))?$", line)
-        if not m or cur is None:
-            continue
-        kind, mods, key, disp, args, comment = (x.strip() if x else "" for x in m.groups())
-        if key.startswith("XF86"):
-            continue                                   # hardware keys explain themselves
-        desc = describe(disp, args, comment)
-        if not desc:
-            continue
-        mods_h = [{"$mod": "Super", "SUPER": "Super", "CTRL": "Ctrl", "SHIFT": "Shift", "ALT": "Alt"}.get(t, t)
-                  for t in mods.replace("$mod", " $mod ").split()]
-        keys = mods_h + [KEY_NAMES.get(key, key.upper() if len(key) == 1 else key)]
-        if key == "Super_L":
-            keys = ["Super", "(tap)"]
-        entry = {"keys": keys, "desc": desc}
-        # Fold 1…0 rows of the same action into one
-        if re.fullmatch(r"[0-9]", key):
-            prev = cur["binds"][-1] if cur["binds"] else None
-            if prev and prev["desc"] == desc and prev.get("digits"):
-                continue
-            entry = {"keys": mods_h + ["1…0"], "desc": desc, "digits": True}
-        if cur["binds"] and cur["binds"][-1]["desc"] == desc and cur["binds"][-1]["keys"] == keys:
-            continue
-        cur["binds"].append(entry)
-    # Tidy each section:
-    #   • "Focus left/right/up/down" with the same modifiers → one row, arrows combined
-    #   • the same action bound several ways → keep the first (primary) binding
-    arrows = {"←", "→", "↑", "↓"}
-    for sec in sections:
-        tidy = []
-        for b in sec["binds"]:
-            base = re.sub(r"\s+(left|right|up|down)$", "", b["desc"])
-            last = tidy[-1] if tidy else None
-            if (last and b["keys"][-1] in arrows and last["keys"][-1].split(" ")[0] in arrows
-                    and last["keys"][:-1] == b["keys"][:-1]
-                    and re.sub(r"\s+(left|right|up|down)$", "", last["desc"]) == base):
-                last["keys"][-1] += " " + b["keys"][-1]
-                last["desc"] = base
-                continue
-            if any(t["desc"] == b["desc"] for t in tidy):
-                continue
-            tidy.append(b)
-        sec["binds"] = tidy
-    sections = [s_ for s_ in sections if s_["binds"]]
-    sections.append({"title": "Gestures", "binds": [
-        {"keys": ["Top-left corner"], "desc": "Overview & search"},
-        {"keys": ["Top-right corner"], "desc": "Control centre"},
-        {"keys": ["4 fingers", "↑ / ↓"], "desc": "Open / close overview"},
-        {"keys": ["4 fingers", "← / →"], "desc": "Switch workspace"},
-        {"keys": ["3 fingers", "drag"], "desc": "Move window"},
-        {"keys": ["3 fingers", "pinch"], "desc": "Fullscreen"},
-        {"keys": ["Scroll", "on the bar"], "desc": "Switch workspace"},
-        {"keys": ["Scroll", "on the island"], "desc": "Volume (Shift: brightness)"},
-    ]})
-    return sections
+    idle = "~/.config/lumen/scripts/idle.sh"   # skips every step while this session isn't on screen
+    if lock:
+        listener(max(30, lock - 60), f"{idle} dim", f"{idle} undim")
+        listener(lock, f"{idle} lock")
+        listener(lock + 30, f"{idle} screen-off", f"{idle} screen-on")
+    if sleep:
+        listener(max(sleep, lock + 60), f"{idle} suspend" + (" --battery-only" if p["sleep"] == "battery" else ""))
+    return "\n".join(out) + "\n"
 
 
 def emit_previews(t: dict) -> str:
@@ -688,6 +503,7 @@ def main() -> int:
     write(OUT / "kitty/theme.conf", emit_kitty(t))
     write(OUT / "starship.toml", emit_starship(t))
     write(OUT / "previews.json", emit_previews(t))
+    write(OUT / "hypr/hypridle.conf", emit_hypridle(load_state()))
     print(f"lumen: generated theme={t['theme']} accent={t['accent_name']} → {OUT}")
     return 0
 

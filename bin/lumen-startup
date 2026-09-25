@@ -21,8 +21,9 @@ if [ -z "${LUMEN_NESTED:-}" ]; then
     agent=/usr/libexec/kf6/polkit-kde-authentication-agent-1
     [ -x "$agent" ] && ! pgrep -u "$(id -u)" -f "$agent" >/dev/null && run "$agent"
 
-    # Idle: dim → lock → screen off → suspend
-    run hypridle -c "$LUMEN_ROOT/hypr/hypridle.conf"
+    # Idle: dim → lock → screen off → suspend (timings: Settings → Power)
+    [ -f "$LUMEN_ROOT/generated/hypr/hypridle.conf" ] || python3 "$LUMEN_ROOT/theme/build.py" >>"$LOG" 2>&1
+    run hypridle -c "$LUMEN_ROOT/generated/hypr/hypridle.conf"
 
     # Clipboard history
     run wl-paste --type text --watch cliphist store

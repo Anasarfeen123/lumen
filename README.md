@@ -17,7 +17,7 @@ Real session: press Ctrl+Alt+F3 and log in. `~/.bash_profile` starts Lumen autom
 |---|---|
 | `theme/tokens.toml`, `theme/themes/*.toml` | Every design value. Edit here only. |
 | `theme/build.py` | Generates `generated/` (stdlib Python, no network) |
-| `hypr/` | Hyprland config in **Lua** (`hyprland.lua` + modules), hyprlock, hypridle. Check: `Hyprland --verify-config -c hypr/hyprland.lua` |
+| `hypr/` | Hyprland config in **Lua** (`hyprland.lua` + modules), hyprlock (hypridle.conf is generated from Settings → Power). Check: `Hyprland --verify-config -c hypr/hyprland.lua` |
 | `shell/` | Quickshell UI: `theme/` tokens, `components/` primitives, `services/` (audio, battery, network, bluetooth), `modules/` (bar, island, overview) |
 | `bin/lumen-session` | Starts Hyprland: GPU detection, nested test mode |
 | `bin/lumen-startup` | Everything launched at login |

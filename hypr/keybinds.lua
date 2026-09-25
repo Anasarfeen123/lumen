@@ -56,6 +56,7 @@ key("SUPER + P", hl.dsp.window.pin(), "Keep on all workspaces")
 key("SUPER + U", hl.dsp.window.pseudo(), "Pseudo-tile")
 key("SUPER + J", hl.dsp.layout("togglesplit"), "Flip split")
 key("SUPER + ALT + Return", global("lumen:appMenu"), "Menu of the focused app")
+key("SUPER + ALT + T", global("lumen:tray"), "Apps running in the background (tray)")
 key("SUPER + SHIFT + G", exec(bin .. "/lumen transparency toggle"), "Window transparency on/off")
 
 key("SUPER + left",  hl.dsp.focus({ direction = "left" }),  "Focus ← → ↑ ↓")

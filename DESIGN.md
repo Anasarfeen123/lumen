@@ -476,8 +476,7 @@ Hyprland and Quickshell (and kitty through remote control). Generated files are 
 │   ├── keybinds.conf
 │   ├── rules.conf         window + layer rules
 │   ├── workspaces.conf
-│   ├── hyprlock.conf
-│   └── hypridle.conf
+│   └── hyprlock.conf       (hypridle.conf is generated, §22)
 ├── shell/                 Quickshell config (qs -c lumen)
 │   ├── shell.qml
 │   ├── theme/             Theme.qml (watches generated/tokens.json)
@@ -617,7 +616,7 @@ password failure. Unlock happens only on PamResult.Success. Never used for sudo,
 Hyprland 0.57 removes the hyprlang `.conf` format, so Lumen's config is Lua: `hypr/hyprland.lua` loads the
 generated tokens (`generated/hypr/tokens.lua`, as `LM`) and requires `environment`, `monitors`, `input`,
 `look`, `animations`, `workspaces`, `rules`, `keybinds` and `startup`. Machine-local overrides go in
-`~/.config/lumen/local.lua`. hyprlock and hypridle keep their own hyprlang files (not affected).
+`~/.config/lumen/local.lua`. hyprlock keeps its hyprlang file; hypridle's is generated (§22).
 
 At runtime a dispatch is a Lua expression (`hl.dsp.focus({ workspace = 3 })`). The shell builds every
 one in **`services/Hypr.qml`**, the only place with dispatch syntax. Runtime config changes (game mode,
@@ -649,3 +648,25 @@ not available to Wayland shells for most toolkits, so Lumen offers the window's 
 On AC, Face ID starts on intent (a key, the pointer, or lid open). On battery the camera never starts by
 itself: press **F2** on the lock screen. Diagnosis tool: Settings → Face ID → Details (Gaze's own
 per-step scores).
+
+## 21. Tray drawer
+
+Background apps (Discord, Steam, WARP, KDE Connect…) get one quiet button in the status pill: up to three
+of their icons overlapped and desaturated, with an accent dot when one wants attention. It opens the
+**tray drawer**, a frosted list with every app's name and status line, in colour. Click opens the app,
+right-click or ⋯ opens its own menu, and middle-click runs its secondary action. The drawer also opens with
+a right-click on the workspaces pill or on the resting island, with **Super+Alt+T**, or with
+`ipc call tray toggle`. The button hides when nothing is in the tray.
+
+## 22. Idle, and why it checks the session
+
+Settings → Power → When idle picks **Lock after** (2/5/10/30 min, never) and **Sleep after** (15/30/60
+min, only on battery, never), stored as `idle_lock`/`idle_sleep` in state. `build.py` generates
+`generated/hypr/hypridle.conf`: dim a minute before the lock, screen off 30 s after, then suspend no
+sooner than a minute after the lock. `lumen set idle_*` restarts only this session's hypridle, never
+another session's.
+
+Every step runs through `scripts/idle.sh`, which does nothing unless this login session is the active
+one (`loginctl show-session $XDG_SESSION_ID -p Active`). Without that check, a Lumen session left
+running on another tty sees no input, decides you're away, and dims the backlight or suspends the whole
+laptop while you work in KDE or ii. (That was the "random sleep" bug of 2026-09-26.)

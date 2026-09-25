@@ -216,7 +216,12 @@ PanelWindow {
 
     function activate(button) {
         if (button === Qt.MiddleButton) { Media.toggle(); return; }
-        if (button === Qt.RightButton) { Island.dismiss(); return; }
+        if (button === Qt.RightButton) {
+            // Resting island → the tray drawer; otherwise dismiss what it shows
+            if (["idle", "idlePeek"].includes(win.shown)) TrayState.toggle(win.screen?.name ?? "");
+            else Island.dismiss();
+            return;
+        }
         switch (win.shown) {
         case "recording":
             Quickshell.execDetached([Theme.lumenRoot + "/scripts/screen-record.sh", "stop"]);

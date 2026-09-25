@@ -6,7 +6,7 @@
 #   lumen transparency [on|off|toggle]   window transparency (shell glass stays)
 #   lumen accent-hue <0-360>         set the wallpaper-derived accent hue (used by the picker)
 #   lumen clock <12h|24h>  ·  lumen motion <full|reduced>  ·  lumen reload
-#   lumen set <gaps|corners|border|anim_speed|follow_mouse|cursor|cursor_size> <value>
+#   lumen set <gaps|corners|border|anim_speed|follow_mouse|cursor|cursor_size|idle_lock|idle_sleep> <value>
 #   lumen check                     contrast report for the active theme
 set -eu
 LUMEN_ROOT=${LUMEN_ROOT:-$HOME/.config/lumen}
@@ -35,6 +35,20 @@ reload() {
     # Running kitties re-read their config (colours, opacity) on SIGUSR1;
     # the shell watches generated/tokens.json by itself.
     pkill -USR1 -u "$(id -u)" -x kitty 2>/dev/null || true
+}
+
+# Restart hypridle with the regenerated config — only the one Lumen started in
+# THIS Hyprland session (other sessions, e.g. illogical-impulse, run their own).
+restart_idle() {
+    [ -n "${LUMEN_NESTED:-}" ] && return 0      # nested test instances have no hypridle
+    sig=${HYPRLAND_INSTANCE_SIGNATURE:-}
+    [ -n "$sig" ] || return 0
+    for pid in $(pgrep -u "$(id -u)" -x hypridle); do
+        tr '\0' '\n' < "/proc/$pid/cmdline" 2>/dev/null | grep -Eq "^$LUMEN_ROOT/(generated/)?hypr/hypridle.conf\$" || continue
+        tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | grep -qx "HYPRLAND_INSTANCE_SIGNATURE=$sig" || continue
+        kill "$pid" 2>/dev/null || true
+    done
+    setsid -f hypridle -c "$LUMEN_ROOT/generated/hypr/hypridle.conf" >/dev/null 2>&1 </dev/null
 }
 
 case ${1:-} in
@@ -80,6 +94,9 @@ case ${1:-} in
                 set_state "$2" "$3"; reload
                 hyprctl setcursor "$(jq -r .cursor.theme "$LUMEN_ROOT/generated/tokens.json")" \
                                   "$(jq -r .cursor.size "$LUMEN_ROOT/generated/tokens.json")" >/dev/null 2>&1 || true ;;
+            idle_lock=2|idle_lock=5|idle_lock=10|idle_lock=15|idle_lock=30|idle_lock=never|\
+            idle_sleep=15|idle_sleep=30|idle_sleep=60|idle_sleep=battery|idle_sleep=never)
+                set_state "$2" "$3"; python3 "$LUMEN_ROOT/theme/build.py" >/dev/null; restart_idle ;;
             *) echo "lumen: unknown setting '${2:-}=${3:-}'" >&2; exit 2 ;;
         esac ;;
     reload)
