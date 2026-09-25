@@ -6,8 +6,8 @@ written by `lumen theme`), resolves every OKLCH color to sRGB hex, checks
 contrast, and writes one output per consumer into generated/:
 
     generated/tokens.json        resolved tokens (read by Quickshell, scripts)
-    generated/hypr/vars.conf     Hyprland/hyprlock $variables
-    generated/hypr/curves.conf   Hyprland bezier curves
+    generated/hypr/tokens.lua    Hyprland (Lua config) tokens
+    generated/hypr/vars.conf     hyprlock $variables
 
 Stdlib only. No network. Safe to run repeatedly (writes are atomic).
 """
@@ -264,12 +264,145 @@ def emit_hypr(t: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def emit_hypr_curves(t: dict) -> str:
-    """Bezier definitions live apart from variables: hyprlock sources vars only."""
-    lines = [f"# {HEADER}"]
-    for name, pts in t["motion"]["curves"].items():
-        lines.append(f"bezier = lm_{name}, " + ", ".join(f"{p:g}" for p in pts))
+def emit_hypr_lua(t: dict) -> str:
+    """Tokens for the Lua Hyprland config (hypr/*.lua read them as LM)."""
+    c, e, w, r, m = t["colors"], t["edge"], t["window"], t["radius"], t["motion"]
+    op = (lambda v: v) if t["transparency"] else (lambda v: 1.0)
+
+    def dur(ms, exit_=False):
+        return 1 if m["reduced"] else round(ms * (m["exit_ratio"] if exit_ else 1) / 100, 2)
+
+    def lua(v):
+        if isinstance(v, bool):
+            return "true" if v else "false"
+        if isinstance(v, (int, float)):
+            return repr(v)
+        if isinstance(v, str):
+            return '"' + v.replace('"', '\\"') + '"'
+        if isinstance(v, (list, tuple)):
+            return "{ " + ", ".join(lua(x) for x in v) + " }"
+        if isinstance(v, dict):
+            return "{ " + ", ".join(f"{k} = {lua(x)}" for k, x in v.items()) + " }"
+        raise TypeError(v)
+
+    tbl = {
+        "theme": t["theme"], "accent_name": t["accent_name"],
+        "color": {k: f"rgb({v})" for k, v in c.items()},
+        "accent_border": f"rgba({c['accent']}{alpha_hex(0.85)})",
+        "border": f"rgba({e['base']}{alpha_hex(e['border'])})",
+        "shadow": f"rgba(000000{alpha_hex(t['shadow']['alpha'])})",
+        "radius_window": r["md"], "squircle": r["squircle"],
+        "border_size": w["border"], "gaps_in": w["gaps_in"], "gaps_out": w["gaps_out"],
+        "follow_mouse": w["follow_mouse"],
+        "opacity": {"terminal": op(w["terminal_opacity"]), "app_active": op(w["app_active"]),
+                    "app_inactive": op(w["app_inactive"]), "glass_active": op(w["glass_app_active"]),
+                    "glass_inactive": op(w["glass_app_inactive"])},
+        "blur": dict(t["blur"]),
+        "shadow_range": t["shadow"]["range"], "shadow_power": t["shadow"]["render_power"],
+        "t": {"micro": dur(m["micro"]), "normal": dur(m["normal"]), "large": dur(m["large"]),
+              "window": dur(m["window"]), "normal_exit": dur(m["normal"], True), "window_exit": dur(m["window"], True)},
+        "curves": {k: [[v[0], v[1]], [v[2], v[3]]] for k, v in m["curves"].items()},
+    }
+    return f"-- {HEADER}\nreturn {lua(tbl)}\n"
+
+
+def emit_kitty(t: dict) -> str:
+    c, term = t["colors"], t["terminal"]
+    opacity = t["window"]["terminal_opacity"] if t["transparency"] else 1.0
+    order = ["black", "red", "green", "yellow", "blue", "magenta", "cyan", "white"]
+    lines = [f"# {HEADER}",
+             f"background #{c['bg']}", f"foreground #{c['text']}",
+             f"cursor #{c['accent']}", f"cursor_text_color #{c['on_accent']}",
+             f"selection_background #{c['accent']}", f"selection_foreground #{c['on_accent']}",
+             f"url_color #{c['accent']}",
+             f"active_border_color #{c['accent']}", f"inactive_border_color #{c['surface_hover']}",
+             f"active_tab_background #{c['surface_hover']}", f"active_tab_foreground #{c['text']}",
+             f"inactive_tab_background #{c['bg']}", f"inactive_tab_foreground #{c['text_muted']}",
+             f"tab_bar_background #{c['bg']}",
+             f"mark1_background #{c['accent']}", f"mark1_foreground #{c['on_accent']}",
+             f"background_opacity {opacity}"]
+    for i, name in enumerate(order):
+        lines.append(f"color{i} #{term[name]}")
+        lines.append(f"color{i + 8} #{term['bright_' + name]}")
     return "\n".join(lines) + "\n"
+
+
+def emit_starship(t: dict) -> str:
+    c = t["colors"]
+    return f"""# {HEADER}
+# Lumen prompt: calm, one line, information only when it matters.
+#   ~/Projects/lumen  main ●  2.3s  ❯
+add_newline = false
+format = "$directory$git_branch$git_status$python$nodejs$rust$cmd_duration$jobs$character"
+palette = "lumen"
+
+[palettes.lumen]
+accent = "#{c['accent']}"
+text = "#{c['text']}"
+muted = "#{c['text_muted']}"
+secondary = "#{c['text_secondary']}"
+success = "#{c['success']}"
+warning = "#{c['warning']}"
+error = "#{c['error']}"
+
+[directory]
+style = "bold accent"
+truncation_length = 3
+truncation_symbol = "…/"
+read_only = " 󰌾"
+read_only_style = "muted"
+
+[git_branch]
+format = "[$symbol$branch]($style) "
+symbol = " "
+style = "secondary"
+
+[git_status]
+format = "([$all_status$ahead_behind]($style) )"
+style = "warning"
+conflicted = "="
+modified = "●"
+staged = "+"
+untracked = "?"
+deleted = "✕"
+renamed = "»"
+ahead = "↑$count"
+behind = "↓$count"
+diverged = "↕"
+stashed = ""
+
+[python]
+format = "[$symbol$virtualenv]($style) "
+symbol = " "
+style = "muted"
+detect_extensions = []
+detect_files = []
+
+[nodejs]
+format = "[$symbol$version]($style) "
+symbol = " "
+style = "muted"
+
+[rust]
+format = "[$symbol$version]($style) "
+symbol = " "
+style = "muted"
+
+[cmd_duration]
+min_time = 2000
+format = "[$duration]($style) "
+style = "muted"
+
+[jobs]
+format = "[$symbol$number]($style) "
+symbol = "✦"
+style = "accent"
+
+[character]
+success_symbol = "[❯](accent)"
+error_symbol = "[❯](error)"
+vimcmd_symbol = "[❮](success)"
+"""
 
 
 def emit_kitty(t: dict) -> str:
@@ -546,12 +679,11 @@ def main() -> int:
         print(f"build.py: WARNING contrast below target for {t['contrast_failures']}", file=sys.stderr)
 
     write(OUT / "tokens.json", json.dumps(t, indent=2) + "\n")
-    write(OUT / "hypr/vars.conf", emit_hypr(t))
-    write(OUT / "hypr/curves.conf", emit_hypr_curves(t))
+    write(OUT / "hypr/vars.conf", emit_hypr(t))            # hyprlock (hyprlang) — fallback lock
+    write(OUT / "hypr/tokens.lua", emit_hypr_lua(t))       # hyprland.lua (Hyprland's config is Lua)
     write(OUT / "kitty/theme.conf", emit_kitty(t))
     write(OUT / "starship.toml", emit_starship(t))
     write(OUT / "previews.json", emit_previews(t))
-    write(OUT / "keybinds.json", json.dumps(parse_keybinds(ROOT / "hypr/keybinds.conf"), indent=1) + "\n")
     print(f"lumen: generated theme={t['theme']} accent={t['accent_name']} → {OUT}")
     return 0
 

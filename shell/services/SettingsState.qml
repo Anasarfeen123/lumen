@@ -48,7 +48,7 @@ Singleton {
     function launch(p) {
         Quickshell.execDetached(["sh", "-c",
             'pid=$(cat "$3" 2>/dev/null) && tr "\\0" " " < "/proc/$pid/cmdline" 2>/dev/null | grep -q settings.qml && ' +
-            '{ qs ipc --pid "$pid" call settings open "$2" >/dev/null 2>&1; hyprctl dispatch focuswindow "pid:$pid" >/dev/null 2>&1; exit 0; }; ' +
+            '{ qs ipc --pid "$pid" call settings open "$2" >/dev/null 2>&1; hyprctl dispatch "hl.dsp.focus({ window = \\"pid:$pid\\" })" >/dev/null 2>&1; exit 0; }; ' +
             'LUMEN_SETTINGS_PAGE="$2" exec qs -p "$1/shell/settings.qml"', "sh", Theme.lumenRoot, p || "appearance", pidFile]);
     }
     // Settings app → main shell (wallpaper picker, cheatsheet live there)

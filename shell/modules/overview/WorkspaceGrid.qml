@@ -37,7 +37,7 @@ Row {
     }
     function activateSelected() {
         if (selectedIndex < 0) return false;
-        Hyprland.dispatch(`workspace ${ids[selectedIndex]}`);
+        Hypr.workspace(ids[selectedIndex]);
         return true;
     }
 

@@ -102,7 +102,7 @@ GlassSurface {
                 height: Theme.barHeight
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: Hyprland.dispatch(`workspace ${wsId}`)
+                onClicked: Hypr.workspace(wsId)
 
                 Rectangle {
                     anchors.centerIn: parent
@@ -121,6 +121,6 @@ GlassSurface {
 
     WheelHandler {
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-        onWheel: event => Hyprland.dispatch(event.angleDelta.y > 0 ? "workspace r-1" : "workspace r+1")
+        onWheel: event => Hypr.workspace(event.angleDelta.y > 0 ? "r-1" : "r+1")
     }
 }

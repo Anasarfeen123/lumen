@@ -172,7 +172,7 @@ Singleton {
         const i = indexOf(nid);
         const app = (n?.desktopEntry || (i >= 0 ? history.get(i).appName : "")).toLowerCase();
         const win = Hyprland.toplevels.values.find(t => (t.lastIpcObject?.class ?? "").toLowerCase().includes(app));
-        if (win) Hyprland.dispatch(`focuswindow address:${win.lastIpcObject?.address ?? "0x" + win.address}`);
+        if (win) Hypr.focusWindow(win.lastIpcObject?.address ?? "0x" + win.address);
     }
 
     function reply(nid, text) {

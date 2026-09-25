@@ -432,7 +432,7 @@ so almost nothing needs to poll a shell script. One process, one token file, one
 | Tokens | One `Theme.qml` generated from `theme/*.toml` | Duplicated into 3 CSS dialects |
 | Idle cost | One process, event-driven | 3–4 processes plus polling scripts |
 
-Hyprland-native parts stay native: hyprlock (lock screen), hypridle, hyprpaper/swww (wallpaper),
+Hyprland-native parts stay native: hypridle, hyprlock (fallback lock),
 kitty and fish.
 
 ### 10.2 Token pipeline
@@ -612,10 +612,18 @@ The camera starts on intent (a key or pointer movement, or waking from sleep), n
 lock, and at most once per 2.5 s. A miss hands over to the password silently and is never counted as a
 password failure. Unlock happens only on PamResult.Success. Never used for sudo, polkit or login.
 
-## 17. Known upcoming break: Hyprland 0.57 drops `.conf`
+## 17. Hyprland config is Lua ✓ (ported 2026-09-26)
 
-Hyprland 0.56 warns that the hyprlang `.conf` format will be removed in 0.57. `hypr/*.conf` must be
-ported to the Lua config before Fedora ships 0.57, or the Lumen session will not start. **Top priority.**
+Hyprland 0.57 removes the hyprlang `.conf` format, so Lumen's config is Lua: `hypr/hyprland.lua` loads the
+generated tokens (`generated/hypr/tokens.lua`, as `LM`) and requires `environment`, `monitors`, `input`,
+`look`, `animations`, `workspaces`, `rules`, `keybinds` and `startup`. Machine-local overrides go in
+`~/.config/lumen/local.lua`. hyprlock and hypridle keep their own hyprlang files (not affected).
+
+At runtime a dispatch is a Lua expression (`hl.dsp.focus({ workspace = 3 })`). The shell builds every
+one in **`services/Hypr.qml`**, the only place with dispatch syntax. Runtime config changes (game mode,
+battery-saver blur) use `hyprctl eval 'hl.config({ … })'`. Every bind carries a `"Section: Label"`
+description, and the cheatsheet reads those live from `hyprctl binds -j`.
+Check the config: `Hyprland --verify-config -c hypr/hyprland.lua`.
 
 ## 18. The bar's app menu
 

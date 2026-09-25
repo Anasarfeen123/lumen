@@ -77,7 +77,7 @@ Item {
 
     HoverHandler { id: hover }
     TapHandler {
-        onTapped: { Hyprland.dispatch(`workspace ${root.wsId}`); root.done(); }
+        onTapped: { Hypr.workspace(root.wsId); root.done(); }
     }
 
     DropArea {
@@ -85,7 +85,7 @@ Item {
         anchors.fill: parent
         keys: ["lumen-window"]
         onDropped: d => {
-            Hyprland.dispatch(`movetoworkspacesilent ${root.wsId},address:${d.source.address}`);
+            Hypr.moveToWorkspace(d.source.address, root.wsId, false);
             refresh.start();
         }
     }

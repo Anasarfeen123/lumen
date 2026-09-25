@@ -1,5 +1,6 @@
 generated/
 local.conf
+local.lua
 session.env
 # editor / OS noise
 *.swp

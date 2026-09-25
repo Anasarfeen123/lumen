@@ -27,7 +27,7 @@ Singleton {
         switch (id) {
         case "lock":     Lock.lock(); break;
         case "suspend":  Quickshell.execDetached(["systemctl", "suspend"]); break;
-        case "logout":   Hyprland.dispatch("exit"); break;
+        case "logout":   Hypr.exit(); break;
         case "reboot":   Quickshell.execDetached(["systemctl", "reboot"]); break;
         case "poweroff": Quickshell.execDetached(["systemctl", "poweroff"]); break;
         }

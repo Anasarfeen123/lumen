@@ -17,7 +17,7 @@ Real session: press Ctrl+Alt+F3 and log in. `~/.bash_profile` starts Lumen autom
 |---|---|
 | `theme/tokens.toml`, `theme/themes/*.toml` | Every design value. Edit here only. |
 | `theme/build.py` | Generates `generated/` (stdlib Python, no network) |
-| `hypr/` | Hyprland modules, hyprlock, hypridle |
+| `hypr/` | Hyprland config in **Lua** (`hyprland.lua` + modules), hyprlock, hypridle. Check: `Hyprland --verify-config -c hypr/hyprland.lua` |
 | `shell/` | Quickshell UI: `theme/` tokens, `components/` primitives, `services/` (audio, battery, network, bluetooth), `modules/` (bar, island, overview) |
 | `bin/lumen-session` | Starts Hyprland: GPU detection, nested test mode |
 | `bin/lumen-startup` | Everything launched at login |
@@ -26,4 +26,4 @@ Real session: press Ctrl+Alt+F3 and log in. `~/.bash_profile` starts Lumen autom
 | `bin/lumen-dgpu` | Run one app on the NVIDIA GPU |
 | `scripts/` | screenshot, screen-record, wallpaper, emoji-data |
 
-Machine-local overrides: `local.conf` (Hyprland), `session.env` (e.g. `LUMEN_DGPU=off`). Both untracked.
+Machine-local overrides: `local.lua` (Hyprland), `session.env` (e.g. `LUMEN_DGPU=off`). Both untracked.

@@ -18,8 +18,6 @@ export LUMEN_ROOT
 # shellcheck disable=SC1091  # optional, user-provided
 [ -r "$LUMEN_ROOT/session.env" ] && . "$LUMEN_ROOT/session.env"
 
-# Hyprland errors on a missing `source =` file; keep the local override present.
-[ -e "$LUMEN_ROOT/local.conf" ] || printf '# Machine-local Lumen overrides (untracked)\n' > "$LUMEN_ROOT/local.conf"
 
 python3 "$LUMEN_ROOT/theme/build.py" >/dev/null
 
@@ -42,7 +40,7 @@ if [ -n "${WAYLAND_DISPLAY:-}" ]; then
     export LUMEN_NESTED=1
     export LUMEN_DEV=1          # nested = testing: the shell live-reloads on file changes
     echo "lumen: running nested inside the current session (test mode)"
-    exec Hyprland -c "$LUMEN_ROOT/hypr/hyprland.conf"
+    exec Hyprland -c "$LUMEN_ROOT/hypr/hyprland.lua"
 fi
 
 igpu=$(card_for_vendor 0x1002 || true)   # AMD
@@ -53,4 +51,4 @@ if [ -n "$dgpu" ] && [ "${LUMEN_DGPU:-on}" != off ]; then
 fi
 [ -n "$devices" ] && export AQ_DRM_DEVICES="$devices"
 
-exec start-hyprland -- -c "$LUMEN_ROOT/hypr/hyprland.conf"
+exec start-hyprland -- -c "$LUMEN_ROOT/hypr/hyprland.lua"

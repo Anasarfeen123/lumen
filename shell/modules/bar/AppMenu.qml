@@ -96,7 +96,7 @@ Item {
 
         function open() { visible = true; }
         function close() { visible = false; }
-        function act(cmd) { Hyprland.dispatch(cmd); close(); }
+        function act(fn) { fn(); close(); }
 
         HyprlandFocusGrab {
             active: menu.visible
@@ -164,13 +164,13 @@ Item {
                     onClicked: { root.entry?.execute(); menu.close(); }
                 }
                 Item_ { icon: "picture_in_picture"; label: "Float"; keys: "Super+Alt+Space"; checked: root.ipc.floating === true
-                        onClicked: menu.act("togglefloating address:" + root.address) }
+                        onClicked: menu.act(() => Hypr.toggleFloat(root.address)) }
                 Item_ { icon: "fit_screen"; label: "Maximise"; keys: "Super+D"; checked: root.ipc.fullscreen === 1
-                        onClicked: menu.act("fullscreen 1") }
+                        onClicked: menu.act(() => Hypr.fullscreen("maximized")) }
                 Item_ { icon: "fullscreen"; label: "Fullscreen"; keys: "Super+F"; checked: root.ipc.fullscreen === 2
-                        onClicked: menu.act("fullscreen 0") }
+                        onClicked: menu.act(() => Hypr.fullscreen("fullscreen")) }
                 Item_ { icon: "push_pin"; label: "Keep on all workspaces"; keys: "Super+P"; checked: root.ipc.pinned === true
-                        onClicked: menu.act("pin address:" + root.address) }
+                        onClicked: menu.act(() => Hypr.pin(root.address)) }
 
                 // Move to workspace
                 Item {
@@ -189,14 +189,14 @@ Item {
                                 width: 30; height: 28
                                 radius: Theme.radius.sm
                                 highlighted: here
-                                onClicked: menu.act(`movetoworkspacesilent ${modelData},address:${root.address}`)
+                                onClicked: menu.act(() => Hypr.moveToWorkspace(root.address, modelData, false))
                                 LText { anchors.centerIn: parent; role: "bodyStrong"; text: modelData; color: parent.here ? Theme.accent : Theme.text }
                             }
                         }
                         HoverTarget {
                             width: 30; height: 28
                             radius: Theme.radius.sm
-                            onClicked: menu.act(`movetoworkspacesilent special:scratch,address:${root.address}`)
+                            onClicked: menu.act(() => Hypr.moveToWorkspace(root.address, "special:scratch", false))
                             LIcon { anchors.centerIn: parent; icon: "inventory_2"; size: 16 }
                         }
                     }
@@ -206,9 +206,9 @@ Item {
                 Item_ { icon: "screenshot_monitor"; label: "Screenshot this window"; keys: "Alt+PrtSc"
                         onClicked: { menu.close(); Quickshell.execDetached(["sh", "-c", "sleep 0.25; exec \"$1\" window", "sh", Theme.lumenRoot + "/scripts/screenshot.sh"]); } }
                 Item_ { icon: "close"; label: "Close"; keys: "Super+Q"
-                        onClicked: menu.act("closewindow address:" + root.address) }
+                        onClicked: menu.act(() => Hypr.closeWindow(root.address)) }
                 Item_ { icon: "dangerous"; label: "Force quit"; danger: true
-                        onClicked: menu.act("killwindow address:" + root.address) }
+                        onClicked: menu.act(() => Hypr.killWindow(root.address)) }
             }
         }
     }

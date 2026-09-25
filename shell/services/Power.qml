@@ -26,7 +26,7 @@ Singleton {
     }
 
     function applyBlur() {
-        Quickshell.execDetached(["hyprctl", "keyword", "decoration:blur:enabled", saver ? "false" : "true"]);
+        Hypr.set(`{ decoration = { blur = { enabled = ${saver ? "false" : "true"} } } }`);
     }
     onSaverChanged: applyBlur()
     Component.onCompleted: if (saver) applyBlur()

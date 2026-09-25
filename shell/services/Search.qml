@@ -21,7 +21,7 @@ Singleton {
     readonly property var actions: [
         { title: "Lock", glyph: "lock", keys: "lock screen", cmd: ["loginctl", "lock-session"] },
         { title: "Suspend", glyph: "bedtime", keys: "sleep suspend", cmd: ["systemctl", "suspend"] },
-        { title: "Log out", glyph: "logout", keys: "logout log out exit sign out", cmd: ["hyprctl", "dispatch", "exit"], destructive: true },
+        { title: "Log out", glyph: "logout", keys: "logout log out exit sign out", cmd: ["hyprctl", "dispatch", "hl.dsp.exit()"], destructive: true },
         { title: "Restart", glyph: "restart_alt", keys: "restart reboot", cmd: ["systemctl", "reboot"], destructive: true },
         { title: "Shut down", glyph: "power_settings_new", keys: "shutdown shut down power off poweroff", cmd: ["systemctl", "poweroff"], destructive: true },
         { title: "Screenshot (region)", glyph: "screenshot_region", keys: "screenshot capture snip", cmd: [Theme.lumenRoot + "/scripts/screenshot.sh", "region"], delay: true },
@@ -118,7 +118,7 @@ Singleton {
                 out.push({ kind: "window", title: w.t.title || cls,
                            subtitle: `${entry?.name ?? cls} · workspace ${w.t.workspace?.id ?? "?"}`,
                            icon: entry ? Apps.iconFor(entry) : "", glyph: "select_window", badge: "Window",
-                           run: () => Hyprland.dispatch(`focuswindow address:${w.t.lastIpcObject?.address ?? ("0x" + w.t.address)}`) });
+                           run: () => Hypr.focusWindow(w.t.lastIpcObject?.address ?? ("0x" + w.t.address)) });
             }
 
             const acts = actions

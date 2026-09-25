@@ -77,9 +77,9 @@ ClippingRectangle {
         onClicked: m => {
             if (dragged) return;
             if (m.button === Qt.MiddleButton) {
-                Hyprland.dispatch(`closewindow address:${root.address}`);
+                Hypr.closeWindow(root.address);
             } else {
-                Hyprland.dispatch(`focuswindow address:${root.address}`);
+                Hypr.focusWindow(root.address);
                 root.done();
             }
         }

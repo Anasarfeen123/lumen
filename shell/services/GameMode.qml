@@ -15,9 +15,8 @@ Singleton {
         if (on) {
             dndBefore = Notifications.dnd;
             Notifications.setDnd(true);
-            Quickshell.execDetached(["hyprctl", "--batch",
-                "keyword animations:enabled 0; keyword decoration:blur:enabled 0; keyword decoration:shadow:enabled 0; " +
-                "keyword general:gaps_in 0; keyword general:gaps_out 0; keyword general:border_size 1; keyword decoration:rounding 0"]);
+            Hypr.set("{ animations = { enabled = false }, decoration = { blur = { enabled = false }, shadow = { enabled = false }, rounding = 0 }, " +
+                     "general = { gaps_in = 0, gaps_out = 0, border_size = 1 } }");
         } else {
             Notifications.setDnd(dndBefore);
             Quickshell.execDetached(["hyprctl", "reload"]);

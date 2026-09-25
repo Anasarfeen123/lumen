@@ -70,7 +70,7 @@ PanelWindow {
         // Scroll anywhere on the merged bar → previous / next workspace
         WheelHandler {
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-            onWheel: event => Hyprland.dispatch(event.angleDelta.y > 0 ? "workspace r-1" : "workspace r+1")
+            onWheel: event => Hypr.workspace(event.angleDelta.y > 0 ? "r-1" : "r+1")
         }
 
         states: State {
