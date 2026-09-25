@@ -1,0 +1,32 @@
+# OLED — true black; glass is more opaque so black pixels stay black.
+name = "OLED"
+mode = "dark"
+neutral_hue = 255
+
+[neutral]
+bg               = [0.000, 0.000]
+surface          = [0.130, 0.006]
+surface_elevated = [0.170, 0.008]
+surface_hover    = [0.220, 0.010]
+text             = [0.960, 0.004]
+text_secondary   = [0.780, 0.010]
+text_muted       = [0.625, 0.012]
+
+[edge]
+base   = "ffffff"
+border = 0.08
+strong = 0.14
+
+[accent]
+l = 0.80
+c = 0.115
+hover_dl  = 0.05
+on_accent = [0.20, 0.02]
+
+[status]
+success = [0.80, 0.14, 152]
+warning = [0.85, 0.13, 88]
+error   = [0.70, 0.17, 25]
+
+[glass]
+alpha_scale = 1.2   # 0.72 → 0.86, 0.80 → 0.96 (clamped to 1)

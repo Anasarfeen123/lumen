@@ -1,0 +1,56 @@
+#!/bin/sh
+# lumen-session — start Hyprland with the Lumen config.
+#
+# From a TTY / display manager: picks GPUs, builds tokens, starts Hyprland
+#   under start-hyprland's watchdog.
+# From inside another Wayland session: runs Lumen nested in a window for
+#   testing (session-wide services are skipped, see lumen-startup).
+#
+# Hybrid GPU: the AMD iGPU always renders (listed first). The NVIDIA dGPU is
+# added second only if its driver is loaded, because the HDMI port is wired
+# to it. Set LUMEN_DGPU=off (e.g. in ~/.config/lumen/session.env) to leave
+# the dGPU entirely alone for maximum battery life.
+set -eu
+
+LUMEN_ROOT=${LUMEN_ROOT:-$HOME/.config/lumen}
+export LUMEN_ROOT
+
+# shellcheck disable=SC1091  # optional, user-provided
+[ -r "$LUMEN_ROOT/session.env" ] && . "$LUMEN_ROOT/session.env"
+
+# Hyprland errors on a missing `source =` file; keep the local override present.
+[ -e "$LUMEN_ROOT/local.conf" ] || printf '# Machine-local Lumen overrides (untracked)\n' > "$LUMEN_ROOT/local.conf"
+
+python3 "$LUMEN_ROOT/theme/build.py" >/dev/null
+
+# Lumen-only app theming: these variables exist only in this session, so the
+# same kitty / starship binaries look like ii elsewhere and like Lumen here.
+export KITTY_CONFIG_DIRECTORY="$LUMEN_ROOT/kitty"
+export STARSHIP_CONFIG="$LUMEN_ROOT/generated/starship.toml"
+
+# Resolve /dev/dri/cardN by PCI vendor. cardN numbers change between boots,
+# and by-path names contain ':' which AQ_DRM_DEVICES uses as its separator.
+card_for_vendor() {
+    for dev in /sys/class/drm/card[0-9]*; do
+        case $dev in *-*) continue ;; esac
+        [ "$(cat "$dev/device/vendor" 2>/dev/null)" = "$1" ] && { echo "/dev/dri/${dev##*/}"; return 0; }
+    done
+    return 1
+}
+
+if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    export LUMEN_NESTED=1
+    export LUMEN_DEV=1          # nested = testing: the shell live-reloads on file changes
+    echo "lumen: running nested inside the current session (test mode)"
+    exec Hyprland -c "$LUMEN_ROOT/hypr/hyprland.conf"
+fi
+
+igpu=$(card_for_vendor 0x1002 || true)   # AMD
+dgpu=$(card_for_vendor 0x10de || true)   # NVIDIA
+devices=$igpu
+if [ -n "$dgpu" ] && [ "${LUMEN_DGPU:-on}" != off ]; then
+    devices=${devices:+$devices:}$dgpu
+fi
+[ -n "$devices" ] && export AQ_DRM_DEVICES="$devices"
+
+exec start-hyprland -- -c "$LUMEN_ROOT/hypr/hyprland.conf"

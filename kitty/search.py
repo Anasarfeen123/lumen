@@ -1,0 +1,1 @@
+/home/anas07/.config/kitty/search.py

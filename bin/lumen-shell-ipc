@@ -1,0 +1,18 @@
+#!/bin/sh
+# lumen-shell-ipc — `qs ipc call …` to THIS Hyprland session's Lumen shell.
+#   lumen-shell-ipc <target> <function> [args…]
+# Several Lumen sessions can run at once (a real one on a TTY, nested test
+# windows). `qs -p <path> ipc` would pick any of them; this one only talks to
+# the shell whose HYPRLAND_INSTANCE_SIGNATURE matches the caller's.
+set -u
+[ $# -ge 2 ] || { echo "usage: lumen-shell-ipc <target> <function> [args…]" >&2; exit 2; }
+sig=${HYPRLAND_INSTANCE_SIGNATURE:-}
+[ -n "$sig" ] || { echo "lumen-shell-ipc: not inside a Hyprland session" >&2; exit 1; }
+for pid in $(pgrep -u "$(id -u)" -x qs; pgrep -u "$(id -u)" -x quickshell); do
+    tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | grep -qx "HYPRLAND_INSTANCE_SIGNATURE=$sig" || continue
+    tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -Eq 'lumen/shell/?( |$)' || continue
+    # shellcheck disable=SC2093  # intended: hand over to the first matching shell
+    exec qs ipc --pid "$pid" call "$@"
+done
+echo "lumen-shell-ipc: no Lumen shell in this session" >&2
+exit 1

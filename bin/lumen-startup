@@ -1,0 +1,42 @@
+#!/bin/sh
+# lumen-startup — everything Lumen launches at login, in one readable place.
+# Run once per Hyprland instance (exec-once). When nested (LUMEN_NESTED=1) it
+# skips services that belong to the whole login session, so a test instance
+# can't hijack the real desktop's portals, polkit agent or idle handling.
+set -u
+
+LUMEN_ROOT=${LUMEN_ROOT:-$HOME/.config/lumen}
+LOG=${XDG_RUNTIME_DIR:-/tmp}/lumen-startup.log
+: > "$LOG"
+
+run() { "$@" >>"$LOG" 2>&1 & }
+
+if [ -z "${LUMEN_NESTED:-}" ]; then
+    # Let systemd/D-Bus services (portals, notifications) find this session.
+    dbus-update-activation-environment --systemd \
+        WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP \
+        HYPRLAND_INSTANCE_SIGNATURE QT_QPA_PLATFORMTHEME KITTY_CONFIG_DIRECTORY STARSHIP_CONFIG >>"$LOG" 2>&1
+
+    # Authentication dialogs (replaced by a Lumen-styled agent in Phase 9)
+    agent=/usr/libexec/kf6/polkit-kde-authentication-agent-1
+    [ -x "$agent" ] && ! pgrep -u "$(id -u)" -f "$agent" >/dev/null && run "$agent"
+
+    # Idle: dim → lock → screen off → suspend
+    run hypridle -c "$LUMEN_ROOT/hypr/hypridle.conf"
+
+    # Clipboard history
+    run wl-paste --type text --watch cliphist store
+    run wl-paste --type image --watch cliphist store
+fi
+
+# Wallpaper: the shell draws it (cross-fades); hyprpaper only if there is no shell
+if [ -f "$LUMEN_ROOT/shell/shell.qml" ]; then
+    "$LUMEN_ROOT/scripts/wallpaper.sh" init >>"$LOG" 2>&1
+else
+    "$LUMEN_ROOT/scripts/wallpaper.sh" init --hyprpaper >>"$LOG" 2>&1
+fi
+
+# Shell (Quickshell) — enabled from Phase 3
+if [ -f "$LUMEN_ROOT/shell/shell.qml" ]; then
+    run qs -p "$LUMEN_ROOT/shell"
+fi

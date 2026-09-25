@@ -1,0 +1,32 @@
+# Midnight — Dark's lightness ramp with chroma pushed toward deep blue.
+name = "Midnight"
+mode = "dark"
+neutral_hue = 265
+
+[neutral]
+bg               = [0.150, 0.030]
+surface          = [0.195, 0.034]
+surface_elevated = [0.235, 0.036]
+surface_hover    = [0.280, 0.036]
+text             = [0.960, 0.008]
+text_secondary   = [0.780, 0.020]
+text_muted       = [0.625, 0.028]
+
+[edge]
+base   = "ffffff"
+border = 0.08
+strong = 0.14
+
+[accent]
+l = 0.80
+c = 0.115
+hover_dl  = 0.05
+on_accent = [0.20, 0.02]
+
+[status]
+success = [0.80, 0.14, 152]
+warning = [0.85, 0.13, 88]
+error   = [0.70, 0.17, 25]
+
+[glass]
+alpha_scale = 1.0

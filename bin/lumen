@@ -1,0 +1,87 @@
+#!/bin/sh
+# lumen — small control CLI.
+#   lumen theme                     rebuild tokens + reload everything
+#   lumen theme <dark|midnight|oled|light>
+#   lumen accent <ion|ember|iris|jade|wallpaper>
+#   lumen transparency [on|off|toggle]   window transparency (shell glass stays)
+#   lumen accent-hue <0-360>         set the wallpaper-derived accent hue (used by the picker)
+#   lumen clock <12h|24h>  ·  lumen motion <full|reduced>  ·  lumen reload
+#   lumen set <gaps|corners|border|anim_speed|follow_mouse> <value>
+#   lumen check                     contrast report for the active theme
+set -eu
+LUMEN_ROOT=${LUMEN_ROOT:-$HOME/.config/lumen}
+STATE=${XDG_STATE_HOME:-$HOME/.local/state}/lumen/state.json
+
+# State edits are serialised: several Lumen processes (shells, the settings
+# app) may write at the same moment. flock + a unique temp file + atomic mv
+# means a write can never clobber or truncate another.
+edit_state() {   # edit_state <jq args…> <filter>
+    mkdir -p "$(dirname "$STATE")"
+    (
+        flock -w 5 9 || { echo "lumen: state is busy" >&2; exit 1; }
+        [ -s "$STATE" ] && jq -e type "$STATE" >/dev/null 2>&1 || echo '{}' > "$STATE"
+        tmp=$(mktemp "$STATE.XXXXXX") || exit 1
+        if jq "$@" "$STATE" > "$tmp"; then mv "$tmp" "$STATE"; else rm -f "$tmp"; exit 1; fi
+    ) 9>"$STATE.lock"
+}
+set_state() {   # set_state <key> <value>
+    # shellcheck disable=SC2016  # $k/$v are jq variables
+    edit_state --arg k "$1" --arg v "$2" '.[$k] = $v'
+}
+
+reload() {
+    python3 "$LUMEN_ROOT/theme/build.py"
+    hyprctl reload >/dev/null 2>&1 || true
+    # Running kitties re-read their config (colours, opacity) on SIGUSR1;
+    # the shell watches generated/tokens.json by itself.
+    pkill -USR1 -u "$(id -u)" -x kitty 2>/dev/null || true
+}
+
+case ${1:-} in
+    theme)
+        if [ -n "${2:-}" ]; then
+            [ -f "$LUMEN_ROOT/theme/themes/$2.toml" ] || { echo "lumen: no theme '$2'" >&2; exit 1; }
+            set_state theme "$2"
+        fi
+        reload ;;
+    accent)
+        [ -n "${2:-}" ] || { echo "usage: lumen accent <name>" >&2; exit 2; }
+        set_state accent "$2"; reload ;;
+    transparency)
+        cur=$(jq -r '.transparency // "on"' "$STATE" 2>/dev/null || echo on)
+        case ${2:-toggle} in
+            on|off) new=$2 ;;
+            toggle) [ "$cur" = off ] && new=on || new=off ;;
+            *) echo "usage: lumen transparency [on|off|toggle]" >&2; exit 2 ;;
+        esac
+        set_state transparency "$new"
+        reload
+        if [ "$new" = on ]; then icon=blur_on; msg="Transparency on"; else icon=blur_off; msg="Transparency off"; fi
+        "$LUMEN_ROOT/bin/lumen-shell-ipc" island event "$icon" "$msg" "Super+Shift+G to switch" >/dev/null 2>&1 || true ;;
+    accent-hue)
+        case ${2:-} in ''|*[!0-9.]*) echo "usage: lumen accent-hue <0-360>" >&2; exit 2 ;; esac
+        # shellcheck disable=SC2016  # $h is a jq variable
+        edit_state --argjson h "$2" '.wallpaper_hue = $h'
+        [ "$(jq -r '.accent // ""' "$STATE")" = wallpaper ] && reload || true ;;
+    clock)
+        case ${2:-} in 12h|24h) set_state clock "$2"; reload ;; *) echo "usage: lumen clock 12h|24h" >&2; exit 2 ;; esac ;;
+    motion)
+        case ${2:-} in full) set_state reduced_motion off; reload ;; reduced) set_state reduced_motion on; reload ;;
+                       *) echo "usage: lumen motion full|reduced" >&2; exit 2 ;; esac ;;
+    set)
+        # Whitelisted window/motion preferences (Lumen Settings → Windows)
+        case "${2:-}=${3:-}" in
+            gaps=compact|gaps=normal|gaps=roomy|corners=square|corners=soft|corners=round|\
+            border=off|border=thin|border=normal|anim_speed=fast|anim_speed=normal|anim_speed=relaxed|\
+            follow_mouse=on|follow_mouse=off)
+                set_state "$2" "$3"; reload ;;
+            *) echo "lumen: unknown setting '${2:-}=${3:-}'" >&2; exit 2 ;;
+        esac ;;
+    reload)
+        hyprctl reload >/dev/null 2>&1 || true
+        "$LUMEN_ROOT/bin/lumen-shell-ipc" shell reload ;;
+    check)
+        python3 "$LUMEN_ROOT/theme/build.py" --check ;;
+    *)
+        sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

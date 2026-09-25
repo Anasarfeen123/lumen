@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Lumen: the island, glowing — light radiating from behind the pill -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f2a36"/>
+      <stop offset="1" stop-color="#0b1016"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#8ee9fa" stop-opacity="0.95"/>
+      <stop offset="0.45" stop-color="#52d1e9" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#52d1e9" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="72" fill="url(#tile)"/>
+  <rect x="1.5" y="1.5" width="253" height="253" rx="70.5" fill="none" stroke="url(#rim)" stroke-width="3"/>
+  <ellipse cx="128" cy="128" rx="112" ry="92" fill="url(#glow)"/>
+  <rect x="58" y="104" width="140" height="48" rx="24" fill="#ffffff"/>
+  <circle cx="176" cy="128" r="8" fill="#0b1016" opacity="0.85"/>
+</svg>

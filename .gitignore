@@ -1,0 +1,7 @@
+generated/
+local.conf
+session.env
+# editor / OS noise
+*.swp
+*~
+.DS_Store

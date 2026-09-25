@@ -1,0 +1,10 @@
+#!/bin/sh
+# lumen-dgpu — run ONE program on the NVIDIA dGPU (PRIME render offload).
+#   lumen-dgpu steam      lumen-dgpu blender
+# Everything else stays on the AMD iGPU.
+[ $# -gt 0 ] || { echo "usage: lumen-dgpu <command> [args…]" >&2; exit 2; }
+if command -v switcherooctl >/dev/null 2>&1 && switcherooctl list 2>/dev/null | grep -qi nvidia; then
+    exec switcherooctl launch -g 1 "$@"
+fi
+export __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only
+exec "$@"

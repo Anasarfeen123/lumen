@@ -1,0 +1,13 @@
+#!/bin/sh
+# lumen-launch — run the first available of several commands.
+#   lumen-launch brave-browser firefox "kitty -e btop"
+# Each argument is one candidate; its first word must be on PATH.
+for candidate in "$@"; do
+    prog=${candidate%% *}
+    if command -v "$prog" >/dev/null 2>&1; then
+        # shellcheck disable=SC2086  # intentional word-splitting of the candidate
+        exec $candidate
+    fi
+done
+notify-send -a Lumen "Nothing to launch" "None of: $*" 2>/dev/null
+exit 1

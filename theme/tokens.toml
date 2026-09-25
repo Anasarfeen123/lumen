@@ -1,0 +1,109 @@
+# Lumen design tokens — the ONLY place raw design values are written.
+# See DESIGN.md for the reasoning behind every value.
+# After editing: `~/.config/lumen/bin/lumen theme` (regenerates + reloads).
+
+[active]
+theme  = "dark"   # dark | midnight | oled | light   (themes/<name>.toml)
+accent = "ion"    # a key of [accents], or "wallpaper" (hue sampled from wallpaper, §2.4)
+
+# Accent hues (OKLCH H). Lightness and chroma come from the theme, so every
+# accent is equally legible and swapping one never breaks contrast.
+[accents]
+ion   = 212
+ember = 62
+iris  = 285
+jade  = 165
+
+[type]
+ui   = "Google Sans Flex"   # installed (variable: wght · wdth · ROND · opsz)
+mono = "JetBrainsMono Nerd Font"
+# [size px, weight]
+display     = [64, 300]
+title       = [20, 600]
+heading     = [15, 600]
+body        = [13, 400]
+body_strong = [13, 500]
+caption     = [11, 500]
+mono_size   = [12.5, 400]
+
+[locale]
+clock = "12h"   # "12h" (3:45 PM) | "24h" (15:45)
+
+[space]   # 4 px grid — no other spacing values are allowed
+s1 = 4
+s2 = 8
+s3 = 12
+s4 = 16
+s5 = 20
+s6 = 24
+s8 = 32
+
+[radius]
+xs = 6
+sm = 10
+md = 12   # windows, cards
+lg = 20   # panels
+island = 28   # expanded island: rounder than a panel, reads as "the same pill, grown"
+squircle = 2.4   # Hyprland rounding_power (2 = circle)
+
+[window]
+border      = 2
+gaps_in     = 4
+gaps_out    = 8
+terminal_opacity = 0.88
+# Every app gets a light frost; "glass apps" (terminal, file manager,
+# settings, mixers …) get more. Video players, games and anything fullscreen
+# stay opaque. `lumen transparency off` (Super+Shift+G) sets all of these to 1.
+app_active         = 0.96
+app_inactive       = 0.90
+glass_app_active   = 0.90
+glass_app_inactive = 0.82
+
+# Durations in ms. Exits are always faster than entries (exit_ratio).
+[motion]
+micro    = 120
+normal   = 220
+large    = 320
+window   = 280
+exit_ratio = 0.7
+reduced  = false   # true: kill movement, keep 100 ms fades
+
+# Island morph spring (QML SpringAnimation). ~4 % overshoot, settles < 350 ms.
+spring_strength = 4.2
+spring_damping  = 0.34
+
+[motion.curves]   # cubic-bezier control points
+standard   = [0.20, 0.00, 0.00, 1.00]
+emphasized = [0.05, 0.70, 0.10, 1.00]
+accelerate = [0.30, 0.00, 0.80, 0.15]
+overshoot  = [0.34, 1.36, 0.64, 1.00]
+spring     = [0.22, 1.12, 0.36, 1.00]   # soft ~3 % overshoot: windows opening
+linear     = [0.00, 0.00, 1.00, 1.00]
+
+# Dynamic Island geometry (DESIGN.md §8)
+[island]
+height          = 38    # bar + idle/compact island (was 32: too thin to read comfortably)
+idle_min_width  = 120
+expanded_width  = 420
+expanded_height = 96
+media_height    = 132
+max_compact_width = 360
+workspace_debounce = 150   # ms; rapid switching shows nothing
+startup_grace   = 2000     # ms; ignore state "changes" while services settle
+
+[glass]
+chrome_alpha = 0.58   # bar pills, island — light enough to read the frost
+panel_alpha  = 0.66   # sidebars, launcher, notifications, lock-screen cards
+
+[blur]   # one blur for the whole desktop (Hyprland has a single global blur)
+size       = 8
+passes     = 3
+noise      = 0.022   # grain is what turns "blurred" into "frosted"
+contrast   = 0.95
+brightness = 0.82
+vibrancy   = 0.22
+
+[shadow]
+range        = 20
+render_power = 3
+alpha        = 0.33

@@ -1,0 +1,65 @@
+// Sound: output + input devices, volume, microphone.
+import QtQuick
+import Quickshell.Services.Pipewire
+import qs.theme
+import qs.components
+import qs.services
+import ".."
+
+Page {
+    title: "Sound"
+
+    readonly property var sources: Pipewire.nodes.values.filter(n => !n.isSink && !n.isStream && n.audio)
+
+    Group {
+        title: "Output"
+        SetRow {
+            icon: Audio.muted ? "volume_off" : "volume_up"
+            title: "Volume"
+            description: Audio.muted ? "Muted" : Math.round(Audio.volume * 100) + "%"
+            Row {
+                spacing: Theme.space.s2
+                LSlider { width: 240; icon: "volume_up"; value: Audio.volume; dimmed: Audio.muted; onMoved: v => Audio.nudge(v - Audio.volume) }
+                IconButton { icon: Audio.muted ? "volume_off" : "volume_mute"; onActivated: Audio.toggleMute() }
+            }
+        }
+        Repeater {
+            model: Audio.sinks
+            delegate: SetRow {
+                required property var modelData
+                icon: /headphone|headset/i.test(Audio.label(modelData)) ? "headphones" : /hdmi|displayport/i.test(Audio.label(modelData)) ? "tv" : "speaker"
+                title: Audio.label(modelData)
+                LIcon {
+                    icon: Audio.sink === modelData ? "radio_button_checked" : "radio_button_unchecked"
+                    fill: Audio.sink === modelData ? 1 : 0
+                    color: Audio.sink === modelData ? Theme.accent : Theme.textMuted
+                    MouseArea { anchors.fill: parent; anchors.margins: -8; cursorShape: Qt.PointingHandCursor; onClicked: Audio.setSink(modelData) }
+                }
+            }
+        }
+    }
+
+    Group {
+        title: "Input"
+        SetRow {
+            icon: Audio.micMuted ? "mic_off" : "mic"
+            title: "Microphone"
+            description: Audio.micMuted ? "Muted — Super+Alt+M" : "On — Super+Alt+M to mute"
+            LSwitch { checked: !Audio.micMuted; onToggled: Audio.toggleMicMute() }
+        }
+        Repeater {
+            model: sources
+            delegate: SetRow {
+                required property var modelData
+                icon: "mic_external_on"
+                title: Audio.label(modelData)
+                LIcon {
+                    icon: Audio.source === modelData ? "radio_button_checked" : "radio_button_unchecked"
+                    fill: Audio.source === modelData ? 1 : 0
+                    color: Audio.source === modelData ? Theme.accent : Theme.textMuted
+                    MouseArea { anchors.fill: parent; anchors.margins: -8; cursorShape: Qt.PointingHandCursor; onClicked: Pipewire.preferredDefaultAudioSource = modelData }
+                }
+            }
+        }
+    }
+}

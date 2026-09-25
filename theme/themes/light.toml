@@ -1,0 +1,32 @@
+# Light — same roles, inverted ramp; accent darkened to hold 4.5:1 on surface.
+name = "Light"
+mode = "light"
+neutral_hue = 255
+
+[neutral]
+bg               = [0.955, 0.004]
+surface          = [0.985, 0.003]
+surface_elevated = [1.000, 0.000]
+surface_hover    = [0.930, 0.006]
+text             = [0.200, 0.012]
+text_secondary   = [0.420, 0.012]
+text_muted       = [0.540, 0.012]
+
+[edge]
+base   = "000000"
+border = 0.08
+strong = 0.14
+
+[accent]
+l = 0.53
+c = 0.115
+hover_dl  = -0.05
+on_accent = [1.00, 0.00]   # white text on the darker light-mode accent
+
+[status]
+success = [0.53, 0.14, 152]
+warning = [0.57, 0.13, 70]
+error   = [0.55, 0.19, 25]
+
+[glass]
+alpha_scale = 1.0
