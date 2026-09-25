@@ -20,8 +20,8 @@ hl.env("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1")
 hl.env("QT_AUTO_SCREEN_SCALE_FACTOR", "1")
 hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
 
--- Qt theming is chosen by bin/lumen-session (qt6ct with Lumen colours when
--- installed, else KDE's platform theme); only set a default here.
+-- Qt apps use KDE's platform theme (your Breeze colours, icons and fonts), so
+-- they look the same here as in Plasma. (qt6ct with Lumen colours: DESIGN.md §23.)
 if not os.getenv("QT_QPA_PLATFORMTHEME") then hl.env("QT_QPA_PLATFORMTHEME", "kde") end
 hl.env("XDG_MENU_PREFIX", "plasma-")
 

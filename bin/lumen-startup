@@ -17,9 +17,12 @@ if [ -z "${LUMEN_NESTED:-}" ]; then
         WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP \
         HYPRLAND_INSTANCE_SIGNATURE QT_QPA_PLATFORMTHEME KITTY_CONFIG_DIRECTORY STARSHIP_CONFIG >>"$LOG" 2>&1
 
-    # Authentication dialogs (replaced by a Lumen-styled agent in Phase 9)
+    # Admin password prompts: the shell is the polkit agent (services/Polkit.qml)
+    # and starts KDE's itself if it can't register. Without the shell: KDE's.
     agent=/usr/libexec/kf6/polkit-kde-authentication-agent-1
-    [ -x "$agent" ] && ! pgrep -u "$(id -u)" -f "$agent" >/dev/null && run "$agent"
+    if [ ! -f "$LUMEN_ROOT/shell/shell.qml" ] && [ -x "$agent" ] && ! pgrep -u "$(id -u)" -f "$agent" >/dev/null; then
+        run "$agent"
+    fi
 
     # Idle: dim → lock → screen off → suspend (timings: Settings → Power)
     [ -f "$LUMEN_ROOT/generated/hypr/hypridle.conf" ] || python3 "$LUMEN_ROOT/theme/build.py" >>"$LOG" 2>&1

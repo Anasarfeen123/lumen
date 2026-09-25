@@ -670,3 +670,19 @@ Every step runs through `scripts/idle.sh`, which does nothing unless this login 
 one (`loginctl show-session $XDG_SESSION_ID -p Active`). Without that check, a Lumen session left
 running on another tty sees no input, decides you're away, and dims the backlight or suspends the whole
 laptop while you work in KDE or ii. (That was the "random sleep" bug of 2026-09-26.)
+
+## 23. Admin prompts (polkit) and toolkit consistency
+
+**Polkit**: the shell is the session's authentication agent (`services/Polkit.qml`, Quickshell's
+`PolkitAgent`), and `modules/polkit/PolkitPrompt.qml` draws the prompt. It's a frosted card over a
+dimmed desktop with exclusive keyboard focus, showing what is asking, as whom (switchable if there are
+several admins) and a password well. Enter authenticates and Esc cancels; clicks outside do nothing.
+A wrong password gets a red edge, a shake and polkit's own message. "Details" shows the action id.
+polkit checks the password itself (PAM `polkit-1`) and Lumen only passes it through, so Face ID is never
+involved. The agent is not registered in the Settings app or in nested sessions. If registration fails,
+the shell starts KDE's agent, so prompts are never left unanswered. Dev review without a real agent:
+`ipc call polkit mock | mockFail | mockClose` (LUMEN_DEV only).
+
+**GTK**: adw-gtk3-dark with color-scheme prefer-dark (already the user's global setting).
+**Qt**: KDE's platform theme (Breeze), identical to Plasma. A Lumen-coloured Qt would need `qt6ct`
+(official Fedora `updates` repo). It is not installed and is pending the user's decision.

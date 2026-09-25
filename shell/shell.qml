@@ -20,6 +20,7 @@ import qs.modules.corners
 import qs.modules.wallpaper
 import qs.modules.cheatsheet
 import qs.modules.settings
+import qs.modules.polkit
 
 ShellRoot {
     // A desktop you use must not restart itself because a file changed on
@@ -111,6 +112,14 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: PowerMenu {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    // Admin password prompt (Lumen's polkit agent)
+    Variants {
+        model: Quickshell.screens
+        delegate: PolkitPrompt {
             required property var modelData
             screen: modelData
         }
