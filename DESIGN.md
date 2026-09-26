@@ -768,3 +768,13 @@ The assistant is a panel under the island, not a window: it belongs to the deskt
   memory, so it's fast) and a vision model only when a screenshot is attached.
 - Closing Halo never loses an answer: the island shows it thinking and says when it's ready.
 
+## 30. The Ribbon and Peek
+
+With windows open, the bar is the island stretched edge to edge: the **Ribbon**. It should never
+feel empty or busy. Its shoulders (either side of the island) carry chips that exist only while they
+have something to say, ordered nearest-to-the-island by importance, and a chip that wouldn't fit
+before the app menu or status pill is simply not shown. Vitals stay muted until something strains.
+**Peek** answers "what's in there?" without switching: a quiet card after a short hover (a pass-over
+isn't a request), live previews and the facts that matter (title, workspace, CPU and memory of the
+whole process tree, what it's playing). It never takes the keyboard and leaves with the pointer.
+

@@ -2,9 +2,13 @@
 
 Everything below is in the shipped desktop. Keys are the defaults; [SHORTCUTS.md](SHORTCUTS.md) has the full list.
 
-## The bar and the island
+## The Ribbon (the bar and the island)
 
-- **One bar that adapts.** On an empty workspace it's three floating glass pills: workspaces, the island, and status. When windows are open they merge into one floating bar.
+- **One bar that adapts.** On an empty workspace it's three floating glass pills: workspaces, the island, and status. When windows are open the island stretches into one floating bar, the **Ribbon**, which carries more:
+  - a **window strip**: this workspace's windows as icons after the app name (click to focus, middle-click to close);
+  - **shoulders** either side of the island with only what's relevant now: now playing (with play/pause), your Focus mode or timer, the weather, your next event ("Standup · in 25 min"), a warning when the system is straining, and Halo;
+  - **vitals**: a small CPU line and memory in use beside the status icons.
+- **Peek:** hover a window icon or a workspace dot for live previews, each with its title, workspace, CPU and memory (the whole process tree) and what it's playing. Click to go there; middle-click closes.
 - **The Dynamic Island** in the middle shows what's happening now:
   - a clock with a live equalizer while music plays;
   - now playing, which expands on hover with artwork, a glow in the album's colour, a player switcher, shuffle and repeat;
@@ -55,6 +59,22 @@ Everything below is in the shipped desktop. Keys are the defaults; [SHORTCUTS.md
   - Anything that looks like a password or token is masked, and password-manager copies are never stored.
   - <kbd>Enter</kbd> pastes into the app you were in, <kbd>Ctrl</kbd>+<kbd>Enter</kbd> pastes as plain text, <kbd>Shift</kbd>+<kbd>Enter</kbd> opens a link, <kbd>Alt</kbd>+<kbd>Enter</kbd> copies only, <kbd>Alt</kbd>+<kbd>P</kbd> pins.
 - **Emoji** (<kbd>Super</kbd>+<kbd>.</kbd>).
+- **Money in rupees:** the calculator understands ₹, rs, lakh and crore, converts other currencies to ₹ (`50 USD`), and shows Indian grouping (₹1,23,456.78) with a lakh/crore reading.
+
+## Drop Zone
+
+Drag files to the right edge of the screen and a shelf slides out: **Send to phone**, **Copy** (as files), **Compress** (a .zip next to them), **Open with** (apps for that file type), **Move to** (Documents, Downloads, Desktop, Pictures, Projects; never overwrites), or **Keep on shelf** to park them at the edge and drag them out later.
+
+## Lumen Link (your phone, via KDE Connect)
+
+- **Connects where Wi-Fi won't:** Settings → Lumen Link notices networks that keep devices apart (hostels, campuses, cafés) and offers ways around it: connect by the phone's address, a USB cable with USB tethering, Bluetooth, or the phone's hotspot.
+- The island announces your phone with its battery, warns when it's low, and tells you when a file arrives (Open / Show).
+- The sidebar card shows the battery and how it's linked, with Ring, send a file, send the clipboard and send a screenshot. Phone notifications arrive in the notification centre.
+
+## Backup & recovery
+
+- **File backups:** pick a drive or folder in Settings → Backup & recovery; snapshots only copy what changed (hard links), progress shows in the island, and restores go to `~/Restored` so they never overwrite anything. Optional daily backups; plugging in your backup drive offers "Back up now" when one is due.
+- **Lumen Recovery:** `lumen recovery` (works from a TTY) or the same page: back up and restore Lumen's settings (backed up daily at login), safe mode for the next login (no shell, a terminal with the recovery menu), a minimal Hyprland session, reset the generated theme, go back to an earlier version on a new git branch, logs and a health check. Nothing is deleted: old copies go to the trash.
 
 ## Lumen Halo (<kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd>)
 
@@ -118,13 +138,13 @@ The assistant built into the desktop. A ring of light turns around the panel whi
 
 ## Settings (<kbd>Super</kbd>+<kbd>I</kbd>)
 
-Twenty pages in five groups, all searchable; the sidebar scrolls and keeps your page in view.
+Twenty-one pages in five groups, all searchable; the sidebar scrolls and keeps your page in view.
 
 - **Personalise:** Appearance (themes, accents, glass, pointer, icons, sounds), Wallpaper, Bar & Island, Windows (gaps, corners, borders, animation speed, snapshots).
-- **Connections:** Network, Bluetooth, Phone (KDE Connect: battery, ring, send files, clipboard).
+- **Connections:** Network, Bluetooth, Lumen Link (your phone).
 - **Devices:** Sound (including your music app), Display, Keyboard & Gestures (read live from the config), Power (modes, charge limit, idle).
 - **Focus & privacy:** Notifications (Focus, schedules, per-app rules), Lock screen, Face ID, Security.
-- **System:** Halo, System (hardware, CPU/GPU/NVIDIA, memory, disks, battery health), Updates (dnf, pacman, apt, zypper and Flatpak, installed only when you say so), **Advanced** (config files, a health check, logs, reload, rebuild, safe resets), About.
+- **System:** Halo, Backup & recovery, System (hardware, CPU/GPU/NVIDIA, memory, disks, battery health), Updates (dnf, pacman, apt, zypper and Flatpak, installed only when you say so), **Advanced** (config files, a health check, logs, reload, rebuild, safe resets), About.
 
 ## Little things
 
