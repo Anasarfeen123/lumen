@@ -21,6 +21,7 @@ import qs.modules.wallpaper
 import qs.modules.cheatsheet
 import qs.modules.settings
 import qs.modules.polkit
+import qs.modules.switcher
 
 ShellRoot {
     // A desktop you use must not restart itself because a file changed on
@@ -112,6 +113,14 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: PowerMenu {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    // Alt+Tab window switcher
+    Variants {
+        model: Quickshell.screens
+        delegate: SwitcherWindow {
             required property var modelData
             screen: modelData
         }

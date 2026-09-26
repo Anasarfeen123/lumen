@@ -81,6 +81,12 @@ key("SUPER + mouse:272", hl.dsp.window.drag(), "Move with the mouse", { mouse = 
 key("SUPER + mouse:273", hl.dsp.window.resize(), "Resize with the mouse", { mouse = true })
 key("SUPER + G", hl.dsp.group.toggle(), "Group windows (tabs)")
 key("SUPER + ALT + Tab", hl.dsp.group.next(), "Next tab in group")
+key("ALT + Tab", global("lumen:switcherNext"), "Switch windows (release Alt to pick)")
+key("ALT + SHIFT + Tab", global("lumen:switcherPrev"))
+key("ALT + grave", global("lumen:switcherApp"), "Switch between this app's windows")
+-- Releasing Alt picks the window (transparent: the key still reaches apps)
+key("ALT + ALT_L", global("lumen:switcherCommit"), nil, { release = true, transparent = true, ignore_mods = true })
+key("ALT + ALT_R", global("lumen:switcherCommit"), nil, { release = true, transparent = true, ignore_mods = true })
 
 -- ── Workspaces ──
 group("Workspaces")
