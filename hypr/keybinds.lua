@@ -141,6 +141,7 @@ key("SUPER + N", global("lumen:sidebar"), "Notifications")
 key("SUPER + A", global("lumen:controlCenter"), "Control centre")
 key("SUPER + SHIFT + A", global("lumen:planner"), "Your day: weather, agenda, to-dos, notes")
 key("SUPER + ALT + N", global("lumen:dnd"), "Focus (Do Not Disturb)")
+key("CTRL + SUPER + N", global("lumen:focusCycle"), "Cycle Focus modes (Work, Game, Sleep …)")
 key("SUPER + ALT + SHIFT + N", global("lumen:clearNotifications"), "Clear notifications")
 
 -- ── Capture ──

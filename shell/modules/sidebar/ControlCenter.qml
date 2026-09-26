@@ -198,10 +198,11 @@ Item {
                 function focusFirst() { const v = children.filter(c => c.visible && c.activeFocusOnTab); if (v.length) v[0].forceActiveFocus(); }
 
                 RoundToggle {
-                    icon: Notifications.dnd ? "do_not_disturb_on" : "do_not_disturb_off"
-                    label: "Focus"
-                    active: Notifications.dnd
-                    onToggled: Notifications.setDnd(!Notifications.dnd)
+                    // Opens the list of Focus modes (Work, Game, Sleep …)
+                    icon: Focus.mode !== "off" ? Focus.current.icon : (Notifications.dnd ? "do_not_disturb_on" : "do_not_disturb_off")
+                    label: Focus.mode !== "off" ? Focus.current.label : "Focus"
+                    active: Focus.mode !== "off" || Notifications.dnd
+                    onToggled: root.detail = "focus"
                 }
                 RoundToggle {
                     icon: "coffee"
@@ -355,7 +356,8 @@ Item {
             Behavior on opacity { NumberAnimation { duration: Theme.motion.normal } }
             sourceComponent: root.detail === "wifi" ? wifiDetail
                            : root.detail === "bluetooth" ? btDetail
-                           : root.detail === "output" ? outputDetail : null
+                           : root.detail === "output" ? outputDetail
+                           : root.detail === "focus" ? focusDetail : null
             onLoaded: item.forceActiveFocus()
         }
     }
@@ -373,4 +375,5 @@ Item {
     Component { id: wifiDetail; WifiDetail { onBack: root.detail = "" } }
     Component { id: btDetail; BluetoothDetail { onBack: root.detail = "" } }
     Component { id: outputDetail; OutputDetail { onBack: root.detail = "" } }
+    Component { id: focusDetail; FocusDetail { onBack: root.detail = "" } }
 }

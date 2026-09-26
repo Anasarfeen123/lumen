@@ -36,6 +36,8 @@ Singleton {
             property var weatherPlace: null       // { name, lat, lon } — Open-Meteo, set by you
             property string aiProvider: "off"     // "off" | "anthropic" | "ollama"
             property string aiModel: ""           // empty = the provider default
+            property var focusSchedule: ({ sleep: { on: false, from: "23:00", to: "07:00" }, work: { on: false, from: "09:00", to: "17:00", weekdays: true } })
+            property var focusAllow: []           // apps that may interrupt any Focus mode
             // Lock screen widgets (Lumen Settings → Lock screen)
             property bool lockMedia: true
             property bool lockBattery: true

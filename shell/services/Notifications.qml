@@ -108,7 +108,7 @@ Singleton {
         if (quiet || entry.urgency === NotificationUrgency.Low) return false;
         if (entry.urgency === NotificationUrgency.Critical) return true;
         if (!Persist.data.notifBanners || (Persist.data.mutedApps ?? []).includes(entry.appName)) return false;
-        return !dnd;
+        return !dnd || Focus.lets(entry.appName);        // Work focus: allowed apps get through
     }
 
     function popup(n, entry) {
