@@ -21,14 +21,14 @@ Singleton {
     // Money is in Indian rupees: "₹500", "500 rs", "2 lakh", "1.5 crore" are
     // understood, any other currency is converted to ₹, and results use Indian
     // grouping (₹1,23,456.78). qalc's own default follows the system locale.
-    readonly property var currencyWords: /\b(usd|eur|gbp|jpy|aed|sgd|cad|aud|cny|chf|dollars?|euros?|pounds?|yen)\b|[$€£¥]/i
+    readonly property var currencyWords: /(?:^|[^a-z])(usd|eur|gbp|jpy|aed|sgd|cad|aud|cny|chf|dollars?|euros?|pounds?|yen)\b|[$€£¥]/i
     property bool money: false
     function normalise(q) {
         let e = q.replace(/^=\s*/, "").replace(/(\d(?:\.\d+)?)\s*%\s+of\s+/gi, "$1% * ");   // "15% of 240" → "15% * 240"
         e = e.replace(/(\d(?:\.\d+)?)\s*(lakhs?|lacs?)\b/gi, "($1*100000 INR)")
              .replace(/(\d(?:\.\d+)?)\s*(crores?|cr)\b/gi, "($1*10000000 INR)")
              .replace(/₹\s*/g, "INR ")
-             .replace(/\b(rs\.?|rupees?|inr)(?=\s|$|[-+*/)])/gi, "INR");
+             .replace(/(^|[^a-z])(rs\.?|rupees?|inr)(?=\s|$|[-+*/)])/gi, "$1INR");
         // "INR 500" → "500 INR" (qalc wants the unit after the number)
         e = e.replace(/INR\s+(\(?[\d.]+(?:\*\d+)?\)?)/g, "$1 INR");
         money = /INR/.test(e) || currencyWords.test(e);
@@ -37,7 +37,7 @@ Singleton {
     }
     function evaluate(q) {
         // Maths, or an amount of money in any currency ("$100", "50 usd", "2 lakh")
-        const moneyish = /\d/.test(q) && (currencyWords.test(q) || /[₹]|\b(rs|rupees?|inr|lakhs?|crores?)\b/i.test(q));
+        const moneyish = /\d/.test(q) && (currencyWords.test(q) || /[₹]|(?:^|[^a-z])(rs|rupees?|inr|lakhs?|crores?)\b/i.test(q));
         if (!looksLikeMath(q) && !moneyish) { result = ""; expression = ""; return; }
         expression = normalise(q);
         debounce.restart();
