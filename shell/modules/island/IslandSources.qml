@@ -7,6 +7,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import qs.services
+import qs.theme
 
 Scope {
     id: root
@@ -115,7 +116,10 @@ Scope {
                 now[d.address] = d.name;
                 if (!root.knownBt[d.address]) {
                     const detail = d.batteryAvailable ? Math.round(d.battery * 100) + "% battery" : "Connected";
-                    Island.system("bluetooth_connected", d.name || "Bluetooth device", detail);
+                    if (root.firstTime("bt:" + d.address))
+                        Island.device("bt:" + d.address, { icon: Bluetooth.glyph(d.icon ?? ""), title: d.name || "Bluetooth device", badge: "New",
+                                      detail: "Paired over Bluetooth · " + detail, actions: [] });
+                    else Island.system(Bluetooth.glyph(d.icon ?? ""), d.name || "Bluetooth device", detail);
                     if (Island.ready) Sounds.play("plug");
                 }
             }
@@ -133,30 +137,154 @@ Scope {
         }
     }
 
-    // USB: one long-running udev listener (event-driven, no polling).
-    // Only whole devices (DEVTYPE=usb_device), not every interface.
-    Process {
-        id: usb
-        running: true
-        command: ["udevadm", "monitor", "--udev", "--subsystem-match=usb/usb_device", "--property"]
+    // ── Devices ─────────────────────────────────────────────────────────────
+    // A device this computer has never seen gets a card with a "New" badge;
+    // drives and displays always get one (there's something to do with them).
+    // Everything else — your usual mouse, the dock — is a quiet one-line pill.
+    function firstTime(id) {
+        if (!id) return false;
+        const seen = Persist.data.seenDevices ?? [];
+        if (seen.includes(id)) return false;
+        if (Persist.automates) Persist.data.seenDevices = seen.concat([id]).slice(-300);
+        return true;
+    }
+
+    // What a USB device is, from its interface classes (cc:ss:pp per interface)
+    function usbKind(e) {
+        const ifs = e.ID_USB_INTERFACES ?? "";
+        const has = re => re.test(ifs);
+        if (has(/:09/)) return null;                               // hubs (and docks' hubs)
+        if (has(/:e0/)) return null;                               // internal Bluetooth radios
+        if (has(/:0e/)) return { icon: "videocam", what: "Camera" };
+        if (has(/:08/)) return { icon: "hard_drive", what: "Drive", drive: true };
+        if (has(/:06/) || has(/:ff4201/)) return { icon: "smartphone", what: "Phone or camera" };
+        if (has(/:030101/)) return { icon: "keyboard", what: "Keyboard" };        // HID boot keyboard
+        if (has(/:030102/)) return { icon: "mouse", what: "Mouse" };
+        if (has(/:01/)) return { icon: "headphones", what: "Audio device" };
+        if (has(/:03/)) return /game|pad|xbox|controller|joy/i.test(e.ID_MODEL ?? "")
+                              ? { icon: "sports_esports", what: "Game controller" } : { icon: "keyboard", what: "Input device" };
+        if (has(/:07/)) return { icon: "print", what: "Printer" };
+        if (has(/:02|:0a/)) return { icon: "lan", what: "Network adapter" };
+        return { icon: "usb", what: "USB device" };
+    }
+    function usbName(e) {
+        const vendor = (e.ID_VENDOR_FROM_DATABASE || e.ID_VENDOR || "").replace(/_/g, " ")
+                        .replace(/,? (Inc|Corp|Corporation|Ltd|Co|Technology|Technologies)\.?$/i, "");
+        const model = (e.ID_MODEL_FROM_DATABASE || e.ID_MODEL || "").replace(/_/g, " ");
+        if (!model) return vendor || "USB device";
+        return model.toLowerCase().startsWith(vendor.toLowerCase()) || !vendor ? model : vendor + " " + model;
+    }
+
+    property var usbSeen: ({})          // DEVPATH → { name, kind } (removal events carry no names)
+    function onUsb(e) {
+        if (e.ACTION === "add") {
+            const k = usbKind(e);
+            if (!k) return;
+            const name = usbName(e);
+            const m = Object.assign({}, usbSeen); m[e.DEVPATH] = { name, kind: k }; usbSeen = m;
+            if (k.drive) return;                          // the drive's partition brings its own card
+            const id = "usb:" + (e.ID_VENDOR_ID ?? "") + ":" + (e.ID_MODEL_ID ?? "") + ":" + (e.ID_SERIAL_SHORT ?? "");
+            if (firstTime(id)) Island.device(id, { icon: k.icon, title: name, badge: "New", detail: k.what + " · connected by USB", actions: [] });
+            else Island.system(k.icon, name, "Connected");
+            if (Island.ready) Sounds.play("plug");
+        } else if (e.ACTION === "remove") {
+            const d = usbSeen[e.DEVPATH];
+            if (!d) return;
+            const m = Object.assign({}, usbSeen); delete m[e.DEVPATH]; usbSeen = m;
+            Island.system(d.kind.icon === "hard_drive" ? "eject" : "usb_off", d.name, "Removed");
+            if (Island.ready) Sounds.play("unplug");
+        }
+    }
+
+    function fmtSize(bytes) {
+        if (!(bytes > 0)) return "";
+        const u = ["B", "KB", "MB", "GB", "TB"]; let i = 0;
+        while (bytes >= 1000 && i < u.length - 1) { bytes /= 1000; i++; }
+        return (bytes >= 100 || i === 0 ? Math.round(bytes) : bytes.toFixed(1)) + " " + u[i];
+    }
+    function onBlock(e) {
+        if (e.ACTION !== "add" || e.ID_FS_USAGE !== "filesystem") return;
+        const removable = e.ID_BUS === "usb" || /usb/.test(e.ID_PATH ?? "") || /^\/dev\/mmcblk/.test(e.DEVNAME ?? "");
+        if (!removable) return;
+        const sd = /^\/dev\/mmcblk/.test(e.DEVNAME ?? "");
+        const label = e.ID_FS_LABEL_ENC ? e.ID_FS_LABEL_ENC.replace(/\\x20/g, " ") : (e.ID_FS_LABEL || "");
+        const model = (e.ID_MODEL || "").replace(/_/g, " ");
+        const size = fmtSize(Number(e.ID_PART_ENTRY_SIZE ?? 0) * 512);
+        const id = "drive:" + (e.ID_FS_UUID || e.ID_SERIAL || e.DEVNAME);
+        const scripts = Theme.lumenRoot + "/scripts/drive.sh";
+        Island.device(id, {
+            icon: sd ? "sd_card" : "hard_drive",
+            title: label || model || (sd ? "SD card" : "USB drive"),
+            badge: firstTime(id) ? "New" : "",
+            detail: [sd ? "SD card" : "USB drive", size, (e.ID_FS_TYPE || "").toUpperCase()].filter(x => x).join(" · "),
+            actions: [{ icon: "folder_open", label: "Open", cmd: [scripts, "open", e.DEVNAME] },
+                      { icon: "eject", label: "Eject", cmd: [scripts, "eject", e.DEVNAME] }]
+        });
+    }
+
+    // One long-running udev listener per subsystem (event-driven, no polling);
+    // only whole USB devices, and block devices that carry a file system
+    component UdevWatch: Process {
+        id: w
+        property var subsystem
+        signal event(var e)
         property var ev: ({})
+        running: true
+        command: ["udevadm", "monitor", "--udev", "--subsystem-match=" + subsystem, "--property"]
         stdout: SplitParser {
             onRead: line => {
-                const p = usb;
-                if (line === "") {
-                    const e = p.ev;
-                    if (e.ACTION === "add" || e.ACTION === "remove") {
-                        const name = (e.ID_MODEL_FROM_DATABASE || e.ID_MODEL || "USB device").replace(/_/g, " ");
-                        Island.system(e.ACTION === "add" ? "usb" : "usb_off", name,
-                                      e.ACTION === "add" ? "Connected" : "Removed");
-                    }
-                    p.ev = {};
-                } else {
-                    const i = line.indexOf("=");
-                    if (i > 0) { const e = p.ev; e[line.slice(0, i)] = line.slice(i + 1); }
-                }
+                if (line === "") { if (w.ev.ACTION) w.event(w.ev); w.ev = {}; return; }
+                const i = line.indexOf("=");
+                if (i > 0) w.ev[line.slice(0, i)] = line.slice(i + 1);
             }
         }
+    }
+    UdevWatch { subsystem: "usb/usb_device"; onEvent: e => root.onUsb(e) }
+    UdevWatch { subsystem: "block"; onEvent: e => root.onBlock(e) }
+
+    // Displays: Hyprland reports outputs as they come and go
+    Connections {
+        target: Hyprland
+        function onRawEvent(ev) { root.onMonitor(ev); }
+    }
+    // "Dell Inc. DELL U2723QE 7X2KHK3 (HDMI-A-1)" → "Dell U2723QE"
+    function displayName(desc) {
+        let words = desc.replace(/\s*\(.*\)$/, "").split(/\s+/).filter(w => w);
+        const last = words[words.length - 1] ?? "";
+        if (words.length > 2 && (/^0x/i.test(last) || /\d/.test(last) && /[A-Z]/i.test(last) && last === last.toUpperCase() && last.length >= 6)) words.pop();
+        words = words.filter(w => !/^(Inc\.?|Corp\.?|Corporation|Co\.?|Ltd\.?|Electronics|Electric|Company|Technology)$/i.test(w));
+        if (words.length > 1 && words[1].toLowerCase() === words[0].toLowerCase()) words.splice(1, 1);
+        return words.join(" ");
+    }
+    function onMonitor(ev) {
+        {
+            if (ev.name !== "monitoraddedv2" && ev.name !== "monitorremovedv2") return;
+            const parts = ev.data.split(",");
+            const name = parts[1] ?? "", desc = parts.slice(2).join(",").trim();
+            if (/^(HEADLESS|LUMENTEST|WAYLAND|X11)/.test(name)) return;       // virtual outputs, test sessions
+            const title = root.displayName(desc) || name;
+            if (ev.name === "monitorremovedv2") { Island.system("desktop_access_disabled", title || "Display", "Disconnected"); return; }
+            const id = "display:" + (desc || name);
+            Island.device(id, {
+                icon: /^eDP|^LVDS|^DSI/.test(name) ? "laptop" : "desktop_windows",
+                title: title || "Display",
+                badge: firstTime(id) ? "New" : "",
+                detail: "Display connected · " + name,
+                actions: [{ icon: "tune", label: "Arrange", page: "display" }]
+            });
+            if (Island.ready) Sounds.play("plug");
+        }
+    }
+
+    // Dev only (LUMEN_DEV): `ipc call deviceTest usb|kbd|drive|display` replays a fake udev/Hyprland event
+    IpcHandler {
+        target: "deviceTest"
+        enabled: Quickshell.env("LUMEN_DEV") === "1"
+        function usb(): void { root.onUsb({ ACTION: "add", DEVPATH: "/t/1", ID_USB_INTERFACES: ":010100:010200:030000:", ID_VENDOR_FROM_DATABASE: "Sony Corp.", ID_MODEL: "WH-1000XM5", ID_VENDOR_ID: "054c", ID_MODEL_ID: "0" + Date.now() % 1000 }); }
+        function kbd(): void { root.onUsb({ ACTION: "add", DEVPATH: "/t/2", ID_USB_INTERFACES: ":030101:030000:", ID_VENDOR_FROM_DATABASE: "Keychron", ID_MODEL: "K2", ID_VENDOR_ID: "3434", ID_MODEL_ID: "0210" }); }
+        function unplug(): void { root.onUsb({ ACTION: "remove", DEVPATH: "/t/2" }); }
+        function drive(): void { root.onBlock({ ACTION: "add", ID_FS_USAGE: "filesystem", ID_BUS: "usb", DEVNAME: "/dev/sdz1", ID_FS_LABEL: "BACKUP", ID_FS_TYPE: "exfat", ID_PART_ENTRY_SIZE: "124735488", ID_FS_UUID: "t" + Date.now() }); }
+        function display(): void { root.onMonitor({ name: "monitoraddedv2", data: "3,HDMI-A-1,Dell Inc. DELL U2723QE 7X2KHK3 (HDMI-A-1)" }); }
     }
 
     // ── Entry points ──

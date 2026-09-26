@@ -97,7 +97,7 @@ PanelWindow {
         return ({
             idle: idleC, idlePeek: peekC, osd: osdC, workspace: wsC, system: sysC,
             screenshot: shotC, recording: recC, mediaCompact: mediaCompactC,
-            mediaExpanded: mediaExpandedC, notification: notifC, critical: critC, timer: timerC, progress: progressC, context: contextC
+            mediaExpanded: mediaExpandedC, notification: notifC, critical: critC, timer: timerC, progress: progressC, context: contextC, device: deviceC
         })[v] ?? idleC;
     }
 
@@ -115,12 +115,13 @@ PanelWindow {
     Component { id: timerC; TimerView {} }
     Component { id: progressC; Progress { info: win.shownData } }
     Component { id: contextC; ContextView {} }
+    Component { id: deviceC; Device { info: win.shownData } }
 
     // ── The body ──
     GlassSurface {
         id: body
 
-        readonly property bool bodyExpanded: ["mediaExpanded", "notification", "critical", "screenshot", "context"].includes(win.shown)
+        readonly property bool bodyExpanded: ["mediaExpanded", "notification", "critical", "screenshot", "context", "device"].includes(win.shown)
         readonly property int padX: bodyExpanded ? Theme.space.s4 : Theme.space.s4
         readonly property int padY: bodyExpanded ? Theme.space.s4 : 0
         readonly property real targetW: bodyExpanded

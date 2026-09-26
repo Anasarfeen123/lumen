@@ -141,7 +141,7 @@ Item {
                 Item_ {
                     visible: !!root.entry
                     icon: "open_in_new"; label: "New window"
-                    onClicked: { root.entry?.execute(); menu.close(); }
+                    onClicked: { Apps.launch(root.entry); menu.close(); }
                 }
                 Item_ { icon: "picture_in_picture"; label: "Float"; keys: "Super+Alt+Space"; checked: root.ipc.floating === true
                         onClicked: menu.act(() => Hypr.toggleFloat(root.address)) }

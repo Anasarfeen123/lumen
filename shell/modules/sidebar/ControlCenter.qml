@@ -3,8 +3,8 @@
 //   tiles    Wi-Fi · Bluetooth · Do Not Disturb · Night light · Mic · Power mode · VPN (if configured)
 //   sliders  volume (→ output picker) · brightness
 //   system   CPU · memory · temperature · GPU — sampled only while open
-// A tile's chevron swaps the tiles for a detail list (networks, devices,
-// outputs); Esc or the back arrow returns.
+// A tile's round icon switches the radio; the rest of the tile swaps the
+// tiles for a detail list (networks, devices, outputs); Esc or back returns.
 import QtQuick
 import Quickshell
 import Quickshell.Services.UPower
@@ -31,7 +31,7 @@ Item {
         else event.accepted = false;
     }
 
-    onDetailChanged: Network.scanning = detail === "wifi"
+    onDetailChanged: { Network.scanning = detail === "wifi"; Bluetooth.scanning = detail === "bluetooth"; }
     Connections {
         target: Sidebar
         function onOpenChanged() {
@@ -46,6 +46,10 @@ Item {
     Connections {
         target: Network
         function onConnectFailed(ssid) { Island.system("wifi_off", "Couldn't join " + ssid, "Check the password and try again", "error"); }
+    }
+    Connections {
+        target: Bluetooth
+        function onPairFailed(name) { Island.system("bluetooth_disabled", "Couldn't pair " + name, "Put it in pairing mode, or pair it in Settings", "error"); }
     }
 
     SystemClock { id: clock; precision: SystemClock.Minutes }
@@ -159,10 +163,14 @@ Item {
                     id: wifiTile
                     width: tiles.tileWidth
                     Keys.onDownPressed: toggles.focusFirst()
-                    icon: Network.icon
+                    icon: Network.icon === "lan" ? (Network.wifiEnabled ? "wifi" : "wifi_off") : Network.icon
                     label: "Wi-Fi"
-                    sublabel: !Network.wifiEnabled ? "Off" : Network.connected ? Network.ssid : "Not connected"
-                    active: Network.wifiEnabled && Network.connected
+                    sublabel: !Network.wifiEnabled ? (Network.wired ? "Off · Ethernet in use" : "Off")
+                            : Network.connecting ? "Connecting…"
+                            : Network.connected ? Network.ssid
+                            : Network.wired ? "Ethernet in use" : "Not connected"
+                    active: Network.wifiEnabled
+                    busy: Network.connecting
                     hasDetail: true
                     onToggled: Network.setWifiEnabled(!Network.wifiEnabled)
                     onDetailRequested: root.detail = "wifi"
@@ -175,10 +183,13 @@ Item {
                     icon: Bluetooth.icon
                     label: "Bluetooth"
                     sublabel: !Bluetooth.enabled ? "Off"
+                            : Bluetooth.pairing ? "Pairing…"
+                            : Bluetooth.connectedDevices.length > 1 ? Bluetooth.connectedDevices.length + " devices"
                             : Bluetooth.hasConnection ? (Bluetooth.primary?.name ?? "Connected")
                                 + (Bluetooth.primary?.batteryAvailable ? " · " + Math.round(Bluetooth.primary.battery * 100) + "%" : "")
-                            : "On"
+                            : "No devices connected"
                     active: Bluetooth.enabled
+                    busy: Bluetooth.pairing !== null
                     hasDetail: true
                     onToggled: Bluetooth.setEnabled(!Bluetooth.enabled)
                     onDetailRequested: root.detail = "bluetooth"

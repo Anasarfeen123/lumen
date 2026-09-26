@@ -16,6 +16,11 @@ if [ -z "${LUMEN_NESTED:-}" ]; then
     dbus-update-activation-environment --systemd \
         WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP \
         HYPRLAND_INSTANCE_SIGNATURE QT_QPA_PLATFORMTHEME KITTY_CONFIG_DIRECTORY STARSHIP_CONFIG >>"$LOG" 2>&1
+    # KDE apps started over D-Bus ("Show in folder" opens Dolphin this way) get
+    # Lumen's colours too. lumen-session takes these back out at logout.
+    if [ -n "${KDE_COLOR_SCHEME_PATH:-}" ]; then
+        dbus-update-activation-environment --systemd KDE_COLOR_SCHEME_PATH XDG_CONFIG_DIRS XDG_DATA_DIRS >>"$LOG" 2>&1
+    fi
 
     # Enter systemd's graphical session (xdg-desktop-portal requires it).
     # Skipped if another desktop (e.g. Plasma) already holds it: its portals

@@ -67,4 +67,10 @@ fi
 # portals don't linger bound to a display that is gone.
 start-hyprland -- -c "$LUMEN_ROOT/hypr/hyprland.lua" || status=$?
 systemctl --user stop lumen-session.target 2>/dev/null || true
+# Hand D-Bus activation back without Lumen's app theming (lumen-startup set it),
+# so a Plasma login afterwards doesn't inherit Lumen colours
+systemctl --user unset-environment KDE_COLOR_SCHEME_PATH 2>/dev/null || true
+case ${XDG_CONFIG_DIRS:-} in *lumen/generated*) ;; *)
+    dbus-update-activation-environment --systemd XDG_CONFIG_DIRS="${XDG_CONFIG_DIRS:-/etc/xdg}" XDG_DATA_DIRS="${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" KDE_COLOR_SCHEME_PATH= 2>/dev/null || true ;;
+esac
 exit "${status:-0}"

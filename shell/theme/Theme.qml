@@ -141,4 +141,5 @@ Singleton {
     readonly property var curveStandard: _curve("standard", [0.2, 0, 0, 1])
     readonly property var curveEmphasized: _curve("emphasized", [0.05, 0.7, 0.1, 1])
     readonly property var curveAccelerate: _curve("accelerate", [0.3, 0, 0.8, 0.15])
+    readonly property var curveOvershoot: _curve("overshoot", [0.34, 1.36, 0.64, 1])
 }

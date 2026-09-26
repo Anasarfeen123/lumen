@@ -13,26 +13,27 @@ Singleton {
     property bool open: false
     property string page: Quickshell.env("LUMEN_SETTINGS_PAGE") || "appearance"
 
+    // In sidebar order, under their group headings
     readonly property var pages: [
-        { id: "appearance",    icon: "palette",             label: "Appearance",          keys: "theme dark light accent colour transparency glass blur motion clock 12 24 icons sounds" },
-        { id: "wallpaper",     icon: "wallpaper",           label: "Wallpaper",           keys: "background picture shuffle match accent" },
-        { id: "bar",           icon: "top_panel_open",      label: "Bar & Island",        keys: "island date workspace hot corners" },
-        { id: "windows",       icon: "select_window",       label: "Windows",             keys: "gaps corners rounding border animation speed focus follows mouse" },
-        { id: "notifications", icon: "notifications",       label: "Notifications",       keys: "focus do not disturb dnd banners mute apps sound history" },
-        { id: "network",       icon: "wifi",                label: "Network",             keys: "wifi wi-fi internet airplane vpn warp cloudflare dns" },
-        { id: "bluetooth",     icon: "bluetooth",           label: "Bluetooth",           keys: "devices headphones pair connect battery" },
-        { id: "phone",         icon: "smartphone",          label: "Phone",               keys: "phone kde connect android iphone pair find ring send file clipboard sync" },
-        { id: "sound",         icon: "volume_up",           label: "Sound",               keys: "volume output input microphone speaker headphones" },
-        { id: "display",       icon: "brightness_6",        label: "Display",             keys: "brightness night light warmth" },
-        { id: "lock",          icon: "lock",                label: "Lock screen",         keys: "widgets password unlock" },
-        { id: "faceid",        icon: "face",                label: "Face ID",             keys: "face unlock gaze camera liveness anti photo calibrate strictness" },
-        { id: "power",         icon: "battery_charging_80", label: "Power",               keys: "battery saver performance idle sleep suspend lock timeout screen off charge limit health" },
-        { id: "ai",            icon: "auto_awesome",        label: "AI",                  keys: "assistant ask claude anthropic ollama local model api key chat" },
-        { id: "keyboard",      icon: "keyboard",            label: "Keyboard & Gestures", keys: "shortcuts keybinds cheatsheet touchpad gestures corners" },
-        { id: "system",        icon: "monitor_heart",       label: "System",              keys: "system inspector hardware cpu gpu nvidia amd memory ram disk storage battery temperature kernel" },
-        { id: "security",      icon: "shield",              label: "Security",            keys: "security firewall ssh secure boot encryption selinux logins privacy" },
-        { id: "updates",       icon: "system_update",       label: "Updates",             keys: "update upgrade dnf flatpak packages security software" },
-        { id: "about",         icon: "info",                label: "About",               keys: "version system hardware kernel hyprland" },
+        { group: "Personalise", id: "appearance",    icon: "palette",             label: "Appearance",          keys: "theme dark light accent colour transparency glass blur motion clock 12 24 icons sounds" },
+        { group: "Personalise", id: "wallpaper",     icon: "wallpaper",           label: "Wallpaper",           keys: "background picture shuffle match accent" },
+        { group: "Personalise", id: "bar",           icon: "top_panel_open",      label: "Bar & Island",        keys: "island date workspace hot corners" },
+        { group: "Personalise", id: "windows",       icon: "select_window",       label: "Windows",             keys: "gaps corners rounding border animation speed focus follows mouse" },
+        { group: "Connections", id: "network",       icon: "wifi",                label: "Network",             keys: "wifi wi-fi internet airplane vpn warp cloudflare dns" },
+        { group: "Connections", id: "bluetooth",     icon: "bluetooth",           label: "Bluetooth",           keys: "devices headphones pair connect battery" },
+        { group: "Connections", id: "phone",         icon: "smartphone",          label: "Phone",               keys: "phone kde connect android iphone pair find ring send file clipboard sync" },
+        { group: "Devices", id: "sound",         icon: "volume_up",           label: "Sound",               keys: "volume output input microphone speaker headphones" },
+        { group: "Devices", id: "display",       icon: "brightness_6",        label: "Display",             keys: "brightness night light warmth" },
+        { group: "Devices", id: "keyboard",      icon: "keyboard",            label: "Keyboard & Gestures", keys: "shortcuts keybinds cheatsheet touchpad gestures corners" },
+        { group: "Devices", id: "power",         icon: "battery_charging_80", label: "Power",               keys: "battery saver performance idle sleep suspend lock timeout screen off charge limit health" },
+        { group: "Focus & privacy", id: "notifications", icon: "notifications",       label: "Notifications",       keys: "focus do not disturb dnd banners mute apps sound history" },
+        { group: "Focus & privacy", id: "lock",          icon: "lock",                label: "Lock screen",         keys: "widgets password unlock" },
+        { group: "Focus & privacy", id: "faceid",        icon: "face",                label: "Face ID",             keys: "face unlock gaze camera liveness anti photo calibrate strictness" },
+        { group: "Focus & privacy", id: "security",      icon: "shield",              label: "Security",            keys: "security firewall ssh secure boot encryption selinux logins privacy" },
+        { group: "System", id: "ai",            icon: "auto_awesome",        label: "AI",                  keys: "assistant ask claude anthropic ollama local model api key chat" },
+        { group: "System", id: "system",        icon: "monitor_heart",       label: "System",              keys: "system inspector hardware cpu gpu nvidia amd memory ram disk storage battery temperature kernel" },
+        { group: "System", id: "updates",       icon: "system_update",       label: "Updates",             keys: "update upgrade dnf flatpak packages security software" },
+        { group: "System", id: "about",         icon: "info",                label: "About",               keys: "version system hardware kernel hyprland" }
     ]
     property string search: ""
     readonly property var visiblePages: {

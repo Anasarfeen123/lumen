@@ -74,7 +74,7 @@ Singleton {
             : mediaPresent ? "mediaExpanded" : "idlePeek";
         return kind;
     }
-    readonly property bool expanded: ["mediaExpanded", "notification", "critical", "screenshot", "context"].includes(variant)
+    readonly property bool expanded: ["mediaExpanded", "notification", "critical", "screenshot", "context", "device"].includes(variant)
 
     Timer {
         interval: 2000
@@ -142,6 +142,11 @@ Singleton {
     function progress(id, icon, title, value, detail) {
         push({ kind: "progress", key: "progress:" + id, priority: priority.system, duration: 6000, queueable: true, force: true,
                data: { icon, title, value, detail: detail ?? "" } });
+    }
+    // A plugged-in device worth a card (new, or something you can act on)
+    function device(id, data) {
+        push({ kind: "device", key: "device:" + id, priority: priority.system, duration: 6000,
+               queueable: true, data });
     }
     function system(icon, title, detail, tone) {
         push({ kind: "system", key: "system:" + title, priority: priority.system, duration: 2000,

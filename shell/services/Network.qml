@@ -23,6 +23,7 @@ Singleton {
     }
 
     readonly property string icon: {
+        if (wired && !connected) return "lan";
         if (!wifiEnabled) return "wifi_off";
         if (connecting) return "wifi_find";
         if (!connected) return "signal_wifi_statusbar_not_connected";
@@ -32,9 +33,28 @@ Singleton {
         return "network_wifi_1_bar";
     }
 
-    // Visible networks, strongest first; the connected one on top.
-    readonly property var networks: (wifiDevice?.networks?.values ?? []).slice().sort((a, b) =>
-        (b.connected - a.connected) || (b.signalStrength - a.signalStrength))
+    // Visible networks: the connected one, then saved ones, then the rest,
+    // each strongest first. Hidden networks (no name) are left out.
+    readonly property var networks: (wifiDevice?.networks?.values ?? []).filter(n => (n.name ?? "") !== "").sort((a, b) =>
+        (b.connected - a.connected) || (b.known - a.known) || (b.signalStrength - a.signalStrength))
+
+    // Ethernet (the Wi-Fi backend doesn't model wired links): NetworkManager's
+    // own event stream triggers a one-line device query — no polling.
+    property bool wired: false
+    Process {
+        running: true
+        command: ["nmcli", "monitor"]
+        stdout: SplitParser { onRead: wiredCheck.restart() }
+    }
+    Timer { id: wiredCheck; interval: 400; running: true; onTriggered: wiredQuery.running = true }
+    Process {
+        id: wiredQuery
+        command: ["nmcli", "-t", "-f", "TYPE,STATE", "device"]
+        stdout: StdioCollector { onStreamFinished: root.wired = /^ethernet:connected$/m.test(text) }
+    }
+
+    function disconnectFrom(n) { n.disconnect(); }
+    function forget(n) { n.forget(); }
 
     // Scan only while someone is looking at the list (DESIGN.md §0: fast is a feature)
     property bool scanning: false

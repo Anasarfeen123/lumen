@@ -5,6 +5,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.theme
 
 Singleton {
     id: root
@@ -118,8 +119,24 @@ Singleton {
 
         if (entry.runInTerminal)
             Quickshell.execDetached(["kitty", "-e", "sh", "-c", entry.execString.replace(/%[fFuUdDnNickvm]/g, "")]);
+        else if (entry.command?.length)
+            Quickshell.execDetached({ command: entry.command, workingDirectory: entry.workingDirectory || Quickshell.env("HOME"), environment: appEnv });
         else
             entry.execute();
+    }
+
+    // Lumen's Qt/KDE app theming (hypr/environment.lua sets the same for apps
+    // Hyprland starts). Passed explicitly so apps launched here get it even if
+    // this shell was started before the theming existed.
+    readonly property var appEnv: {
+        if (Quickshell.env("QT_QPA_PLATFORMTHEME") !== "qt6ct") return ({});
+        const gen = Theme.lumenRoot + "/generated";
+        const add = (v, dir, def) => { const cur = Quickshell.env(v) || def; return cur.includes(dir) ? cur : dir + ":" + cur; };
+        return {
+            XDG_CONFIG_DIRS: add("XDG_CONFIG_DIRS", gen + "/xdg", "/etc/xdg"),
+            XDG_DATA_DIRS: add("XDG_DATA_DIRS", gen + "/share", "/usr/local/share:/usr/share"),
+            KDE_COLOR_SCHEME_PATH: gen + "/share/color-schemes/Lumen.colors"
+        };
     }
 
     function search(q) {

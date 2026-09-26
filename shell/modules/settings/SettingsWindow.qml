@@ -51,8 +51,10 @@ FloatingWindow {
                 color: Theme.border
             }
 
+            // Fixed header: logo and search
             Column {
-                anchors { fill: parent; margins: Theme.space.s4; topMargin: Theme.space.s6 }
+                id: navHead
+                anchors { top: parent.top; left: parent.left; right: parent.right; margins: Theme.space.s4; topMargin: Theme.space.s6 }
                 spacing: 2
 
                 Row {
@@ -87,32 +89,89 @@ FloatingWindow {
                     }
                 }
                 Item { width: 1; height: Theme.space.s2 }
+            }
 
-                Repeater {
-                    model: SettingsState.visiblePages
-                    delegate: HoverTarget {
-                        required property var modelData
-                        readonly property bool on: SettingsState.page === modelData.id
-                        width: sidebar.width - Theme.space.s4 * 2
-                        height: 38
-                        radius: Theme.radius.sm
-                        highlighted: on
-                        onClicked: SettingsState.page = modelData.id
+            // The pages, grouped; scrolls when the window is short. The current
+            // page is kept in view (↑/↓ from the keyboard).
+            Flickable {
+                id: nav
+                anchors { top: navHead.bottom; bottom: parent.bottom; left: parent.left; right: parent.right; leftMargin: Theme.space.s4; rightMargin: Theme.space.s4 }
+                contentHeight: navList.height + Theme.space.s4
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                flickableDirection: Flickable.VerticalFlick
+                Behavior on contentY { enabled: !nav.moving; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard } }
 
-                        Rectangle {
-                            visible: parent.on
-                            anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-                            width: 3; height: 18; radius: 2
-                            color: Theme.accent
-                        }
-                        Row {
-                            anchors { left: parent.left; leftMargin: Theme.space.s3; verticalCenter: parent.verticalCenter }
-                            spacing: Theme.space.s3
-                            LIcon { icon: modelData.icon; size: Theme.size.iconSmall; fill: parent.parent.on ? 1 : 0; color: parent.parent.on ? Theme.accent : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
-                            LText { role: parent.parent.on ? "bodyStrong" : "body"; text: modelData.label; color: parent.parent.on ? Theme.text : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                property Item current: null     // the selected page's row
+                onContentHeightChanged: reveal(current)
+                onHeightChanged: reveal(current)
+                function reveal(item) {
+                    if (!item || height <= 0) return;
+                    const y = item.mapToItem(navList, 0, 0).y, pad = 24;
+                    if (y < contentY + pad) contentY = Math.max(0, y - pad);
+                    else if (y + item.height > contentY + height - pad) contentY = Math.min(contentHeight - height, y + item.height - height + pad);
+                }
+
+                Column {
+                    id: navList
+                    width: nav.width
+                    spacing: 2
+
+                    Repeater {
+                        model: SettingsState.visiblePages
+                        delegate: Column {
+                            id: navRow
+                            required property var modelData
+                            required property int index
+                            readonly property bool on: SettingsState.page === modelData.id
+                            readonly property bool firstOfGroup: SettingsState.search.trim() === ""
+                                && (index === 0 || SettingsState.visiblePages[index - 1].group !== modelData.group)
+                            width: navList.width
+                            onOnChanged: if (on) { nav.current = navRow; Qt.callLater(() => nav.reveal(navRow)); }
+                            Component.onCompleted: if (on) nav.current = navRow
+
+                            LText {
+                                visible: navRow.firstOfGroup
+                                leftPadding: Theme.space.s3
+                                topPadding: navRow.index === 0 ? Theme.space.s1 : Theme.space.s4
+                                bottomPadding: Theme.space.s1
+                                role: "caption"
+                                font.weight: Font.DemiBold
+                                color: Theme.textMuted
+                                text: navRow.modelData.group ?? ""
+                            }
+                            HoverTarget {
+                                width: navRow.width
+                                height: 38
+                                radius: Theme.radius.sm
+                                highlighted: navRow.on
+                                onClicked: SettingsState.page = navRow.modelData.id
+
+                                Rectangle {
+                                    visible: navRow.on
+                                    anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                                    width: 3; height: 18; radius: 2
+                                    color: Theme.accent
+                                }
+                                Row {
+                                    anchors { left: parent.left; leftMargin: Theme.space.s3; verticalCenter: parent.verticalCenter }
+                                    spacing: Theme.space.s3
+                                    LIcon { icon: navRow.modelData.icon; size: Theme.size.iconSmall; fill: navRow.on ? 1 : 0; color: navRow.on ? Theme.accent : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                                    LText { role: navRow.on ? "bodyStrong" : "body"; text: navRow.modelData.label; color: navRow.on ? Theme.text : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                                }
+                            }
                         }
                     }
                 }
+            }
+
+            // A hairline where the list scrolls under the header
+            Rectangle {
+                anchors { top: nav.top; left: nav.left; right: nav.right }
+                height: 1
+                color: Theme.border
+                opacity: nav.contentY > 1 ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: Theme.motion.micro } }
             }
         }
 

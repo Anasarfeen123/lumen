@@ -36,7 +36,8 @@ Singleton {
             // Notifications (Lumen Settings → Notifications)
             property bool notifBanners: true      // show arrivals in the island
             property var mutedApps: []            // app names: history only, no banner or sound
-            property var clipPins: []             // pinned clipboard items: { kind: "text"|"image", text, file }
+            property var clipPins: []
+            property var seenDevices: []          // USB / Bluetooth / display ids already announced as "New"             // pinned clipboard items: { kind: "text"|"image", text, file }
             property var weatherPlace: null       // { name, lat, lon } — Open-Meteo, set by you
             property string aiProvider: "off"     // "off" | "anthropic" | "ollama"
             property string aiModel: ""           // empty = the provider default
