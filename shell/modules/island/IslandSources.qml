@@ -182,7 +182,8 @@ Scope {
         function state(): string {
             return JSON.stringify({ variant: Island.variant, kind: Island.kind, pinned: Island.pinned,
                                     hovered: Island.hovered, pointerInside: Island.pointerInside,
-                                    queue: Island.queue.map(e => e.key), media: Media.title });
+                                    queue: Island.queue.map(e => e.key), media: Media.title, playing: Island.mediaPlaying,
+                                    present: Island.mediaPresent, context: Context.kind, project: Context.projectDir });
         }
         function dismiss(): void { Island.dismiss(); }
         function screenshot(path: string): void {

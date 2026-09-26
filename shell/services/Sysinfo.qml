@@ -22,13 +22,38 @@ Singleton {
     property real disk: 0           // 0–1
 
     property var _prev: null
+    property bool islandActive: false   // the island's context card also wants samples
+    // NVIDIA details, only while the dGPU is already awake (nvidia-smi would wake it)
+    property real dgpuUtil: -1          // 0–1, -1 unknown
+    property real dgpuTemp: -1
+    property real dgpuMemUsed: -1       // MiB
+    property real dgpuMemTotal: -1
+    property real dgpuPower: -1         // W
+    property string dgpuName: ""
+    property string dgpuDriver: ""
+    Process {
+        id: nv
+        command: ["nvidia-smi", "--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,power.draw,name,driver_version", "--format=csv,noheader,nounits"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const f = text.trim().split(",").map(x => x.trim());
+                if (f.length < 7) return;
+                root.dgpuUtil = Number(f[0]) / 100; root.dgpuTemp = Number(f[1]);
+                root.dgpuMemUsed = Number(f[2]); root.dgpuMemTotal = Number(f[3]);
+                root.dgpuPower = Number(f[4]); root.dgpuName = f[5]; root.dgpuDriver = f[6];
+            }
+        }
+    }
 
     Timer {
         interval: 2000
         repeat: true
         triggeredOnStart: true
-        running: root.active
-        onTriggered: if (!sampler.running) sampler.running = true
+        running: root.active || root.islandActive
+        onTriggered: {
+            if (!sampler.running) sampler.running = true;
+            if (root.dgpu === "active" && !nv.running) nv.running = true;
+        }
     }
 
     Process {

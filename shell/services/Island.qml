@@ -66,10 +66,15 @@ Singleton {
     readonly property string variant: {
         const open = pinned || hovered;
         if (kind === "nowPlaying") return open ? "mediaExpanded" : "mediaCompact";
-        if (kind === "idle") return open ? (mediaPresent ? "mediaExpanded" : "idlePeek") : "idle";
+        // Hovering the resting island: music you're playing, else what you're
+        // working on (Context), else a paused player, else date and time
+        if (kind === "idle") return !open ? "idle"
+            : mediaPlaying ? "mediaExpanded"
+            : (Context.kind === "dev" || Context.kind === "game") ? "context"
+            : mediaPresent ? "mediaExpanded" : "idlePeek";
         return kind;
     }
-    readonly property bool expanded: ["mediaExpanded", "notification", "critical", "screenshot"].includes(variant)
+    readonly property bool expanded: ["mediaExpanded", "notification", "critical", "screenshot", "context"].includes(variant)
 
     Timer {
         interval: 2000
