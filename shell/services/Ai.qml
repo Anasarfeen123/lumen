@@ -90,6 +90,12 @@ Singleton {
         { id: "review",    icon: "rate_review",      label: "Review code",   hint: "Bugs and risks in your changes",          ctx: ["project"], prompt: a => "Review this diff for bugs, risky changes and missing edge cases. Be specific (file and line), most serious first." + (a ? " Focus: " + a : "") },
         { id: "clip",      icon: "content_paste",    label: "Clipboard",     hint: "Ask about what you copied",               ctx: ["clipboard"], prompt: a => a || "What is this, and what can I do with it?" },
         { id: "define",    icon: "menu_book",        label: "Define",        hint: "/define <word>",                          prompt: a => "Define \"" + a + "\" briefly: meaning, one example sentence, and synonyms." },
+        { id: "pdf",       icon: "picture_as_pdf",   label: "Summarize a PDF", hint: "Pick a PDF (Downloads, Drop Zone)",    files: true, prompt: a => "Summarize this document: what it is, the key points as bullets, and anything I need to act on." + (a ? " Focus on: " + a : "") },
+        { id: "file",      icon: "description",      label: "Ask about a file", hint: "/file <question> about files you pick", files: true, prompt: a => a || "What is in these files? Summarize each briefly and tell me anything important." },
+        { id: "rename",    icon: "drive_file_rename_outline", label: "Rename files", hint: "Better names from what's inside",  files: true, rename: true,
+          prompt: a => "Suggest clearer file names for these files, based on what's inside them." + (a ? " Style: " + a + "." : "")
+                     + " Rules: keep each file's extension; at most 60 characters; readable words (e.g. \"Robotics Club Budget 2026-09.txt\"); include a date only if the content shows one; no slashes. "
+                     + "Reply with ONLY a JSON array, no other text: [{\"from\": \"<current name>\", \"to\": \"<new name>\"}]" },
         { id: "eli5",      icon: "child_care",       label: "Simply",        hint: "Explain it like I'm new to this",         prompt: a => "Explain this simply, as to someone new to the topic, with an everyday analogy." + (a ? " " + a : "") },
     ]
     function skillFor(text) {
@@ -119,6 +125,32 @@ Singleton {
         id: selProc
         command: ["sh", "-c", "wl-paste --primary --no-newline 2>/dev/null | head -c 12000"]
         stdout: StdioCollector { onStreamFinished: { root.selection = text.trim(); root.useSelection = root.selection !== ""; } }
+    }
+
+    // ── files (Downloads picker, Drop Zone, `ai files <path>`) ──
+    property var files: []              // absolute paths, at most 5
+    property bool pickerOpen: false
+    property var downloads: []          // [{ path, name, size, mtime }] newest first
+    function toggleFile(path) {
+        if (files.includes(path)) files = files.filter(f => f !== path);
+        else if (files.length < 5) files = files.concat([path]);
+    }
+    function clearFiles() { files = []; }
+    function loadDownloads() { dlProc.running = true; }
+    Process {
+        id: dlProc
+        command: [Theme.lumenRoot + "/scripts/halo-context.sh", "downloads"]
+        stdout: StdioCollector {
+            onStreamFinished: root.downloads = text.split("\n").filter(l => l).map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(x => x)
+        }
+    }
+    // For the Drop Zone and scripts: open Halo with these files attached and,
+    // if given, run a skill on them ("pdf", "file", "rename")
+    function askAboutFiles(paths, skill) {
+        files = paths.filter(p => typeof p === "string" && p.startsWith("/")).slice(0, 5);
+        show();
+        pickerOpen = false;
+        if (skill) Qt.callLater(() => send("/" + skill));
     }
 
     // ── conversation ──
@@ -154,30 +186,45 @@ Singleton {
         if (useProject && projectDir) ctx.push("project");
         for (const c of (sk?.skill.ctx ?? [])) if (!ctx.includes(c) && (c !== "project" || projectDir)) ctx.push(c);
         if (sk?.skill.ctx?.includes("project") && !projectDir) { error = "Open a terminal or editor in your project first, then ask again."; return; }
+        if (sk?.skill.files && files.length === 0) { pickerOpen = true; loadDownloads(); error = "Pick the files first (up to 5), then send again."; return; }
+        // Attached files: one context read each (renaming needs only a taste of each)
+        const attached = files.slice();
+        for (const f of attached) ctx.push({ kind: "file", path: f, limit: sk?.skill.rename ? 1500 : 12000 });
+        if (sk?.skill.rename)
+            prompt = "Current names: " + attached.map(f => "\"" + f.replace(/.*\//, "") + "\"").join(", ") + "\n\n" + prompt;
         const screen = (useScreen || !!sk?.skill.screen) && vision;
         const chips = [];
         if (useSelection && selection && messages.length === 0) {
             prompt = "Selected text:\n```\n" + selection + "\n```\n\n" + prompt;
             chips.push("selection");
         }
-        pending = { text: prompt, shown: raw, chips: chips.concat(ctx).concat(screen ? ["screen"] : []), ctx, ctxText: "", screen };
+        pending = { text: prompt, shown: raw, chips: chips.concat(ctx.map(c => typeof c === "string" ? c : "file")).concat(screen ? ["screen"] : []).filter((c, i, a) => a.indexOf(c) === i),
+                    ctx, ctxText: "", screen, image: "", renameFor: sk?.skill.rename ? attached : null, fileNames: attached.map(f => f.replace(/.*\//, "")) };
         busy = true;
         useScreen = false;
+        pickerOpen = false;
+        files = [];
         nextContext();
     }
     function nextContext() {
         if (!busy) return;
         const p = pending;
         if (p.ctx.length > 0) {
-            const kind = p.ctx.shift();
+            const c = p.ctx.shift();
             phase = "reading";
-            ctxProc.kind = kind;
-            ctxProc.command = [Theme.lumenRoot + "/scripts/halo-context.sh", kind].concat(kind === "project" ? [projectDir] : []);
+            if (typeof c === "string") {
+                ctxProc.kind = c;
+                ctxProc.command = [Theme.lumenRoot + "/scripts/halo-context.sh", c].concat(c === "project" ? [projectDir] : []);
+            } else {
+                ctxProc.kind = "file";
+                ctxProc.command = ["env", "HALO_LIMIT=" + c.limit, Theme.lumenRoot + "/scripts/halo-context.sh", "file", c.path];
+            }
             ctxProc.running = true;
             return;
         }
         if (p.ctxText) p.text = p.ctxText + "\n\n" + p.text;
-        if (p.screen) {
+        if (p.image) begin(p.image);
+        else if (p.screen) {
             phase = "looking";
             capture.file = runDir + "/screen-" + Date.now() + ".jpg";
             capture.command = ["sh", "-c", 'mkdir -p "$1" && chmod 700 "$1" && exec "$2" capture "$3"', "sh", runDir, Theme.lumenRoot + "/scripts/ai.sh", capture.file];
@@ -190,8 +237,20 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 if (!root.pending) return;
-                const label = ({ clipboard: "Clipboard", window: "Focused window", system: "System snapshot", project: "Project" })[ctxProc.kind];
-                if (text.trim()) root.pending.ctxText += label + ":\n```\n" + text.trim() + "\n```\n\n";
+                let body = text.trim();
+                if (ctxProc.kind === "file") {
+                    // An image comes back as a private JPEG to attach (vision models only)
+                    const m = /^@@IMAGE@@ (.+)$/m.exec(body);
+                    if (m) {
+                        body = body.replace(/^@@IMAGE@@ .+\n?/m, "");
+                        if (root.vision && !root.pending.image) root.pending.image = m[1];
+                        else body += "\n(An image; " + (root.vision ? "only the first image is attached." : "the current model can't see images.") + ")";
+                    }
+                    if (body) root.pending.ctxText += body + "\n\n";
+                } else {
+                    const label = ({ clipboard: "Clipboard", window: "Focused window", system: "System snapshot", project: "Project" })[ctxProc.kind];
+                    if (body) root.pending.ctxText += label + ":\n```\n" + body + "\n```\n\n";
+                }
                 root.nextContext();
             }
         }
@@ -203,7 +262,7 @@ Singleton {
     }
     function begin(image) {
         if (!busy) return;
-        const user = { role: "user", text: pending.text, shown: pending.shown, chips: pending.chips };
+        const user = { role: "user", text: pending.text, shown: pending.shown, chips: pending.chips, fileNames: pending.fileNames ?? [], renameFor: pending.renameFor ?? null };
         if (image) user.image = image;
         messages = messages.concat([user, { role: "assistant", text: "" }]);
         phase = "thinking";
@@ -222,7 +281,7 @@ Singleton {
         if (i < 0) return;
         const u = messages[i];
         messages = messages.slice(0, i);
-        pending = { text: u.text, shown: u.shown, chips: u.chips ?? [], ctx: [], ctxText: "", screen: false };
+        pending = { text: u.text, shown: u.shown, chips: u.chips ?? [], ctx: [], ctxText: "", screen: false, image: "", renameFor: u.renameFor ?? null, fileNames: u.fileNames ?? [] };
         busy = true;
         begin(u.image ?? "");
     }
@@ -250,6 +309,7 @@ Singleton {
             // Drop an empty answer bubble if the request failed
             const m = root.messages;
             if (m.length && m[m.length - 1].role === "assistant" && m[m.length - 1].text === "") root.messages = m.slice(0, -1);
+            else if (m.length >= 2 && m[m.length - 2].renameFor) root.parseRenames(m.length - 1);
             else if (!root.open && m.length) root.announceDone();
         }
     }
@@ -260,6 +320,62 @@ Singleton {
     function announceDone() {
         Island.push({ kind: "system", key: "progress:halo", priority: Island.priority.system, duration: 3500, queueable: true, force: true,
                       data: { icon: "auto_awesome", title: "Halo answered", detail: "Super+Shift+Space to read it", tone: "normal" } });
+    }
+
+    // ── /rename: a plan you check, apply, and can undo ──
+    // Each answer to /rename gets msg.renames = [{ from: "/abs/path", to: "name", on: true }]
+    function parseRenames(i) {
+        const msg = messages[i], user = messages[i - 1];
+        let list = null;
+        const txt = msg.text;
+        const block = /```(?:json)?\s*([\s\S]*?)```/.exec(txt);
+        for (const cand of [block?.[1], txt, (/\[[\s\S]*\]/.exec(txt) ?? [])[0]]) {
+            if (!cand) continue;
+            try { const v = JSON.parse(cand.trim()); if (Array.isArray(v)) { list = v; break; } } catch (e) {}
+        }
+        if (!list) return;
+        const byName = {};
+        for (const f of user.renameFor) byName[f.replace(/.*\//, "")] = f;
+        const renames = list.filter(r => r && typeof r.from === "string" && typeof r.to === "string" && byName[r.from.replace(/.*\//, "")])
+                            .map(r => ({ from: byName[r.from.replace(/.*\//, "")], to: r.to.replace(/.*\//, "").trim(), on: r.to.trim() !== r.from.trim() }));
+        if (!renames.length) return;
+        const m = messages.slice();
+        m[i] = Object.assign({}, msg, { renames, renameState: "plan" });
+        messages = m;
+    }
+    function toggleRename(i, j) {
+        const m = messages.slice(), r = m[i].renames.slice();
+        r[j] = Object.assign({}, r[j], { on: !r[j].on });
+        m[i] = Object.assign({}, m[i], { renames: r });
+        messages = m;
+    }
+    function applyRenames(i) { renameRun("apply", i, JSON.stringify(messages[i].renames.filter(r => r.on).map(r => ({ from: r.from, to: r.to })))); }
+    function undoRenames(i) { renameRun("undo", i, JSON.stringify(messages[i].renameResults ?? [])); }
+    function renameRun(mode, i, plan) {
+        renameProc.index = i;
+        renameProc.mode = mode;
+        planFile.setText(plan);
+        renameProc.command = [Theme.lumenRoot + "/scripts/halo-rename.sh", mode, planFile.path];
+        renameProc.running = true;
+    }
+    FileView { id: planFile; path: root.runDir + "/rename-plan.json"; blockWrites: true; printErrors: false }
+    Process {
+        id: renameProc
+        property int index: -1
+        property string mode: ""
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const res = text.split("\n").filter(l => l).map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(x => x);
+                const done = res.filter(r => r.status === "renamed").length, skipped = res.length - done;
+                const m = root.messages.slice(), i = renameProc.index;
+                if (!m[i]) return;
+                m[i] = Object.assign({}, m[i], renameProc.mode === "apply" ? { renameResults: res, renameState: "applied" } : { renameState: "undone" });
+                root.messages = m;
+                Island.system(renameProc.mode === "apply" ? "drive_file_rename_outline" : "undo",
+                              renameProc.mode === "apply" ? "Renamed " + done + (done === 1 ? " file" : " files") : "Put " + done + (done === 1 ? " name" : " names") + " back",
+                              skipped ? skipped + " skipped — " + (res.find(r => r.status === "skipped")?.why ?? "") : "");
+            }
+        }
     }
 
     // ── what you can do with an answer ──
@@ -293,11 +409,17 @@ Singleton {
         target: "ai"
         function toggle(): void { root.toggle(); }
         function ask(q: string): void { root.show(); root.send(q); }
+        // Attach a file (call again for more, up to 5); Halo opens with them
+        function files(path: string): void { root.show(); if (path.startsWith("/") && !root.files.includes(path) && root.files.length < 5) root.files = root.files.concat([path]); }
     }
     IpcHandler {
         target: "aiTest"
         enabled: Quickshell.env("LUMEN_DEV") === "1"
         function mock(): void { root.devProvider = "mock"; }
+        function dump(): string { return JSON.stringify(root.messages.map(m => ({ role: m.role, text: m.text.slice(0, 400), renames: m.renames, state: m.renameState, results: m.renameResults }))); }
+        function picker(): void { root.clear(); root.show(); root.pickerOpen = true; root.loadDownloads(); }
+        function apply(): void { for (let i = root.messages.length - 1; i >= 0; i--) if (root.messages[i].renames) { root.applyRenames(i); return; } }
+        function undo(): void { for (let i = root.messages.length - 1; i >= 0; i--) if (root.messages[i].renameResults) { root.undoRenames(i); return; } }
         function real(): void { root.devProvider = ""; }
         function select(t: string): void { root.selection = t; root.useSelection = true; }
     }

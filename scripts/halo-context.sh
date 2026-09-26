@@ -7,6 +7,10 @@
 #   halo-context.sh project <dir>    git branch/status, recent commits, the diff (staged, else unstaged)
 #   halo-context.sh clipboard        the clipboard's text (first 8 KB)
 #   halo-context.sh window           the focused window: app, title, workspace
+#   halo-context.sh file <path>      a file's text: PDFs (pdftotext), text/code, office documents
+#                                    (LibreOffice, if installed); images print "@@IMAGE@@ <jpeg>"
+#                                    (a scaled private copy Halo attaches for a vision model)
+#   halo-context.sh downloads        the 12 newest files in ~/Downloads, as JSON lines {path,name,size,mtime}
 set -u
 
 section() { printf '\n### %s\n' "$1"; }
@@ -60,8 +64,54 @@ project)
     fi ;;
 window)
     hyprctl -j activewindow 2>/dev/null | jq -r '"## Focused window\napp: \(.class)\ntitle: \(.title)\nworkspace: \(.workspace.name)"' 2>/dev/null ;;
+file)
+    f=${2:-}
+    [ -f "$f" ] && [ -r "$f" ] || { echo "(can't read ${f##*/})"; exit 0; }
+    name=${f##*/}
+    mime=$(file --mime-type -b -- "$f" 2>/dev/null)
+    limit=${HALO_LIMIT:-12000}; case $limit in *[!0-9]*|"") limit=12000 ;; esac
+    # Text, truncated with a clear note
+    emit() {
+        out=$(head -c "$((limit + 1))")
+        printf '## File: %s (%s)\n' "$name" "$mime"
+        if [ "$(printf '%s' "$out" | wc -c)" -gt "$limit" ]; then printf '%s\n[… truncated: only the first %s characters are shown]\n' "$(printf '%s' "$out" | head -c "$limit")" "$limit"
+        else printf '%s\n' "$out"; fi
+    }
+    case $mime in
+    application/pdf)
+        command -v pdftotext >/dev/null || { echo "(PDF text needs poppler-utils: sudo dnf install poppler-utils)"; exit 0; }
+        pages=$(pdfinfo -- "$f" 2>/dev/null | awk '/^Pages:/ {print $2}')
+        [ -n "$pages" ] && printf '(%s pages)\n' "$pages"
+        pdftotext -layout -l 40 -- "$f" - 2>/dev/null | tr -s ' \n' | emit ;;
+    image/*)
+        dir=${XDG_RUNTIME_DIR:-/tmp}/lumen-ai; mkdir -p "$dir"; chmod 700 "$dir"
+        out="$dir/file-$(date +%s%N).jpg"
+        if magick "${f}[0]" -resize '1568x1568>' -quality 85 "$out" 2>/dev/null; then
+            printf '@@IMAGE@@ %s\n## Image: %s\n' "$out" "$name"
+        else echo "(couldn't read the image ${name})"; fi ;;
+    application/vnd.openxmlformats-officedocument.*|application/vnd.oasis.opendocument.*|application/msword|application/vnd.ms-*|application/rtf)
+        command -v libreoffice >/dev/null || { echo "(Office documents need LibreOffice)"; exit 0; }
+        tmp=$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/lumen-ai-doc.XXXXXX")
+        libreoffice --headless --convert-to txt:Text --outdir "$tmp" -- "$f" >/dev/null 2>&1
+        cat "$tmp"/*.txt 2>/dev/null | emit
+        rm -rf -- "$tmp" ;;
+    text/*|application/json|application/xml|application/javascript|application/x-sh|application/x-shellscript|application/toml|application/x-yaml|inode/x-empty)
+        emit < "$f" ;;
+    *)
+        # Anything else that is mostly text
+        if head -c 4096 -- "$f" | grep -qI .; then emit < "$f"
+        else printf '## File: %s (%s, %s bytes) — not a text document\n' "$name" "$mime" "$(stat -c %s -- "$f")"; fi ;;
+    esac ;;
+downloads)
+    d=$(xdg-user-dir DOWNLOAD 2>/dev/null || echo "$HOME/Downloads")
+    [ -d "$d" ] || exit 0
+    find "$d" -maxdepth 1 -type f ! -name '.*' ! -name '*.part' ! -name '*.crdownload' -printf '%T@\t%s\t%p\n' 2>/dev/null |
+        sort -rn | head -n 12 |
+        while IFS="$(printf '\t')" read -r t size path; do
+            jq -cn --arg p "$path" --argjson s "$size" --argjson t "${t%.*}" '{path:$p, name:($p|split("/")|last), size:$s, mtime:$t}'
+        done ;;
 clipboard)
     wl-paste --no-newline --type text 2>/dev/null | cap 8000 ;;
 *)
-    sed -n '5,9p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2 ;;
+    sed -n '5,14p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2 ;;
 esac

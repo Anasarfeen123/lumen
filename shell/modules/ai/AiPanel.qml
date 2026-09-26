@@ -262,7 +262,7 @@ PanelWindow {
                         id: userBubble
                         visible: msg.mine
                         anchors.right: parent.right
-                        width: Math.min(parent.width * 0.8, Math.max(userText.implicitWidth, chipsRow.implicitWidth) + Theme.space.s3 * 2)
+                        width: Math.min(parent.width * 0.8, Math.max(userText.implicitWidth, chipsRow.implicitWidth, (msg.modelData.fileNames ?? []).length ? 260 : 0) + Theme.space.s3 * 2)
                         height: userCol.implicitHeight + Theme.space.s3 * 2
                         radius: Theme.radius.md
                         color: Theme.withAlpha(Theme.accent, 0.16)
@@ -278,6 +278,17 @@ PanelWindow {
                             }
                             LText { id: userText; width: Math.min(implicitWidth, transcript.width * 0.8 - Theme.space.s3 * 2); wrapMode: Text.Wrap
                                     text: msg.modelData.shown ?? msg.modelData.text }
+                            // Attached files, by name
+                            Repeater {
+                                model: msg.modelData.fileNames ?? []
+                                delegate: Row {
+                                    required property string modelData
+                                    spacing: 4
+                                    LIcon { icon: win.fileIcon(modelData); size: 12; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                                    LText { role: "caption"; color: Theme.textSecondary; text: modelData; elide: Text.ElideMiddle
+                                            width: Math.min(implicitWidth, transcript.width * 0.8 - Theme.space.s3 * 2 - 16); anchors.verticalCenter: parent.verticalCenter }
+                                }
+                            }
                             Row {
                                 id: chipsRow
                                 visible: (msg.modelData.chips ?? []).length > 0
@@ -304,8 +315,9 @@ PanelWindow {
                         width: parent.width
                         spacing: Theme.space.s2
                         Rectangle {
+                            visible: !msg.modelData.renames
                             width: parent.width
-                            height: answer.implicitHeight + Theme.space.s3 * 2
+                            height: visible ? answer.implicitHeight + Theme.space.s3 * 2 : 0
                             radius: Theme.radius.md
                             color: Theme.withAlpha(Theme.surfaceElevated, 0.7)
                             border.width: 1; border.color: Theme.border
@@ -347,9 +359,11 @@ PanelWindow {
                                 LText { role: "caption"; color: Theme.textMuted; text: Ai.local && !Ai.modelLoaded ? "Loading " + Ai.model + "…" : "Thinking…" }
                             }
                         }
+                        // /rename: check the new names, then apply (and undo)
+                        RenamePlan { visible: !!msg.modelData.renames; width: answerCol.width; msgIndex: msg.index; msgData: msg.modelData }
                         // Code blocks: copy or run
                         Repeater {
-                            model: Ai.busy && msg.last ? [] : msg.blocks
+                            model: Ai.busy && msg.last || msg.modelData.renames ? [] : msg.blocks
                             delegate: CodeActions { required property var modelData; width: answerCol.width; block: modelData }
                         }
                         // Answer actions
@@ -382,6 +396,77 @@ PanelWindow {
                 ContextChip { kind: "system"; on: Ai.useSystem; onClicked: Ai.useSystem = !Ai.useSystem }
                 ContextChip { visible: Ai.projectDir !== ""; kind: "project"; on: Ai.useProject
                               label: "Project · " + Ai.projectDir.replace(/.*\//, ""); onClicked: Ai.useProject = !Ai.useProject }
+                ContextChip { kind: "file"; on: Ai.files.length > 0 || Ai.pickerOpen
+                              label: Ai.files.length ? "Files · " + Ai.files.length : "Files"
+                              onClicked: { Ai.pickerOpen = !Ai.pickerOpen; if (Ai.pickerOpen) Ai.loadDownloads(); } }
+            }
+
+            // ── Files: attached, and a picker of your newest downloads ──
+            Flow {
+                visible: Ai.files.length > 0
+                width: parent.width
+                spacing: 6
+                Repeater {
+                    model: Ai.files
+                    delegate: Rectangle {
+                        required property string modelData
+                        height: 26; radius: 13
+                        width: fRow.implicitWidth + 16
+                        color: Theme.withAlpha(Theme.accent, 0.12)
+                        border.width: 1; border.color: Theme.withAlpha(Theme.accent, 0.35)
+                        Row {
+                            id: fRow
+                            anchors.centerIn: parent
+                            spacing: 4
+                            LIcon { icon: win.fileIcon(modelData); size: 14; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                            LText { role: "caption"; text: modelData.replace(/.*\//, ""); elide: Text.ElideMiddle; width: Math.min(implicitWidth, 220); anchors.verticalCenter: parent.verticalCenter }
+                            HoverTarget { width: 18; height: 18; anchors.verticalCenter: parent.verticalCenter; onClicked: Ai.toggleFile(modelData)
+                                          LIcon { anchors.centerIn: parent; icon: "close"; size: 12; color: Theme.textMuted } }
+                        }
+                    }
+                }
+            }
+            Rectangle {
+                id: picker
+                visible: Ai.pickerOpen
+                width: parent.width
+                height: visible ? pickCol.implicitHeight + 12 : 0
+                radius: Theme.radius.md
+                color: Theme.withAlpha(Theme.surfaceElevated, 0.9)
+                border.width: 1; border.color: Theme.border
+                Column {
+                    id: pickCol
+                    x: 6; y: 6
+                    width: parent.width - 12
+                    Item {
+                        width: parent.width; height: 26
+                        LText { x: 8; anchors.verticalCenter: parent.verticalCenter; role: "caption"; color: Theme.textMuted
+                                text: "Newest in Downloads · pick up to 5" + (Ai.local ? "" : " · they'll be sent to Claude") }
+                        HoverTarget { anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                      width: doneLbl.implicitWidth + 16; height: 22; onClicked: Ai.pickerOpen = false
+                                      LText { id: doneLbl; anchors.centerIn: parent; role: "caption"; color: Theme.accent; text: "Done" } }
+                    }
+                    Repeater {
+                        model: Ai.downloads.slice(0, 8)
+                        delegate: HoverTarget {
+                            id: dl
+                            required property var modelData
+                            readonly property bool picked: Ai.files.includes(modelData.path)
+                            width: pickCol.width; height: 32
+                            radius: Theme.radius.sm
+                            onClicked: Ai.toggleFile(modelData.path)
+                            LIcon { id: box; x: 8; anchors.verticalCenter: parent.verticalCenter; icon: dl.picked ? "check_box" : "check_box_outline_blank"; fill: dl.picked ? 1 : 0; size: 18
+                                    color: dl.picked ? Theme.accent : Theme.textMuted }
+                            LIcon { id: kindIco; anchors { left: box.right; leftMargin: 8; verticalCenter: parent.verticalCenter } icon: win.fileIcon(dl.modelData.name); size: 16; color: Theme.textSecondary }
+                            LText { anchors { left: kindIco.right; leftMargin: 8; right: meta.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
+                                    elide: Text.ElideMiddle; text: dl.modelData.name }
+                            LText { id: meta; anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter } role: "caption"; color: Theme.textMuted
+                                    text: win.size(dl.modelData.size) + " · " + win.ago(dl.modelData.mtime) }
+                        }
+                    }
+                    LText { visible: Ai.downloads.length === 0; x: 8; height: 28; role: "caption"; color: Theme.textMuted
+                            text: "Nothing in Downloads. Drop files on the Drop Zone's “Ask Halo”, or run: qs ipc call ai files <path>" }
+                }
             }
 
             // ── Skills (type "/") ──
@@ -553,8 +638,26 @@ PanelWindow {
     }
 
     // ── pieces ──
-    function ctxIcon(k) { return ({ selection: "format_quote", clipboard: "content_paste", screen: "screenshot_monitor", window: "select_window", system: "monitor_heart", project: "commit" })[k] ?? "attach_file"; }
-    function ctxLabel(k) { return ({ selection: "Selection", clipboard: "Clipboard", screen: "Screen", window: "Window", system: "System", project: "Project" })[k] ?? k; }
+    function ctxIcon(k) { return ({ selection: "format_quote", clipboard: "content_paste", screen: "screenshot_monitor", window: "select_window", system: "monitor_heart", project: "commit", file: "attach_file" })[k] ?? "attach_file"; }
+    function ctxLabel(k) { return ({ selection: "Selection", clipboard: "Clipboard", screen: "Screen", window: "Window", system: "System", project: "Project", file: "Files" })[k] ?? k; }
+    function fileIcon(name) {
+        const e = (name.match(/\.([^.\/]+)$/)?.[1] ?? "").toLowerCase();
+        if (e === "pdf") return "picture_as_pdf";
+        if (["png", "jpg", "jpeg", "webp", "gif", "heic", "avif"].includes(e)) return "image";
+        if (["mp4", "mkv", "webm", "avi", "mov"].includes(e)) return "movie";
+        if (["mp3", "flac", "ogg", "wav", "m4a"].includes(e)) return "music_note";
+        if (["zip", "tar", "gz", "xz", "zst", "7z", "rar"].includes(e)) return "folder_zip";
+        if (["doc", "docx", "odt", "rtf"].includes(e)) return "article";
+        if (["ppt", "pptx", "odp", "key"].includes(e)) return "slideshow";
+        if (["xls", "xlsx", "ods", "csv"].includes(e)) return "table_chart";
+        if (["py", "js", "ts", "qml", "sh", "c", "cpp", "rs", "go", "java", "json", "lua"].includes(e)) return "code";
+        return "description";
+    }
+    function size(b) { return b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : b >= 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB"; }
+    function ago(t) {
+        const s = Date.now() / 1000 - t;
+        return s < 3600 ? Math.max(1, Math.round(s / 60)) + " min ago" : s < 86400 ? Math.round(s / 3600) + " h ago" : Math.round(s / 86400) + " d ago";
+    }
 
     component HeadButton: HoverTarget {
         property string icon
@@ -638,6 +741,60 @@ PanelWindow {
                 visible: ca.shell
                 icon: "play_arrow"; text: ca.confirming ? "Run" : "Run…"
                 onClicked: { if (ca.confirming) { ca.confirming = false; Ai.run(ca.block.code); } else { ca.confirming = true; confirmTimer.restart(); } }
+            }
+        }
+    }
+
+    // /rename's answer: each suggestion with a checkbox, then Apply (and Undo)
+    component RenamePlan: Rectangle {
+        id: rp
+        property int msgIndex: -1
+        property var msgData: ({})
+        readonly property var renames: msgData.renames ?? []
+        readonly property string stage: msgData.renameState ?? "plan"
+        height: rpCol.implicitHeight + Theme.space.s3 * 2
+        radius: Theme.radius.md
+        color: Theme.withAlpha(Theme.surfaceElevated, 0.7)
+        border.width: 1; border.color: Theme.border
+        Column {
+            id: rpCol
+            x: Theme.space.s3; y: Theme.space.s3
+            width: parent.width - Theme.space.s3 * 2
+            spacing: 4
+            LText { role: "bodyStrong"; text: rp.stage === "applied" ? "Renamed" : rp.stage === "undone" ? "Names put back" : "Suggested names"; bottomPadding: 4 }
+            Repeater {
+                model: rp.renames
+                delegate: HoverTarget {
+                    id: rr
+                    required property var modelData
+                    required property int index
+                    readonly property var result: (rp.msgData.renameResults ?? []).find(r => r.from === modelData.from) ?? null
+                    width: rpCol.width; height: 30
+                    radius: Theme.radius.sm
+                    enabled: rp.stage === "plan"
+                    onClicked: Ai.toggleRename(rp.msgIndex, index)
+                    LIcon { id: rbox; x: 4; anchors.verticalCenter: parent.verticalCenter; size: 18
+                            icon: rp.stage === "plan" ? (rr.modelData.on ? "check_box" : "check_box_outline_blank")
+                                : rr.result?.status === "renamed" ? "check_circle" : "block"
+                            fill: rr.modelData.on ? 1 : 0
+                            color: rr.result?.status === "skipped" ? Theme.warning : rr.modelData.on ? Theme.accent : Theme.textMuted }
+                    LText { id: oldName; anchors { left: rbox.right; leftMargin: 8; verticalCenter: parent.verticalCenter }
+                            width: (rpCol.width - 60) * 0.42; elide: Text.ElideMiddle; role: "caption"; color: Theme.textMuted
+                            text: rr.modelData.from.replace(/.*\//, "") }
+                    LIcon { id: arrow; anchors { left: oldName.right; leftMargin: 6; verticalCenter: parent.verticalCenter } icon: "arrow_forward"; size: 14; color: Theme.textMuted }
+                    LText { anchors { left: arrow.right; leftMargin: 6; right: parent.right; rightMargin: 4; verticalCenter: parent.verticalCenter }
+                            elide: Text.ElideMiddle
+                            color: rr.modelData.on ? Theme.text : Theme.textMuted
+                            text: rr.result?.status === "skipped" ? rr.modelData.to + "  (skipped: " + rr.result.why + ")" : rr.modelData.to }
+                }
+            }
+            Row {
+                spacing: 6
+                topPadding: 6
+                PillButton { visible: rp.stage === "plan"; primary: true; text: "Apply renames"; enabled: rp.renames.some(r => r.on); onClicked: Ai.applyRenames(rp.msgIndex) }
+                PillButton { visible: rp.stage === "applied" && (rp.msgData.renameResults ?? []).some(r => r.status === "renamed"); text: "Undo"; onClicked: Ai.undoRenames(rp.msgIndex) }
+                LText { visible: rp.stage === "plan"; anchors.verticalCenter: parent.verticalCenter; role: "caption"; color: Theme.textMuted
+                        text: "Nothing changes until you press Apply. Existing files are never overwritten." }
             }
         }
     }

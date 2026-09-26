@@ -33,6 +33,7 @@ Singleton {
             // Look & sound (Lumen Settings → Appearance)
             property string iconTheme: "McMojave-circle-dark"   // "system" = the system theme
             property bool uiSounds: true
+            property bool lyrics: true            // island lyrics from lrclib.net (sends title + artist)
             // Notifications (Lumen Settings → Notifications)
             property bool notifBanners: true      // show arrivals in the island
             property var mutedApps: []            // app names: history only, no banner or sound
@@ -55,6 +56,8 @@ Singleton {
             property bool lockBattery: true
             property bool lockCalendar: true
             property bool lockNotifications: true
+            // ── Screen time (services/ScreenTime.qml) ──
+            property bool screenTime: true        // record which apps you use, on this machine only
         }
     }
 }

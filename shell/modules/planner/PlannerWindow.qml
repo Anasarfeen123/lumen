@@ -232,6 +232,144 @@ PanelWindow {
                     LField { width: parent.width; icon: "add"; placeholder: "Add a to-do"; onAccepted: t => Planner.addTodo(t) }
                 }
             }
+
+            // ── Your week: screen time & focus (services/ScreenTime, this machine only) ──
+            Card {
+                id: weekCard
+                title: "Your week"
+                icon: "insights"
+                property bool menu: false
+                property bool confirmClear: false
+                readonly property var w: ScreenTime.week
+                readonly property var todayData: ScreenTime.days.length ? ScreenTime.days[ScreenTime.days.length - 1] : null
+                headerRight: [
+                    LText { visible: ScreenTime.enabled && weekCard.todayData !== null; role: "caption"; color: Theme.textMuted
+                            text: ScreenTime.fmt(weekCard.todayData?.total ?? 0) + " today" + (weekCard.w.avg > 0 ? " · avg " + ScreenTime.fmt(weekCard.w.avg) : "")
+                            anchors.verticalCenter: parent.verticalCenter },
+                    HoverTarget { width: 24; height: 24; onClicked: { weekCard.menu = !weekCard.menu; weekCard.confirmClear = false; }
+                                  LIcon { anchors.centerIn: parent; icon: "more_horiz"; size: 16; color: Theme.textMuted } }
+                ]
+                Column {
+                    width: parent.width
+                    spacing: Theme.space.s2
+
+                    // Settings, behind ⋯
+                    Row {
+                        visible: weekCard.menu
+                        spacing: Theme.space.s2
+                        HoverTarget {
+                            width: recRow.implicitWidth + 18; height: 26; radius: 13
+                            onClicked: Persist.data.screenTime = !ScreenTime.enabled
+                            Rectangle { anchors.fill: parent; radius: 13; z: -1; color: "transparent"; border.width: 1; border.color: Theme.border }
+                            Row { id: recRow; anchors.centerIn: parent; spacing: 5
+                                  LIcon { icon: ScreenTime.enabled ? "pause_circle" : "play_circle"; size: 14; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                                  LText { role: "caption"; text: ScreenTime.enabled ? "Stop recording" : "Record screen time"; anchors.verticalCenter: parent.verticalCenter } }
+                        }
+                        HoverTarget {
+                            width: clrRow.implicitWidth + 18; height: 26; radius: 13
+                            onClicked: { if (weekCard.confirmClear) { ScreenTime.clearHistory(); weekCard.confirmClear = false; weekCard.menu = false; } else weekCard.confirmClear = true; }
+                            Rectangle { anchors.fill: parent; radius: 13; z: -1; color: weekCard.confirmClear ? Theme.withAlpha(Theme.error, 0.14) : "transparent"; border.width: 1; border.color: weekCard.confirmClear ? Theme.withAlpha(Theme.error, 0.4) : Theme.border }
+                            Row { id: clrRow; anchors.centerIn: parent; spacing: 5
+                                  LIcon { icon: "delete"; size: 14; color: weekCard.confirmClear ? Theme.error : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                                  LText { role: "caption"; color: weekCard.confirmClear ? Theme.error : Theme.text; text: weekCard.confirmClear ? "Press again to clear" : "Clear history"; anchors.verticalCenter: parent.verticalCenter } }
+                        }
+                    }
+                    LText {
+                        visible: weekCard.menu
+                        width: parent.width; wrapMode: Text.Wrap
+                        role: "caption"; color: Theme.textMuted
+                        text: "Which app is in front, counted while you're active. Stored only on this computer (~/.local/state/lumen/screentime), kept 60 days."
+                    }
+
+                    LText {
+                        visible: !ScreenTime.enabled && !weekCard.menu
+                        role: "caption"; color: Theme.textMuted
+                        text: "Screen time is off. ⋯ to turn it on."
+                    }
+
+                    // 7 small bars, today accented; the focused part of each day is brighter
+                    Row {
+                        id: bars
+                        visible: ScreenTime.enabled && ScreenTime.days.length > 0
+                        width: parent.width
+                        height: 58
+                        readonly property real peak: Math.max(3600, ...ScreenTime.days.map(d => d.total))
+                        Repeater {
+                            model: ScreenTime.days
+                            delegate: Item {
+                                required property var modelData
+                                required property int index
+                                readonly property bool isToday: index === ScreenTime.days.length - 1
+                                width: bars.width / 7; height: bars.height
+                                Rectangle {
+                                    id: bar
+                                    anchors { horizontalCenter: parent.horizontalCenter; bottom: dayLbl.top; bottomMargin: 4 }
+                                    width: 14; radius: 4
+                                    height: Math.max(3, (parent.height - 18) * modelData.total / bars.peak)
+                                    color: parent.isToday ? Theme.withAlpha(Theme.accent, 0.35) : Theme.withAlpha(Theme.text, 0.10)
+                                    Behavior on height { NumberAnimation { duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+                                    Rectangle {   // focused time
+                                        anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter }
+                                        width: parent.width; radius: 4
+                                        height: modelData.total > 0 ? parent.height * Math.min(1, modelData.focus / modelData.total) : 0
+                                        color: parent.parent.isToday ? Theme.accent : Theme.withAlpha(Theme.text, 0.28)
+                                    }
+                                }
+                                LText {
+                                    id: dayLbl
+                                    anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom }
+                                    role: "caption"; font.pixelSize: 10
+                                    color: parent.isToday ? Theme.accent : Theme.textMuted
+                                    text: Qt.formatDate(new Date(modelData.date + "T12:00"), "ddd").charAt(0)
+                                }
+                            }
+                        }
+                    }
+
+                    // Top apps this week
+                    Row {
+                        visible: ScreenTime.enabled && weekCard.w.top.length > 0
+                        width: parent.width
+                        Repeater {
+                            model: weekCard.w.top
+                            delegate: Column {
+                                required property var modelData
+                                width: parent.width / 5
+                                spacing: 3
+                                Image {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    width: 22; height: 22
+                                    sourceSize: Qt.size(44, 44)
+                                    source: ScreenTime.iconOf(modelData.id)
+                                    asynchronous: true
+                                }
+                                LText { anchors.horizontalCenter: parent.horizontalCenter; width: Math.min(implicitWidth, parent.width - 4); elide: Text.ElideRight
+                                        role: "caption"; font.pixelSize: 10; color: Theme.textSecondary; text: ScreenTime.nameOf(modelData.id) }
+                                LText { anchors.horizontalCenter: parent.horizontalCenter; role: "caption"; font.pixelSize: 10; color: Theme.textMuted; text: ScreenTime.fmt(modelData.secs) }
+                            }
+                        }
+                    }
+
+                    // Focus
+                    Flow {
+                        visible: ScreenTime.enabled && weekCard.w.total > 0
+                        width: parent.width
+                        spacing: Theme.space.s3
+                        Row { spacing: 4
+                              LIcon { icon: "self_improvement"; size: 14; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                              LText { role: "caption"; color: Theme.textSecondary; text: ScreenTime.fmt(weekCard.w.focus) + " focused"; anchors.verticalCenter: parent.verticalCenter } }
+                        Row { spacing: 4
+                              LIcon { icon: "timer"; size: 14; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                              LText { role: "caption"; color: Theme.textSecondary; text: weekCard.w.rounds + (weekCard.w.rounds === 1 ? " Pomodoro round" : " Pomodoro rounds"); anchors.verticalCenter: parent.verticalCenter } }
+                        LText { role: "caption"; color: Theme.textMuted; text: ScreenTime.fmt(weekCard.w.total) + " this week" }
+                    }
+                    LText {
+                        visible: ScreenTime.enabled && weekCard.w.total === 0 && ScreenTime.days.length > 0
+                        role: "caption"; color: Theme.textMuted
+                        text: "Nothing recorded yet — it fills in as you work."
+                    }
+                }
+            }
         }
 
         // ── Notes: whatever height is left ──

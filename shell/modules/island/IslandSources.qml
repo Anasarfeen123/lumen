@@ -327,6 +327,12 @@ Scope {
     readonly property bool linkReady: Link.available
     // ── end Lumen Link ──
 
+    // ── Laptop keys ──
+    // Creates HwKeys at startup (its IPC target "keys", and the island pills
+    // for power-mode and airplane changes made by the firmware).
+    readonly property bool hwKeysReady: HwKeys.touchpadOn
+    // ── end Laptop keys ──
+
     // ── Entry points ──
     GlobalShortcut {
         appid: "lumen"
@@ -346,6 +352,8 @@ Scope {
         function toggle(): void { Island.togglePinned(); }
         function pin(): void { Island.pinned = true; }
         function unpin(): void { Island.pinned = false; }
+        // "Now" timeline: the last hour (Shift+scroll on the island)
+        function timeline(): void { Island.toggleTimeline(); }
         // Debug: current decision state as JSON
         function state(): string {
             return JSON.stringify({ variant: Island.variant, kind: Island.kind, pinned: Island.pinned,

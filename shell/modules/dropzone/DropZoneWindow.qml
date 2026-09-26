@@ -186,6 +186,15 @@ PanelWindow {
                     onActivated: p => DropZone.run("copy", p)
                     onContainsDragChanged: win.track(containsDrag)
                 }
+                // Lumen Halo reads them (PDFs, text, code, images) — see Ai.askAboutFiles
+                DropTarget {
+                    width: parent.width
+                    visible: Ai.provider !== "off"
+                    icon: "auto_awesome"; label: "Ask Halo"; sub: Ai.local ? "Summarize or ask about it, on this computer" : "Summarize or ask about it (sent to Claude)"
+                    usable: DropZone.subject.length > 0
+                    onActivated: p => { const paths = (p && p.length) ? p : DropZone.subject; DropZone.hide(); Ai.askAboutFiles(paths, paths.every(f => /\.pdf$/i.test(f)) ? "pdf" : ""); }
+                    onContainsDragChanged: win.track(containsDrag)
+                }
                 DropTarget {
                     width: parent.width
                     icon: "folder_zip"; label: "Compress"; sub: "A .zip next to it"
