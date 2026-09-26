@@ -187,7 +187,7 @@ Scope {
         function dismiss(): void { Island.dismiss(); }
         function screenshot(path: string): void {
             Sounds.play("shutter");
-            Island.push({ kind: "screenshot", priority: Island.priority.screenshot, duration: 2500,
+            Island.push({ kind: "screenshot", priority: Island.priority.screenshot, duration: 5000,
                           queueable: true, force: true, data: { path } });
         }
         function recording(active: bool): void {
@@ -199,6 +199,16 @@ Scope {
             Island.push({ kind: "system", key: "rec-saved", priority: Island.priority.system, duration: 2500,
                           queueable: true, force: true,
                           data: { icon: "videocam", title: "Recording saved", detail: path.split("/").pop(), tone: "normal", path } });
+        }
+        // Progress from scripts (`lumen progress`, `lumen run`): value 0–100, -1 unknown
+        function progress(id: string, title: string, value: real, detail: string): void {
+            Island.progress(id, "", title, value, detail);
+        }
+        function progressDone(id: string, title: string, ok: bool, detail: string): void {
+            Island.push({ kind: "system", key: "progress:" + id, priority: Island.priority.system, duration: 3500,
+                          queueable: true, force: true,
+                          data: { icon: ok ? "task_alt" : "error", title, detail, tone: ok ? "success" : "error" } });
+            Sounds.play(ok ? "done" : "warning");
         }
         // For scripts and testing: qs -p … ipc call island event <icon> <title> <detail>
         function event(icon: string, title: string, detail: string): void {

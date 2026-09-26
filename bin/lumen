@@ -8,6 +8,8 @@
 #   lumen clock <12h|24h>  ·  lumen motion <full|reduced>  ·  lumen reload
 #   lumen set <gaps|corners|border|anim_speed|follow_mouse|cursor|cursor_size|idle_lock|idle_sleep> <value>
 #   lumen check                     contrast report for the active theme
+#   lumen progress <title> <0-100|-1|done|fail> [detail]   show progress in the island
+#   lumen run [--title T] -- <command…>   run it; the island shows it working, then ✓ or ✗
 set -eu
 LUMEN_ROOT=${LUMEN_ROOT:-$HOME/.config/lumen}
 STATE=${XDG_STATE_HOME:-$HOME/.local/state}/lumen/state.json
@@ -108,6 +110,33 @@ case ${1:-} in
         "$LUMEN_ROOT/bin/lumen-shell-ipc" shell reload ;;
     check)
         python3 "$LUMEN_ROOT/theme/build.py" --check ;;
+    progress)
+        # lumen progress "Building Lumen" 72     ·  lumen progress "Building Lumen" done
+        title=${2:?usage: lumen progress <title> <0-100|-1|done|fail> [detail]}; v=${3:?}; detail=${4:-}
+        id=$(printf '%s' "$title" | cksum | cut -d' ' -f1)
+        case $v in
+            done) exec "$LUMEN_ROOT/bin/lumen-shell-ipc" island progressDone "$id" "$title" true "$detail" ;;
+            fail) exec "$LUMEN_ROOT/bin/lumen-shell-ipc" island progressDone "$id" "$title" false "$detail" ;;
+            -1|[0-9]|[0-9][0-9]|100) exec "$LUMEN_ROOT/bin/lumen-shell-ipc" island progress "$id" "$title" "$v" "$detail" ;;
+            *) echo "lumen progress: value must be 0-100, -1, done or fail" >&2; exit 2 ;;
+        esac ;;
+    run)
+        # lumen run -- make -j8   ·   lumen run --title "Building" -- cargo build
+        shift; title=""
+        [ "${1:-}" = --title ] && { title=$2; shift 2; }
+        [ "${1:-}" = -- ] && shift
+        [ $# -gt 0 ] || { echo "usage: lumen run [--title T] -- <command…>" >&2; exit 2; }
+        [ -n "$title" ] || title="Running $1"
+        ipc="$LUMEN_ROOT/bin/lumen-shell-ipc"; id=$(printf '%s%s' "$title" "$$" | cksum | cut -d' ' -f1)
+        start=$(date +%s)
+        # keep the island's bar alive while it runs (it lingers 6 s per update)
+        ( while :; do "$ipc" island progress "$id" "$title" -1 "" >/dev/null 2>&1; sleep 4; done ) & beat=$!
+        "$@" && rc=0 || rc=$?
+        kill "$beat" 2>/dev/null; wait "$beat" 2>/dev/null || true
+        secs=$(( $(date +%s) - start )); took=$( [ $secs -ge 60 ] && echo "$((secs / 60))m $((secs % 60))s" || echo "${secs}s" )
+        if [ $rc -eq 0 ]; then "$ipc" island progressDone "$id" "${title#Running } finished" true "$took" >/dev/null 2>&1
+        else "$ipc" island progressDone "$id" "${title#Running } failed" false "exit $rc · $took" >/dev/null 2>&1; fi
+        exit $rc ;;
     *)
         sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

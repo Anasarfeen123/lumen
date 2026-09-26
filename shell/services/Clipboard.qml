@@ -115,4 +115,32 @@ Singleton {
         }
     }
     Process { id: thumbs; onExited: root.thumbVersion++ }
+
+    // ── "Copied" in the island ──
+    // Only the size or kind is shown, never the content; nothing at all when a
+    // password manager marks the copy secret (x-kde-passwordManagerHint).
+    Process {
+        running: Persist.automates
+        command: ["wl-paste", "--watch", "echo", "changed"]
+        stdout: SplitParser { onRead: copiedCheck.restart() }
+    }
+    Timer { id: copiedCheck; interval: 120; onTriggered: { copiedInfo.running = false; copiedInfo.running = true; } }
+    Process {
+        id: copiedInfo
+        command: ["sh", "-c", 'types=$(wl-paste -l 2>/dev/null); printf "%s\n" "$types" | grep -qx "x-kde-passwordManagerHint" && { echo secret; exit; }; if printf "%s\n" "$types" | grep -q "^image/"; then echo image; else printf "text %s\n" "$(wl-paste -n 2>/dev/null | wc -m)"; fi']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const t = text.trim();
+                if (!t || t === "secret" || Overview.open) return;          // the clipboard picker gives its own feedback
+                if (t === "image") Island.push({ kind: "system", key: "copied", priority: Island.priority.system, duration: 1400, force: true,
+                                                 data: { icon: "content_copy", title: "Copied", detail: "Image", tone: "normal" } });
+                else {
+                    const n = parseInt(t.split(" ")[1]) || 0;
+                    if (n === 0) return;
+                    Island.push({ kind: "system", key: "copied", priority: Island.priority.system, duration: 1400, force: true,
+                                  data: { icon: "content_copy", title: "Copied", detail: n === 1 ? "1 character" : n + " characters", tone: "normal" } });
+                }
+            }
+        }
+    }
 }

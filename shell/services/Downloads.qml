@@ -60,8 +60,8 @@ Singleton {
                 if (!rows.length) return;
                 const [bytes, name] = rows[0];
                 const shown = root.partials[name]?.final || "Downloading";
-                Island.push({ kind: "system", key: "download", priority: Island.priority.system, duration: 1600, force: true,
-                              data: { icon: "downloading", title: shown, detail: root.human(+bytes) + (rows.length > 1 ? " · +" + (rows.length - 1) + " more" : ""), tone: "normal" } });
+                // Browsers don't expose the total size, so the bar sweeps and the size grows
+                Island.progress("download", "downloading", shown, -1, root.human(+bytes) + (rows.length > 1 ? " · +" + (rows.length - 1) : ""));
             }
         }
     }

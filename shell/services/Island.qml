@@ -69,7 +69,7 @@ Singleton {
         if (kind === "idle") return open ? (mediaPresent ? "mediaExpanded" : "idlePeek") : "idle";
         return kind;
     }
-    readonly property bool expanded: ["mediaExpanded", "notification", "critical"].includes(variant)
+    readonly property bool expanded: ["mediaExpanded", "notification", "critical", "screenshot"].includes(variant)
 
     Timer {
         interval: 2000
@@ -131,6 +131,12 @@ Singleton {
     function osd(channel, icon, value, label) {
         push({ kind: "osd", key: "osd", priority: priority.osd, duration: 1200,
                data: { channel, icon, value, label: label ?? "" } });
+    }
+    // Long-running work: value 0–100, or -1 when there's no estimate.
+    // Updates in place (same id); it lingers 6 s after the last update.
+    function progress(id, icon, title, value, detail) {
+        push({ kind: "progress", key: "progress:" + id, priority: priority.system, duration: 6000, queueable: true, force: true,
+               data: { icon, title, value, detail: detail ?? "" } });
     }
     function system(icon, title, detail, tone) {
         push({ kind: "system", key: "system:" + title, priority: priority.system, duration: 2000,
