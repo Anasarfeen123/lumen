@@ -62,4 +62,19 @@ Page {
             }
         }
     }
+
+    Group {
+        title: "Music"
+        SetRow {
+            icon: "queue_music"
+            title: "Music app"
+            description: "Opens in the music scratchpad (Super+Shift+M). YouTube Music runs as a web app in your browser, signed in."
+            Segmented {
+                width: 330
+                options: [{ id: "auto", label: "Auto" }, { id: "ytmusic", label: "YouTube Music" }, { id: "spotify", label: "Spotify" }]
+                current: Persist.data.musicApp ?? "auto"
+                onPicked: id => Persist.data.musicApp = id
+            }
+        }
+    }
 }

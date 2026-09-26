@@ -58,6 +58,8 @@ rule({ fullscreen = true }, { opaque = true })
 
 -- ── Application workspaces (only apps that benefit from a fixed home) ──
 rule({ class = "^(Spotify|spotify|com\\.spotify\\.Client)$" }, { workspace = "special:music silent" })
+-- YouTube Music as a browser web app (Brave / Chrome / Chromium --app window)
+rule({ class = "^(brave|chrome|chromium|google-chrome)-music\\.youtube\\.com.*$" }, { workspace = "special:music silent" })
 rule({ class = "^(steam)$" }, { workspace = "9 silent" })
 
 -- ── Games: tearing allowed; fullscreen keeps the screen awake ──
