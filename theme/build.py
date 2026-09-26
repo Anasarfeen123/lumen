@@ -477,6 +477,80 @@ def emit_hypridle(state: dict) -> str:
     return "\n".join(out) + "\n"
 
 
+def qt_style() -> str:
+    """Darkly (a translucent, rounded Breeze fork) when installed, else Breeze."""
+    plugins = [Path(p) / "qt6/plugins/styles/darkly6.so" for p in ("/usr/lib64", "/usr/lib", "/usr/lib/x86_64-linux-gnu")]
+    return "Darkly" if any(p.exists() for p in plugins) else "Breeze"
+
+
+def icon_theme(dark: bool) -> str:
+    """The icon theme the shell uses (Settings → Appearance → Icons), so the
+    launcher and Qt apps show the same icons."""
+    fallback = "breeze-dark" if dark else "breeze"
+    try:
+        name = json.loads((STATE.parent / "shell.json").read_text()).get("iconTheme") or ""
+    except (OSError, ValueError):
+        return fallback
+    dirs = [Path.home() / ".local/share/icons", Path.home() / ".icons", Path("/usr/share/icons")]
+    if name and name != "system" and any((d / name / "index.theme").exists() for d in dirs):
+        return name
+    return fallback
+
+
+# KDE apps with a colour-scheme menu. Off Plasma they otherwise pick Breeze
+# Light, because qt6ct doesn't report a dark colour scheme to Qt.
+KDE_APPS = ["dolphin", "kate", "kwrite", "okular", "ark", "gwenview", "konsole", "kcalc",
+            "filelight", "spectacle", "elisa", "kdenlive", "partitionmanager", "ksystemlog",
+            "kfind", "systemsettings", "plasma-systemmonitor", "kinfocenter", "haruna",
+            "kdeconnect-app", "plasma-discover", "korganizer", "kolourpaint", "okteta",
+            "krita", "kcharselect", "kruler", "kmail2", "kaddressbook", "kontact", "k3b",
+            "kget", "ktorrent", "skanpage", "kclock", "kweather", "francis", "isoimagewriter"]
+
+
+def emit_kde_colors(t: dict) -> str:
+    """A KDE colour scheme for KDE apps (Dolphin, Kate, Okular, Ark…). The
+    Lumen session points KDE_COLOR_SCHEME_PATH at it, so kdeglobals and
+    Plasma stay untouched."""
+    c = t["colors"]
+    def rgb(h): return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+    def mix(a, b, f):
+        return "".join(f"{round(x + (y - x) * f):02x}" for x, y in zip(rgb(a), rgb(b)))
+    def s(h): return ",".join(str(v) for v in rgb(h))
+    fg = {"ForegroundNormal": c["text"], "ForegroundInactive": c["text_muted"],
+          "ForegroundActive": c["accent"], "ForegroundLink": c["accent"],
+          "ForegroundVisited": c["accent_hover"], "ForegroundNegative": c["error"],
+          "ForegroundNeutral": c["warning"], "ForegroundPositive": c["success"]}
+    def group(name, bg, alt, text=None, extra=None):
+        rows = {"BackgroundNormal": bg, "BackgroundAlternate": alt,
+                "DecorationFocus": c["accent"], "DecorationHover": c["accent_hover"], **fg}
+        if text: rows["ForegroundNormal"] = text
+        rows.update(extra or {})
+        return [f"[Colors:{name}]"] + [f"{k}={s(v)}" for k, v in sorted(rows.items())] + [""]
+    dark = t["mode"] != "light"
+    view, window = c["surface"], c["bg"]
+    lines = [f"# {HEADER}",
+             "[ColorEffects:Disabled]", f"Color={s(c['surface'])}", "ColorAmount=0.5", "ColorEffect=3",
+             "ContrastAmount=0.55", "ContrastEffect=1", "IntensityAmount=0.1", "IntensityEffect=2", "",
+             "[ColorEffects:Inactive]", "ChangeSelectionColor=false", "Enable=false", ""]
+    lines += group("Window", window, c["surface"])
+    lines += group("View", view, mix(view, c["surface_elevated"], 0.5))
+    lines += group("Button", c["surface_elevated"], c["surface_hover"])
+    lines += group("Header", window, c["surface"])
+    lines += ["[Colors:Header][Inactive]"] + group("x", window, c["surface"])[1:]
+    lines += group("Selection", c["accent"], c["accent_hover"], c["on_accent"],
+                   {"ForegroundInactive": mix(c["on_accent"], c["accent"], 0.35),
+                    "ForegroundActive": c["on_accent"], "ForegroundLink": c["on_accent"],
+                    "ForegroundVisited": c["on_accent"]})
+    lines += group("Tooltip", c["surface_elevated"], c["surface_hover"])
+    lines += group("Complementary", c["bg"] if dark else "0d1014", c["surface"] if dark else "161a1f",
+                   c["text"] if dark else "f0f2f4")
+    lines += ["[General]", "ColorScheme=Lumen", "Name=Lumen", "shadeSortColumn=false", "",
+              "[KDE]", "contrast=2", "frameContrast=0.1", "",
+              "[WM]", f"activeBackground={s(window)}", f"activeForeground={s(c['text'])}",
+              f"inactiveBackground={s(window)}", f"inactiveForeground={s(c['text_muted'])}", ""]
+    return "\n".join(lines)
+
+
 def emit_qt6ct(t: dict) -> tuple[str, str]:
     """qt6ct palette + config (used only when qt6ct is installed; lumen-session
     switches QT_QPA_PLATFORMTHEME for the Lumen session alone)."""
@@ -499,7 +573,7 @@ def emit_qt6ct(t: dict) -> tuple[str, str]:
     ui, mono = t["type"]["ui"], t["type"]["mono"]
     conf = "\n".join([f"# {HEADER}", "[Appearance]",
                       f"color_scheme_path={OUT / 'qt6ct/colors/lumen.conf'}",
-                      "custom_palette=true", "style=Breeze", "icon_theme=breeze-dark" if dark else "icon_theme=breeze",
+                      "custom_palette=true", f"style={qt_style()}", f"icon_theme={icon_theme(dark)}",
                       "standard_dialogs=default", "",
                       "[Fonts]",
                       f'fixed="{mono},10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"',
@@ -561,6 +635,12 @@ def main() -> int:
     qt_scheme, qt_conf = emit_qt6ct(t)
     write(OUT / "qt6ct/colors/lumen.conf", qt_scheme)
     write(OUT / "qt6ct/qt6ct.conf", qt_conf)
+    # KDE apps: the scheme lives in a data dir and each app's default points at
+    # it. The Lumen session prepends these dirs to XDG_DATA_DIRS / XDG_CONFIG_DIRS,
+    # so they sit *under* your own ~/.config files and never reach Plasma.
+    write(OUT / "share/color-schemes/Lumen.colors", emit_kde_colors(t))
+    for app in KDE_APPS:
+        write(OUT / f"xdg/{app}rc", f"# {HEADER}\n[UiSettings]\nColorScheme=Lumen\n")
     print(f"lumen: generated theme={t['theme']} accent={t['accent_name']} → {OUT}")
     return 0
 

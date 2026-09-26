@@ -1,5 +1,6 @@
 // Appearance: theme, accent, transparency, motion, clock.
 import QtQuick
+import Quickshell
 import qs.theme
 import qs.components
 import qs.services
@@ -164,12 +165,16 @@ Page {
         SetRow {
             icon: "apps"
             title: "App icons"
-            description: "Lumen's own icon theme — the rest of the system keeps its own"
+            description: "Used by Lumen and by Qt apps in this session. Plasma keeps its own"
             Segmented {
                 width: 300
                 options: [{ id: "McMojave-circle-dark", label: "Mojave" }, { id: "breeze-plus-dark", label: "Breeze+" }, { id: "system", label: "System" }]
                 current: Persist.data.iconTheme
-                onPicked: id => Persist.data.iconTheme = id
+                onPicked: id => {
+                    Persist.data.iconTheme = id;
+                    // Qt apps use the same icons (generated qt6ct config); wait for the save
+                    Quickshell.execDetached(["sh", "-c", "sleep 1; exec \"$0\" rebuild", Theme.lumenRoot + "/bin/lumen"]);
+                }
             }
         }
         SetRow {

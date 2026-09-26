@@ -25,6 +25,20 @@ hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
 if not os.getenv("QT_QPA_PLATFORMTHEME") then hl.env("QT_QPA_PLATFORMTHEME", "kde") end
 hl.env("XDG_MENU_PREFIX", "plasma-")
 
+-- With qt6ct (Lumen colours), KDE apps also get Lumen's colour scheme. The
+-- generated dirs are searched *after* your own ~/.config and ~/.local/share,
+-- so a scheme you pick in an app still wins, and kdeglobals is never touched.
+if os.getenv("QT_QPA_PLATFORMTHEME") == "qt6ct" then
+    local gen = (os.getenv("LUMEN_ROOT") or (os.getenv("HOME") .. "/.config/lumen")) .. "/generated"
+    local function prepend(var, dir, default)
+        local cur = os.getenv(var) or default
+        if not cur:find(dir, 1, true) then hl.env(var, dir .. ":" .. cur) end
+    end
+    prepend("XDG_CONFIG_DIRS", gen .. "/xdg", "/etc/xdg")
+    prepend("XDG_DATA_DIRS", gen .. "/share", "/usr/local/share:/usr/share")
+    hl.env("KDE_COLOR_SCHEME_PATH", gen .. "/share/color-schemes/Lumen.colors")
+end
+
 -- Cursor (Lumen Settings → Appearance; default Bibata Modern Classic)
 hl.env("XCURSOR_THEME", LM.cursor)
 hl.env("XCURSOR_SIZE", tostring(LM.cursor_size))

@@ -123,6 +123,8 @@ case ${1:-} in
         "$LUMEN_ROOT/bin/lumen-shell-ipc" shell reload ;;
     check)
         python3 "$LUMEN_ROOT/theme/build.py" --check ;;
+    rebuild)    # regenerate app themes (e.g. after the icon theme changed); new windows pick it up
+        python3 "$LUMEN_ROOT/theme/build.py" >/dev/null ;;
     progress)
         # lumen progress "Building Lumen" 72     ·  lumen progress "Building Lumen" done
         title=${2:?usage: lumen progress <title> <0-100|-1|done|fail> [detail]}; v=${3:?}; detail=${4:-}
