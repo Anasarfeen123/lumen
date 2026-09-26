@@ -36,7 +36,9 @@ Singleton {
         return e;
     }
     function evaluate(q) {
-        if (!looksLikeMath(q) && !/[₹]|\b(rs|rupees?|inr|lakhs?|crores?)\b/i.test(q)) { result = ""; expression = ""; return; }
+        // Maths, or an amount of money in any currency ("$100", "50 usd", "2 lakh")
+        const moneyish = /\d/.test(q) && (currencyWords.test(q) || /[₹]|\b(rs|rupees?|inr|lakhs?|crores?)\b/i.test(q));
+        if (!looksLikeMath(q) && !moneyish) { result = ""; expression = ""; return; }
         expression = normalise(q);
         debounce.restart();
     }
