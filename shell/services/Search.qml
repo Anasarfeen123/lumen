@@ -63,7 +63,7 @@ Singleton {
         { title: "Control centre", glyph: "tune", keys: "control centre center quick settings", fn: () => Sidebar.show("controls") },
         { title: "Notifications", glyph: "notifications", keys: "notifications history", fn: () => Sidebar.show("notifications") },
         { title: "Planner", glyph: "event_note", keys: "planner calendar agenda todo notes weather", fn: () => { Planner.open = true; } },
-        { title: "Ask Lumen", glyph: "auto_awesome", keys: "ai assistant ask chat claude ollama", fn: () => Ai.show() },
+        { title: "Lumen Halo", glyph: "auto_awesome", keys: "halo ai assistant ask chat claude ollama", fn: () => Ai.show() },
         { title: "System inspector", glyph: "monitor_heart", keys: "system inspector cpu gpu memory ram disk temperature hardware stats", fn: () => SettingsState.launch("system") },
         { title: "Security", glyph: "shield", keys: "security firewall updates ssh secure boot encryption", fn: () => SettingsState.launch("security") },
         { title: "Find my phone", glyph: "phone_in_talk", keys: "find my phone ring locate lost", fn: () => Connect.phone ? Connect.act("ring", Connect.phone.id) : SettingsState.launch("phone") },
@@ -217,7 +217,7 @@ Singleton {
                                               subtitle: "Save one: type “save <name>”", glyph: "bookmark_border", badge: "", run: () => {} });
             }
             if ((m = /^(?:ask|ai)\s+(.+)$/i.exec(q)))
-                out.push({ kind: "command", group: "Ask Lumen", title: "Ask Lumen: " + m[1], subtitle: Ai.configured ? "Answers in the AI panel" : "Set up AI first (Settings → AI)",
+                out.push({ kind: "command", group: "Halo", title: "Ask Halo: " + m[1], subtitle: Ai.configured ? "Answers in the AI panel" : "Set up AI first (Settings → AI)",
                            glyph: "auto_awesome", badge: "Ask", run: () => { Ai.show(); Ai.send(m[1]); } });
             if (out.length) return out;
         }

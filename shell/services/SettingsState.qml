@@ -30,7 +30,7 @@ Singleton {
         { group: "Focus & privacy", id: "lock",          icon: "lock",                label: "Lock screen",         keys: "widgets password unlock" },
         { group: "Focus & privacy", id: "faceid",        icon: "face",                label: "Face ID",             keys: "face unlock gaze camera liveness anti photo calibrate strictness" },
         { group: "Focus & privacy", id: "security",      icon: "shield",              label: "Security",            keys: "security firewall ssh secure boot encryption selinux logins privacy" },
-        { group: "System", id: "ai",            icon: "auto_awesome",        label: "AI",                  keys: "assistant ask claude anthropic ollama local model api key chat" },
+        { group: "System", id: "ai",            icon: "auto_awesome",        label: "Halo",                keys: "halo ai assistant ask claude anthropic ollama local model api key chat" },
         { group: "System", id: "system",        icon: "monitor_heart",       label: "System",              keys: "system inspector hardware cpu gpu nvidia amd memory ram disk storage battery temperature kernel" },
         { group: "System", id: "updates",       icon: "system_update",       label: "Updates",             keys: "update upgrade dnf flatpak packages security software" },
         { group: "System", id: "advanced",      icon: "tune",                label: "Advanced",            keys: "advanced config files local.lua session.env logs journal verify doctor reset reload rebuild developer debug version" },

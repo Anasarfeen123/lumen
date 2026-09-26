@@ -127,7 +127,7 @@ ShellRoot {
             screen: modelData
         }
     }
-    // Ask Lumen (AI)
+    // Lumen Halo (AI)
     Variants {
         model: Quickshell.screens
         delegate: AiPanel {

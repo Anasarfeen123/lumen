@@ -6,6 +6,7 @@
 #   halo-context.sh system           network, failed services, recent errors, disk, memory, load, battery
 #   halo-context.sh project <dir>    git branch/status, recent commits, the diff (staged, else unstaged)
 #   halo-context.sh clipboard        the clipboard's text (first 8 KB)
+#   halo-context.sh window           the focused window: app, title, workspace
 set -u
 
 section() { printf '\n### %s\n' "$1"; }
@@ -57,8 +58,10 @@ project)
         git -C "$top" diff --stat 2>/dev/null | cap 1500
         git -C "$top" diff 2>/dev/null | cap 12000
     fi ;;
+window)
+    hyprctl -j activewindow 2>/dev/null | jq -r '"## Focused window\napp: \(.class)\ntitle: \(.title)\nworkspace: \(.workspace.name)"' 2>/dev/null ;;
 clipboard)
     wl-paste --no-newline --type text 2>/dev/null | cap 8000 ;;
 *)
-    sed -n '5,8p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2 ;;
+    sed -n '5,9p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2 ;;
 esac

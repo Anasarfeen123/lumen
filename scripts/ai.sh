@@ -5,7 +5,7 @@
 #   ai.sh capture <out.jpg>      screenshot of the focused monitor, scaled for a model
 #   ai.sh set-key anthropic      read an API key from stdin, store it (mode 600)
 #   ai.sh forget-key anthropic   delete the stored key
-#   ai.sh status                 which providers are usable
+#   ai.sh status                 which providers are usable; local models, sizes, which read images
 #   ai.sh warm <model>           load a local model now, so the first answer is quick
 #   ai.sh pull <model>           download a local model from Ollama's registry: {"p":0-100,"st":"…"} lines
 #   ai.sh rm <model>             delete a local model
@@ -34,8 +34,16 @@ forget-key)
 status)
     a=no; [ -s "$KEY" ] && a=yes
     o=no; curl -fsS --max-time 1 "$OLLAMA/api/tags" >/dev/null 2>&1 && o=yes
-    models=$( [ $o = yes ] && curl -fsS --max-time 2 "$OLLAMA/api/tags" | jq -c '[.models[].name]' || echo '[]')
-    jq -cn --arg a "$a" --arg o "$o" --argjson m "$models" '{anthropic:($a=="yes"), ollama:($o=="yes"), ollamaModels:$m}' ;;
+    tags='{"models":[]}'; loaded='[]'
+    if [ $o = yes ]; then
+        tags=$(curl -fsS --max-time 2 "$OLLAMA/api/tags" || echo '{"models":[]}')
+        loaded=$(curl -fsS --max-time 2 "$OLLAMA/api/ps" | jq -c '[.models[].name]' 2>/dev/null || echo '[]')
+    fi
+    # ollamaInfo: size in bytes, parameter count, and whether it reads images
+    printf '%s' "$tags" | jq -c --arg a "$a" --arg o "$o" --argjson l "$loaded" '{
+        anthropic: ($a == "yes"), ollama: ($o == "yes"), ollamaModels: [.models[].name], loaded: $l,
+        ollamaInfo: [.models[] | { name, size, params: (.details.parameter_size // ""),
+            vision: (((.details.families // []) | any(. == "clip" or . == "mllama")) or ((.details.family // "") | test("gemma3|llava|qwen2.5vl|minicpm"))) }] }' ;;
 warm)
     m=${2:?}
     jq -cn --arg m "$m" '{model:$m, keep_alive:"15m"}' |
@@ -80,7 +88,9 @@ ask)
     ollama)
         jq -c --argjson imgs "$(jq -r '[.messages[].image // empty] | unique | .[]' "$req" | while IFS= read -r f; do
                 jq -n --arg f "$f" --arg d "$(base64 -w0 "$f")" '{($f):$d}'; done | jq -s 'add // {}')" \
-          '{model, stream:true, messages:([{role:"system", content:.system}] + [.messages[] | {role, content:.text} + (if .image then {images:[$imgs[.image]]} else {} end)])}' \
+          '{model, stream:true, keep_alive:"15m",
+            options:{num_ctx:(if ([.messages[].text] | add | length) > 9000 then 8192 else 4096 end)},
+            messages:([{role:"system", content:.system}] + [.messages[] | {role, content:.text} + (if .image then {images:[$imgs[.image]]} else {} end)])}' \
           "$req" > "$body"
         curl -sS -N --max-time 300 -H 'content-type: application/json' --data-binary @"$body" "$OLLAMA/api/chat" 2>/dev/null |
           jq -c --unbuffered 'if .error then {e:.error}
