@@ -10,6 +10,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import qs.theme
+import qs.services
 
 PanelWindow {
     id: win
@@ -64,6 +65,15 @@ PanelWindow {
 
     Layer { id: a; isA: true }
     Layer { id: b; isA: false }
+
+    // Focus profiles dim the wallpaper a little, so windows come forward
+    Rectangle {
+        anchors.fill: parent
+        color: "black"
+        z: 10                                   // above both picture layers (they swap z 0/1)
+        opacity: Focus.dimWallpaper ? 0.32 : 0
+        Behavior on opacity { NumberAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.large * 2 } }
+    }
 
     // Free the old picture after the fade (a 4K image is ~30 MB decoded)
     Timer {

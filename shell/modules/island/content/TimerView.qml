@@ -33,6 +33,14 @@ Item {
                 }
             }
         }
+        // Pomodoro phase ("Focus 2" / "Break")
+        LText {
+            visible: Countdown.cycle !== null
+            anchors.verticalCenter: parent.verticalCenter
+            role: "caption"
+            color: Countdown.cycle?.phase === "break" ? Theme.success : Theme.accent
+            text: Countdown.cycle ? (Countdown.cycle.phase === "break" ? "Break" : "Focus " + Countdown.cycle.round) : ""
+        }
         LText {
             anchors.verticalCenter: parent.verticalCenter
             role: "bodyStrong"

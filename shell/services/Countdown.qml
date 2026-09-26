@@ -27,14 +27,22 @@ Singleton {
         const p = n => String(n).padStart(2, "0");
         return h > 0 ? `${h}:${p(m)}:${p(ss)}` : `${m}:${p(ss)}`;
     }
-    function startTimer(ms, name) { mode = "timer"; total = ms; acc = 0; runStart = Date.now(); paused = false; label = name || ""; now = Date.now(); }
+    function startTimer(ms, name) { if (!name?.startsWith("Focus") && !name?.startsWith("Break")) cycle = null; mode = "timer"; total = ms; acc = 0; runStart = Date.now(); paused = false; label = name || ""; now = Date.now(); }
     function startStopwatch() { mode = "stopwatch"; total = 0; acc = 0; runStart = Date.now(); paused = false; label = ""; now = Date.now(); }
     function toggle() {
         if (!active) return;
         if (paused) { runStart = Date.now(); paused = false; }
         else { acc += Date.now() - runStart; paused = true; }
     }
-    function stop() { mode = ""; paused = false; }
+    function stop() { mode = ""; paused = false; cycle = null; }
+
+    // Pomodoro: focus and break alternate until stopped (Focus → Deep work / Study)
+    property var cycle: null          // { focus: ms, rest: ms, phase: "focus"|"break", round: n }
+    function startCycle(focusMin, restMin) {
+        cycle = { focus: focusMin * 60000, rest: restMin * 60000, phase: "focus", round: 1 };
+        startTimer(cycle.focus, "Focus · round 1");
+        cycle = cycle;                   // (startTimer doesn't clear it)
+    }
 
     // "5m", "90s", "1h30m", "25 min", "1:30" (m:ss), plain number = minutes
     function parse(s) {
@@ -52,6 +60,19 @@ Singleton {
         interval: 250; repeat: true; running: root.active && !root.paused
         onTriggered: {
             root.now = Date.now();
+            if (root.mode === "timer" && root.remaining <= 0 && root.cycle) {
+                // Next phase of the pomodoro
+                const c = Object.assign({}, root.cycle);
+                c.phase = c.phase === "focus" ? "break" : "focus";
+                if (c.phase === "focus") c.round++;
+                Sounds.play("alarm", true);
+                Island.system(c.phase === "focus" ? "psychology" : "self_improvement",
+                              c.phase === "focus" ? "Back to focus" : "Take a break",
+                              c.phase === "focus" ? "Round " + c.round : Math.round(c.rest / 60000) + " minutes");
+                root.startTimer(c.phase === "focus" ? c.focus : c.rest, (c.phase === "focus" ? "Focus · round " : "Break · round ") + c.round);
+                root.cycle = c;
+                return;
+            }
             if (root.mode === "timer" && root.remaining <= 0) {
                 const name = root.label;
                 root.stop();

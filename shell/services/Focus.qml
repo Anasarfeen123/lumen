@@ -13,6 +13,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import Quickshell.Services.UPower
 
 Singleton {
     id: root
@@ -20,12 +21,20 @@ Singleton {
     readonly property var modes: [
         { id: "off",   icon: "do_not_disturb_off", label: "Off",            detail: "Everything can reach you" },
         { id: "dnd",   icon: "do_not_disturb_on",  label: "Do Not Disturb", detail: "Only urgent alerts" },
-        { id: "work",  icon: "work",               label: "Work",           detail: "Quiet, except apps you allow" },
-        { id: "game",  icon: "sports_esports",     label: "Game",           detail: "Effects off, notifications held" },
-        { id: "sleep", icon: "bedtime",            label: "Sleep",          detail: "Quiet and warm light" },
+        { id: "deep",  icon: "psychology",         label: "Deep work",      detail: "25-minute focus rounds, quiet, calmer desktop",
+          does: ["Notifications held (allowed apps still reach you)", "Pomodoro: 25 min focus · 5 min break", "Wallpaper dimmed", "Caffeine on — no sleep mid-thought"] },
+        { id: "study", icon: "school",             label: "Study",          detail: "50/10 rounds, quiet, your agenda at hand",
+          does: ["Notifications held (allowed apps still reach you)", "Pomodoro: 50 min focus · 10 min break", "Wallpaper dimmed", "Planner opens with your agenda"] },
+        { id: "work",  icon: "work",               label: "Work",           detail: "Quiet, except apps you allow",
+          does: ["Notifications held (allowed apps still reach you)"] },
+        { id: "game",  icon: "sports_esports",     label: "Game",           detail: "Effects off, notifications held",
+          does: ["Animations, blur and shadows off", "Performance power mode", "Notifications held"] },
+        { id: "sleep", icon: "bedtime",            label: "Sleep",          detail: "Quiet and warm light",
+          does: ["Notifications held (critical still come)", "Night light on"] },
     ]
     readonly property var current: modes.find(m => m.id === mode) ?? modes[0]
     readonly property var allow: Persist.data.focusAllow ?? []
+    readonly property bool dimWallpaper: mode === "deep" || mode === "study"
 
     // What we changed, so turning a mode off puts it back
     property var saved: null
@@ -34,22 +43,34 @@ Singleton {
         if (m === mode) return;
         // Undo the previous mode
         if (mode === "game" && GameMode.on) GameMode.toggle();
+        if ((mode === "deep" || mode === "study") && Countdown.cycle) Countdown.stop();
         if (saved) {
+            if (saved.caffeine !== undefined && Caffeine.on !== saved.caffeine) Caffeine.toggle();
+            if (saved.profile !== undefined) PowerProfiles.profile = saved.profile;
             if (saved.nightLight !== undefined && NightLight.enabled !== saved.nightLight) NightLight.toggle();
-            if (Notifications.dnd !== saved.dnd) Notifications.setDnd(saved.dnd);
+            if (Notifications.dnd !== saved.dnd) Notifications.setDnd(saved.dnd, true);
             saved = null;
         }
         mode = m;
         if (m === "off") { Island.system("do_not_disturb_off", "Focus off", "Everything can reach you"); return; }
-        saved = { dnd: Notifications.dnd, nightLight: NightLight.enabled };
-        if (m === "game") { if (!GameMode.on) GameMode.toggle(); return; }       // GameMode announces itself
-        Notifications.setDnd(true);
+        saved = { dnd: Notifications.dnd, nightLight: NightLight.enabled, caffeine: Caffeine.on, profile: PowerProfiles.profile };
+        if (m === "game") {
+            if (!GameMode.on) GameMode.toggle();                 // GameMode announces itself
+            PowerProfiles.profile = PowerProfile.Performance;
+            return;
+        }
+        if (m === "deep" || m === "study") {
+            if (!Caffeine.on) Caffeine.toggle();
+            Countdown.startCycle(m === "deep" ? 25 : 50, m === "deep" ? 5 : 10);
+            if (m === "study") Planner.open = true;
+        }
+        Notifications.setDnd(true, true);          // the mode announces itself
         if (m === "sleep" && !NightLight.enabled) NightLight.toggle();
-        Island.system(current.icon, current.label + " focus", current.detail);
+        Island.system(current.icon, current.label + " on", current.detail);
     }
 
     // Allowed apps break through Work (not Sleep, not Game)
-    function lets(appName) { return mode === "work" && allow.includes(appName); }
+    function lets(appName) { return ["work", "deep", "study"].includes(mode) && allow.includes(appName); }
 
     // ── schedule ──
     function minutes(hhmm) { const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm ?? ""); return m ? (+m[1]) * 60 + (+m[2]) : -1; }

@@ -296,10 +296,10 @@ Singleton {
         saveTimer.restart();
     }
 
-    function setDnd(on) {
+    function setDnd(on, quiet) {
         if (isClient) { if (on !== dnd) shellCall("toggleDnd"); return; }
         dnd = on;
-        Island.system(on ? "do_not_disturb_on" : "do_not_disturb_off",
+        if (!quiet) Island.system(on ? "do_not_disturb_on" : "do_not_disturb_off",
                       on ? "Do Not Disturb" : "Notifications on", on ? "Only urgent alerts" : "");
         saveTimer.restart();
     }

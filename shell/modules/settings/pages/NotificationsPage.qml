@@ -60,10 +60,12 @@ Page {
             icon: "do_not_disturb_on"
             title: "Mode"
             description: ({ off: "Everything can reach you", dnd: "Only urgent alerts", work: "Quiet, except apps you allow below",
+                            deep: "25-min focus rounds, quiet, dimmed wallpaper", study: "50/10 rounds, quiet, agenda at hand",
                             game: "Effects off, notifications held", sleep: "Quiet and warm light" })[page.focusMode] ?? ""
             Segmented {
-                width: 380
-                options: [{ id: "off", label: "Off" }, { id: "dnd", label: "DND" }, { id: "work", label: "Work" }, { id: "game", label: "Game" }, { id: "sleep", label: "Sleep" }]
+                width: 470
+                options: [{ id: "off", label: "Off" }, { id: "dnd", label: "DND" }, { id: "deep", label: "Deep" }, { id: "study", label: "Study" },
+                          { id: "work", label: "Work" }, { id: "game", label: "Game" }, { id: "sleep", label: "Sleep" }]
                 current: page.focusMode
                 onPicked: id => page.setFocus(id)
             }
