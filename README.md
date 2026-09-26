@@ -89,7 +89,7 @@ More in the [feature guide](docs/FEATURES.md) and the [showcase page](docs/showc
 ## Install
 
 ```sh
-git clone https://github.com/<you>/lumen.git ~/Projects/lumen
+git clone https://github.com/Anasarfeen123/lumen.git ~/Projects/lumen
 cd ~/Projects/lumen
 ./install.sh --dry-run   # see every step and command first; changes nothing
 ./install.sh             # guided: explains each step and asks before doing it

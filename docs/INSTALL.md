@@ -11,7 +11,7 @@ Lumen installs next to what you have. It never touches `~/.config/hypr` (another
 ## Guided install
 
 ```sh
-git clone https://github.com/<you>/lumen.git ~/Projects/lumen
+git clone https://github.com/Anasarfeen123/lumen.git ~/Projects/lumen
 cd ~/Projects/lumen
 ./install.sh --dry-run    # shows every step and the exact commands; changes nothing
 ./install.sh              # asks before each step
