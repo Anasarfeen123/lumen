@@ -38,5 +38,32 @@ Page {
                 onMoved: v => Persist.data.nightLightTemp = Math.round((6500 - v * 4000) / 100) * 100
             }
         }
+        SetRow {
+            icon: "wb_twilight"
+            title: "Automatically"
+            description: Persist.data.nightLightAuto === "sun"
+                ? "On at sunset (" + Qt.formatTime(Sun.sunset, Theme.timeFormatFull) + "), off at sunrise (" + Qt.formatTime(Sun.sunrise, Theme.timeFormatFull) + ")"
+                  + (Sun.known ? "" : " — set your city in the left sidebar for exact times")
+                : Persist.data.nightLightAuto === "custom" ? "On and off at the hours you choose" : "Only when you switch it"
+            Segmented {
+                width: 340
+                options: [{ id: "off", label: "Off" }, { id: "sun", label: "Sunset → sunrise" }, { id: "custom", label: "Custom" }]
+                current: Persist.data.nightLightAuto ?? "off"
+                onPicked: id => Persist.data.nightLightAuto = id
+            }
+        }
+        SetRow {
+            visible: Persist.data.nightLightAuto === "custom"
+            icon: "schedule"
+            title: "Hours"
+            Row {
+                spacing: Theme.space.s2
+                LField { width: 78; clearOnAccept: false; text: Persist.data.nightLightFrom
+                         onAccepted: t => { if (/^([01]?\d|2[0-3]):[0-5]\d$/.test(t.trim())) Persist.data.nightLightFrom = t.trim(); else text = Persist.data.nightLightFrom; } }
+                LText { text: "to"; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
+                LField { width: 78; clearOnAccept: false; text: Persist.data.nightLightTo
+                         onAccepted: t => { if (/^([01]?\d|2[0-3]):[0-5]\d$/.test(t.trim())) Persist.data.nightLightTo = t.trim(); else text = Persist.data.nightLightTo; } }
+            }
+        }
     }
 }

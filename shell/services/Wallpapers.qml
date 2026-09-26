@@ -121,4 +121,38 @@ Singleton {
         const B = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
         return (Math.atan2(B, A) * 180 / Math.PI + 360) % 360;
     }
+
+    // ── By time of day (Settings → Wallpaper) ──
+    // Four slots follow the sun (services/Sun): dawn · day · dusk · night.
+    // An empty slot borrows its neighbour, so two pictures (day + night) is
+    // enough. Changes only at a phase edge; the shell does it, not Settings.
+    readonly property var slots: Persist.data.wallpaperSlots ?? ({})
+    function slotFor(phase) {
+        const order = { dawn: ["dawn", "day", "night", "dusk"], day: ["day", "dawn", "dusk", "night"],
+                        dusk: ["dusk", "night", "day", "dawn"], night: ["night", "dusk", "dawn", "day"] }[phase] ?? [];
+        for (const k of order) if (slots[k]) return slots[k];
+        return "";
+    }
+    function setSlot(phase, path) {
+        const s = Object.assign({ dawn: "", day: "", dusk: "", night: "" }, slots);
+        s[phase] = path;
+        Persist.data.wallpaperSlots = s;
+    }
+    property string lastPhase: ""
+    readonly property bool byTime: Persist.data.wallpaperByTime ?? false
+    onByTimeChanged: { lastPhase = ""; followSun(); }
+    onSlotsChanged: { lastPhase = ""; followSun(); }
+    Connections {
+        target: Sun
+        enabled: (Persist.data.wallpaperByTime ?? false) && Persist.automates
+        function onPhaseChanged() { root.followSun(); }
+    }
+    function followSun() {
+        if (!(Persist.data.wallpaperByTime ?? false) || !Persist.automates) return;
+        if (Sun.phase === lastPhase) return;
+        lastPhase = Sun.phase;
+        const p = slotFor(Sun.phase);
+        if (p && p !== current) apply(p);
+    }
+    Timer { interval: 5000; running: true; onTriggered: root.followSun() }     // once after start
 }

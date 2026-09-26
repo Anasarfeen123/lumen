@@ -65,7 +65,7 @@ Singleton {
     property string lastScheduled: ""
     Timer {
         // Only the shell applies schedules (never the separate Settings app)
-        interval: 30000; running: !Notifications.isClient; repeat: true; triggeredOnStart: true
+        interval: 30000; running: Persist.automates; repeat: true; triggeredOnStart: true
         onTriggered: {
             const want = root.scheduled();
             // Act only on an edge, so a hand-picked mode isn't overridden every minute

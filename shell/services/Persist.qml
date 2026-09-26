@@ -8,6 +8,10 @@ import Quickshell.Io
 
 Singleton {
     id: root
+    // True only for the main shell of a real session: automations that change
+    // shared settings (schedules, night light, wallpaper) run here, never in
+    // the Settings app or in nested test sessions.
+    readonly property bool automates: Quickshell.env("LUMEN_SETTINGS_APP") !== "1" && !Quickshell.env("LUMEN_NESTED")
     readonly property alias data: adapter
 
     FileView {
@@ -38,6 +42,11 @@ Singleton {
             property string aiModel: ""           // empty = the provider default
             property var focusSchedule: ({ sleep: { on: false, from: "23:00", to: "07:00" }, work: { on: false, from: "09:00", to: "17:00", weekdays: true } })
             property var focusAllow: []           // apps that may interrupt any Focus mode
+            property string nightLightAuto: "off" // "off" | "sun" (sunset→sunrise) | "custom"
+            property string nightLightFrom: "21:00"
+            property string nightLightTo: "07:00"
+            property bool wallpaperByTime: false
+            property var wallpaperSlots: ({ dawn: "", day: "", dusk: "", night: "" })
             // Lock screen widgets (Lumen Settings → Lock screen)
             property bool lockMedia: true
             property bool lockBattery: true

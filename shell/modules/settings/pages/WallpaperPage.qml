@@ -51,4 +51,51 @@ Page {
             LSwitch { checked: Wallpapers.matchAccent; onToggled: Wallpapers.setMatchAccent(!checked) }
         }
     }
+
+    // ── By time of day ──
+    Group {
+        title: "Change with the time of day"
+        SetRow {
+            icon: "wb_twilight"
+            title: "Follow the sun"
+            description: (Persist.data.wallpaperByTime ? "Now: " + Sun.phase + " · " : "")
+                         + "Fill any slots with the current wallpaper; empty ones borrow a neighbour"
+            LSwitch { checked: Persist.data.wallpaperByTime; onToggled: Persist.data.wallpaperByTime = !checked }
+        }
+    }
+    Row {
+        width: parent.width
+        spacing: Theme.space.s3
+        opacity: Persist.data.wallpaperByTime ? 1 : 0.5
+        Repeater {
+            model: [{ id: "dawn", label: "Dawn", icon: "wb_twilight" }, { id: "day", label: "Day", icon: "sunny" },
+                    { id: "dusk", label: "Dusk", icon: "routine" }, { id: "night", label: "Night", icon: "bedtime" }]
+            delegate: Column {
+                id: slot
+                required property var modelData
+                readonly property string path: (Persist.data.wallpaperSlots ?? {})[modelData.id] ?? ""
+                width: (parent.width - Theme.space.s3 * 3) / 4
+                spacing: Theme.space.s2
+                ClippingRectangle {
+                    width: parent.width; height: width * 9 / 16
+                    radius: Theme.radius.md
+                    color: Theme.surfaceElevated
+                    border.width: Sun.phase === modelData.id && Persist.data.wallpaperByTime ? 2 : 1
+                    border.color: Sun.phase === modelData.id && Persist.data.wallpaperByTime ? Theme.accent : Theme.border
+                    Image { anchors.fill: parent; visible: slot.path !== ""; source: slot.path ? "file://" + slot.path : ""
+                            fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize: Qt.size(320, 180) }
+                    LIcon { anchors.centerIn: parent; visible: slot.path === ""; icon: modelData.icon; size: 28; color: Theme.textMuted }
+                }
+                Row {
+                    spacing: Theme.space.s1
+                    LText { role: "bodyStrong"; text: modelData.label; anchors.verticalCenter: parent.verticalCenter }
+                }
+                Row {
+                    spacing: Theme.space.s1
+                    Button { text: "Use current"; onActivated: Wallpapers.setSlot(modelData.id, Wallpapers.current) }
+                    Button { visible: slot.path !== ""; icon: "close"; text: ""; onActivated: Wallpapers.setSlot(modelData.id, "") }
+                }
+            }
+        }
+    }
 }

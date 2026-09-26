@@ -27,6 +27,7 @@ Singleton {
         function reset(): void { data.todos = []; data.events = []; }
         function place(q: string): void { Weather.setPlace(q); }
         function noPlace(): void { Weather.clearPlace(); }
+        function sunInfo(): string { return Sun.phase + " rise " + Qt.formatTime(Sun.sunrise, "HH:mm") + " set " + Qt.formatTime(Sun.sunset, "HH:mm") + (Sun.known ? " (" + Sun.place.name + ")" : " (default)") + " light: " + NightLight.wanted() + " slot: " + Wallpapers.slotFor(Sun.phase); }
     }
     IpcHandler { target: "planner"; function toggle(): void { root.toggle(); } function open(): void { root.open = true; } function close(): void { root.open = false; } }
 
