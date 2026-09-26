@@ -708,3 +708,17 @@ The user's systemd and D-Bus are shared by every session (Lumen on tty3, ii on t
 Super+Shift+arrow moves a window within the layout. **Ctrl+Super+Shift+←/→** takes it to the
 previous or next workspace, and you follow it. **Ctrl+Super+Shift+↑/↓** sends it to the monitor
 above or below.
+
+## 26. Sidebar tabs
+
+The sidebar has two tabs, **Controls** and **Notifications**, switched by a sliding pill. The
+Notifications tab shows an unread count. The status pill opens Controls, or Notifications if you click
+its unread dot. Super+N opens Notifications. Ctrl+Tab switches tabs, and the content slides and
+cross-fades.
+Notifications are grouped into one card per app: a header with the icon, name, count and newest time,
+collapse, and dismiss-all. A group with more than two collapses to the latest two, with stacked sheets
+underneath and "Show N more". The toolbar has a Do Not Disturb pill and Clear all. With nothing left:
+"You're all caught up" (or the Do Not Disturb note).
+
+Bar popups (app menu, tray drawer) use the xdg-popup grab (`grabFocus`), not HyprlandFocusGrab. The
+focus grab didn't know about the popup surface, so it swallowed clicks inside it.

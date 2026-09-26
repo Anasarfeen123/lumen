@@ -93,16 +93,13 @@ Item {
         implicitHeight: body.implicitHeight + Theme.space.s2 * 2
         color: "transparent"
         visible: false
+        // xdg-popup grab: gets pointer + keyboard, closes on a click outside
+        grabFocus: true
 
         function open() { visible = true; }
         function close() { visible = false; }
         function act(fn) { fn(); close(); }
 
-        HyprlandFocusGrab {
-            active: menu.visible
-            windows: [menu, root.barWindow]
-            onCleared: menu.close()
-        }
 
         GlassSurface {
             anchors.fill: parent

@@ -8,7 +8,7 @@ import qs.services
 
 Scope {
     GlobalShortcut { appid: "lumen"; name: "powerMenu"; description: "Power menu"; onPressed: Session.toggleMenu() }
-    GlobalShortcut { appid: "lumen"; name: "controlCenter"; description: "Control centre"; onPressed: Sidebar.toggle() }
+    GlobalShortcut { appid: "lumen"; name: "controlCenter"; description: "Control centre"; onPressed: Sidebar.toggle("controls") }
 
     IpcHandler {
         target: "session"

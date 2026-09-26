@@ -85,6 +85,8 @@ HoverTarget {
         implicitHeight: body.implicitHeight + Theme.space.s2 * 2
         color: "transparent"
         visible: false
+        // xdg-popup grab: gets pointer + keyboard, closes on a click outside
+        grabFocus: true
 
         function open() { visible = true; }
         function close() { visible = false; }
@@ -95,11 +97,6 @@ HoverTarget {
             item.display(root.window, p.x - 220, p.y);
         }
 
-        HyprlandFocusGrab {
-            active: drawer.visible
-            windows: [drawer, root.window]
-            onCleared: drawer.close()
-        }
 
         GlassSurface {
             anchors.fill: parent

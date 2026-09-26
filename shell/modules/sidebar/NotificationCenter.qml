@@ -1,7 +1,14 @@
-// Notification centre: header (count · DND · Clear), then history grouped by
-// app (most recently active app first), newest first within each group.
+// Notifications tab.
+//
+//   toolbar   Do Not Disturb pill · Clear all (the count is on the tab)
+//   groups    one card per app (most recently active first): app icon, name,
+//             count, newest time, collapse, dismiss-all. Inside, newest first.
+//             More than two → collapsed to the latest two with a stacked-
+//             sheets edge and "Show N more".
+//   empty     "You're all caught up" (or the Do Not Disturb note)
 import QtQuick
 import Quickshell
+import Quickshell.Widgets
 import qs.theme
 import qs.components
 import qs.services
@@ -11,86 +18,235 @@ Item {
 
     SystemClock { id: clock; precision: SystemClock.Minutes }
 
+    // ── model → groups ──
+    property var groups: []
+    property var expanded: ({})           // appName → true
+    function rebuild() {
+        const m = Notifications.model, order = [], by = {};
+        for (let i = 0; i < m.count; i++) {
+            const e = m.get(i);
+            if (!by[e.appName]) { by[e.appName] = []; order.push(e.appName); }
+            by[e.appName].push({ nid: e.nid, appName: e.appName, icon: e.icon, summary: e.summary, body: e.body,
+                                 urgency: e.urgency, time: e.time, canReply: e.canReply });
+        }
+        groups = order.map(app => ({ app, items: by[app] }));
+    }
+    Connections {
+        target: Notifications.model
+        function onCountChanged() { Qt.callLater(root.rebuild); }
+        function onRowsMoved() { Qt.callLater(root.rebuild); }
+        function onDataChanged() { Qt.callLater(root.rebuild); }
+    }
+    Component.onCompleted: rebuild()
+
+    // ── toolbar ──
     Item {
-        id: header
+        id: toolbar
         width: parent.width
-        height: 32
+        height: 34
 
-        LText { anchors.verticalCenter: parent.verticalCenter; role: "title"; text: "Notifications" }
+        Item {
+            anchors.fill: parent
 
-        Row {
-            anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-            spacing: Theme.space.s1
-
+            // Do Not Disturb pill (left) · Clear all (right)
             HoverTarget {
-                width: 32; height: 32
-                highlighted: Notifications.dnd
+                anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                width: dndRow.implicitWidth + Theme.space.s3 * 2; height: 30
                 onClicked: Notifications.setDnd(!Notifications.dnd)
-                LIcon {
+                Rectangle {
+                    anchors.fill: parent; radius: height / 2
+                    color: Notifications.dnd ? Theme.withAlpha(Theme.accent, 0.18) : "transparent"
+                    border.width: 1
+                    border.color: Notifications.dnd ? Theme.withAlpha(Theme.accent, 0.45) : Theme.border
+                    Behavior on color { ColorAnimation { duration: Theme.motion.micro } }
+                }
+                Row {
+                    id: dndRow
                     anchors.centerIn: parent
-                    icon: Notifications.dnd ? "do_not_disturb_on" : "do_not_disturb_off"
-                    fill: Notifications.dnd ? 1 : 0
-                    color: Notifications.dnd ? Theme.accent : Theme.textSecondary
+                    spacing: 6
+                    LIcon { anchors.verticalCenter: parent.verticalCenter; size: 16
+                            icon: Notifications.dnd ? "do_not_disturb_on" : "do_not_disturb_off"; fill: Notifications.dnd ? 1 : 0
+                            color: Notifications.dnd ? Theme.accent : Theme.textSecondary }
+                    LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"
+                            color: Notifications.dnd ? Theme.accent : Theme.textSecondary; text: "Do Not Disturb" }
                 }
             }
             HoverTarget {
-                visible: Notifications.count > 0
-                width: clearLabel.implicitWidth + Theme.space.s3 * 2; height: 32
-                radius: Theme.radius.sm
-                onClicked: Notifications.clearAll()
-                LText { id: clearLabel; anchors.centerIn: parent; role: "bodyStrong"; color: Theme.textSecondary; text: "Clear" }
-            }
-        }
-    }
-
-    ListView {
-        id: list
-        anchors { top: header.bottom; topMargin: Theme.space.s4; left: parent.left; right: parent.right; bottom: parent.bottom }
-        clip: true
-        spacing: 0
-        model: Notifications.model
-        boundsBehavior: Flickable.StopAtBounds
-
-        section.property: "appName"
-        section.criteria: ViewSection.FullString
-        section.delegate: Item {
-            required property string section
-            width: ListView.view.width
-            height: 28
-            LText { anchors { left: parent.left; leftMargin: Theme.space.s1; verticalCenter: parent.verticalCenter }
-                    role: "caption"; color: Theme.textMuted; text: section }
-            HoverTarget {
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                width: 22; height: 22
-                onClicked: Notifications.dismissApp(section)
-                LIcon { anchors.centerIn: parent; icon: "close"; size: 14; color: Theme.textMuted }
+                visible: Notifications.count > 0
+                width: clearRow.implicitWidth + Theme.space.s3 * 2; height: 30
+                onClicked: Notifications.clearAll()
+                Rectangle { anchors.fill: parent; radius: height / 2; color: "transparent"; border.width: 1; border.color: Theme.border }
+                Row {
+                    id: clearRow
+                    anchors.centerIn: parent
+                    spacing: 6
+                    LIcon { anchors.verticalCenter: parent.verticalCenter; icon: "clear_all"; size: 16; color: Theme.textSecondary }
+                    LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"; color: Theme.textSecondary; text: "Clear all" }
+                }
             }
-        }
-
-        delegate: NotificationCard { now: clock.date.getTime() }
-
-        add: Transition {
-            ParallelAnimation {
-                NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.motion.normal }
-                NumberAnimation { property: "x"; from: 24; to: 0; duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
-            }
-        }
-        remove: Transition {
-            ParallelAnimation {
-                NumberAnimation { property: "opacity"; to: 0; duration: Theme.motion.normal * Theme.motion.exitRatio }
-                NumberAnimation { property: "x"; to: 48; duration: Theme.motion.normal * Theme.motion.exitRatio; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveAccelerate }
-            }
-        }
-        displaced: Transition {
-            NumberAnimation { properties: "x,y"; duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard }
         }
     }
 
+    // ── groups ──
+    Flickable {
+        id: flick
+        anchors { top: toolbar.bottom; topMargin: Theme.space.s3; left: parent.left; right: parent.right; bottom: parent.bottom }
+        contentHeight: stack.implicitHeight + Theme.space.s4
+        boundsBehavior: Flickable.StopAtBounds
+        clip: true
+
+        Column {
+            id: stack
+            width: flick.width
+            spacing: Theme.space.s3
+
+            Repeater {
+                model: root.groups
+                delegate: Item {
+                    id: group
+                    required property var modelData
+                    readonly property var items: modelData.items
+                    readonly property bool collapsible: items.length > 2
+                    readonly property bool open: !collapsible || root.expanded[modelData.app] === true
+                    readonly property var shown: open ? items : items.slice(0, 2)
+                    width: stack.width
+                    height: card.height + (collapsible && !open ? 10 : 0)
+
+                    // Stacked sheets peeking out below a collapsed group
+                    Repeater {
+                        model: group.collapsible && !group.open ? 2 : 0
+                        delegate: Rectangle {
+                            required property int index
+                            anchors.horizontalCenter: card.horizontalCenter
+                            y: card.height - Theme.radius.md + (index + 1) * 5
+                            width: card.width - (index + 1) * 16
+                            height: Theme.radius.md
+                            radius: Theme.radius.md
+                            z: -1 - index
+                            color: Theme.surfaceElevated
+                            opacity: 0.7 - index * 0.25
+                            border.width: 1; border.color: Theme.border
+                        }
+                    }
+
+                    Rectangle {
+                        id: card
+                        width: parent.width
+                        height: col.implicitHeight
+                        radius: Theme.radius.md
+                        color: Theme.withAlpha(Theme.surfaceElevated, 0.85)
+                        border.width: 1
+                        border.color: Theme.border
+                        clip: true
+
+                        Column {
+                            id: col
+                            width: parent.width
+
+                            // Group header
+                            Item {
+                                width: parent.width
+                                height: 36
+                                ClippingRectangle {
+                                    id: appIcon
+                                    anchors { left: parent.left; leftMargin: Theme.space.s3; verticalCenter: parent.verticalCenter }
+                                    width: 20; height: 20; radius: 6
+                                    color: "transparent"
+                                    Image { anchors.fill: parent; source: group.items[0].icon; sourceSize: Qt.size(40, 40); fillMode: Image.PreserveAspectFit; asynchronous: true }
+                                }
+                                LText {
+                                    id: appLabel
+                                    anchors { left: appIcon.right; leftMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
+                                    role: "bodyStrong"
+                                    text: group.modelData.app
+                                }
+                                Rectangle {
+                                    visible: group.items.length > 1
+                                    anchors { left: appLabel.right; leftMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
+                                    height: 18; width: Math.max(18, n.implicitWidth + 10); radius: 9
+                                    color: Theme.surfaceHover
+                                    LText { id: n; anchors.centerIn: parent; role: "caption"; color: Theme.textSecondary; text: group.items.length }
+                                }
+                                Row {
+                                    anchors { right: parent.right; rightMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
+                                    spacing: 2
+                                    LText {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        rightPadding: Theme.space.s1
+                                        role: "caption"; color: Theme.textMuted
+                                        text: Notifications.relativeTime(group.items[0].time, clock.date.getTime())
+                                    }
+                                    HoverTarget {
+                                        visible: group.collapsible
+                                        width: 26; height: 26
+                                        onClicked: { const e = Object.assign({}, root.expanded); e[group.modelData.app] = !group.open; root.expanded = e; }
+                                        LIcon { anchors.centerIn: parent; icon: "expand_more"; size: 18; color: Theme.textSecondary
+                                                rotation: group.open ? 180 : 0
+                                                Behavior on rotation { NumberAnimation { duration: Theme.motion.normal } } }
+                                    }
+                                    HoverTarget {
+                                        width: 26; height: 26
+                                        onClicked: Notifications.dismissApp(group.modelData.app)
+                                        LIcon { anchors.centerIn: parent; icon: "close"; size: 16; color: Theme.textMuted }
+                                    }
+                                }
+                            }
+
+                            Repeater {
+                                model: group.shown
+                                delegate: NotificationCard {
+                                    required property var modelData
+                                    required property int index
+                                    width: col.width
+                                    entry: modelData
+                                    first: index === 0
+                                    now: clock.date.getTime()
+                                }
+                            }
+
+                            // "Show N more"
+                            HoverTarget {
+                                visible: group.collapsible
+                                width: parent.width; height: 34
+                                radius: 0
+                                onClicked: { const e = Object.assign({}, root.expanded); e[group.modelData.app] = !group.open; root.expanded = e; }
+                                Rectangle { anchors { top: parent.top; left: parent.left; right: parent.right; leftMargin: Theme.space.s3; rightMargin: Theme.space.s3 }
+                                            height: 1; color: Theme.border }
+                                LText {
+                                    anchors.centerIn: parent
+                                    role: "caption"
+                                    color: Theme.accent
+                                    text: group.open ? "Show less" : "Show " + (group.items.length - 2) + " more"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── empty ──
     Column {
-        anchors.centerIn: list
+        anchors.centerIn: flick
         visible: Notifications.count === 0
-        spacing: Theme.space.s2
-        LIcon { anchors.horizontalCenter: parent.horizontalCenter; icon: "notifications_off"; size: 28; color: Theme.textMuted }
-        LText { anchors.horizontalCenter: parent.horizontalCenter; role: "body"; color: Theme.textMuted; text: "No notifications" }
+        spacing: Theme.space.s3
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 76; height: 76; radius: 38
+            color: Theme.withAlpha(Theme.accent, 0.10)
+            border.width: 1; border.color: Theme.withAlpha(Theme.accent, 0.25)
+            LIcon {
+                anchors.centerIn: parent
+                icon: Notifications.dnd ? "do_not_disturb_on" : "notifications_active"
+                size: 34; fill: 1
+                color: Theme.accent
+            }
+        }
+        LText { anchors.horizontalCenter: parent.horizontalCenter; role: "heading"
+                text: Notifications.dnd ? "Do Not Disturb is on" : "You're all caught up" }
+        LText { anchors.horizontalCenter: parent.horizontalCenter; role: "caption"; color: Theme.textMuted
+                text: Notifications.dnd ? "Only urgent alerts will interrupt you" : "New notifications will appear here" }
     }
 }

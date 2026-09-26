@@ -1,6 +1,7 @@
-// Right-hand glass panel (Super+N, or click the status pill).
-// Control centre on top, notification centre below (fills the rest).
-// Esc or clicking elsewhere closes it.
+// Right-hand glass panel with two tabs:
+//   Controls       (click the status pill, Super+A)   — control centre
+//   Notifications  (Super+N, or the unread dot)       — grouped by app
+// Ctrl+Tab switches tabs · Esc or clicking elsewhere closes.
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
@@ -50,22 +51,52 @@ PanelWindow {
         focus: win.showing
         Keys.onEscapePressed: Sidebar.hide()
 
-        ControlCenter {
-            id: controls
-            focus: true
-            anchors { top: parent.top; left: parent.left; right: parent.right; margins: Theme.space.s5 }
+        Keys.onPressed: event => {
+            if (event.key === Qt.Key_Tab && (event.modifiers & Qt.ControlModifier)) {
+                Sidebar.tab = Sidebar.tab === "controls" ? "notifications" : "controls";
+                event.accepted = true;
+            }
         }
 
-        Rectangle {
-            id: divider
-            anchors { top: controls.bottom; topMargin: Theme.space.s5; left: parent.left; right: parent.right; leftMargin: Theme.space.s5; rightMargin: Theme.space.s5 }
-            height: 1
-            color: Theme.border
+        SidebarTabs {
+            id: tabs
+            anchors { top: parent.top; left: parent.left; right: parent.right; margins: Theme.space.s4 }
         }
 
-        NotificationCenter {
-            anchors { top: divider.bottom; topMargin: Theme.space.s4; left: parent.left; right: parent.right; bottom: parent.bottom
-                      leftMargin: Theme.space.s5; rightMargin: Theme.space.s5; bottomMargin: Theme.space.s5 }
+        // Both tabs live side by side; the pair slides (and cross-fades)
+        Item {
+            id: pages
+            anchors { top: tabs.bottom; topMargin: Theme.space.s4; left: parent.left; right: parent.right; bottom: parent.bottom }
+            clip: true
+            readonly property real shift: Sidebar.tab === "notifications" ? 1 : 0
+            property real t: shift
+            Behavior on t { NumberAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+
+            Flickable {
+                id: controlsPage
+                x: -pages.t * pages.width * 0.35
+                width: pages.width; height: pages.height
+                opacity: 1 - pages.t
+                visible: opacity > 0.01
+                contentHeight: controls.implicitHeight + Theme.space.s5 * 2
+                boundsBehavior: Flickable.StopAtBounds
+                clip: true
+                ControlCenter {
+                    id: controls
+                    focus: Sidebar.tab === "controls"
+                    x: Theme.space.s5; y: 0
+                    width: parent.width - Theme.space.s5 * 2
+                }
+            }
+
+            NotificationCenter {
+                x: (1 - pages.t) * pages.width * 0.35 + Theme.space.s4
+                y: 0
+                width: pages.width - Theme.space.s4 * 2
+                height: pages.height - Theme.space.s4
+                opacity: pages.t
+                visible: opacity > 0.01
+            }
         }
     }
 }
