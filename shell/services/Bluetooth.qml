@@ -24,4 +24,20 @@ Singleton {
 
     function setEnabled(on) { if (adapter) adapter.enabled = on; }
     function toggleDevice(d) { if (d.connected) d.disconnect(); else d.connect(); }
+
+    // Earbuds, mice, keyboards: warn once when a connected device drops below 15 %
+    property var warned: ({})
+    Timer {
+        interval: 60000; running: Persist.automates && root.hasConnection; repeat: true; triggeredOnStart: true
+        onTriggered: {
+            const w = Object.assign({}, root.warned);
+            for (const d of root.connectedDevices) {
+                if (!d.batteryAvailable) continue;
+                const pct = Math.round(d.battery * 100), key = d.address;
+                if (pct <= 15 && !w[key]) { w[key] = true; Island.system("battery_alert", (d.name || "Device") + " battery low", pct + "% left", "warning"); }
+                else if (pct > 20) delete w[key];
+            }
+            root.warned = w;
+        }
+    }
 }

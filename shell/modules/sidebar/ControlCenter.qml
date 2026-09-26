@@ -40,6 +40,10 @@ Item {
         }
     }
     Connections {
+        target: Sidebar
+        function onDetailRequested(name) { root.detail = name; }
+    }
+    Connections {
         target: Network
         function onConnectFailed(ssid) { Island.system("wifi_off", "Couldn't join " + ssid, "Check the password and try again", "error"); }
     }
@@ -170,7 +174,10 @@ Item {
                     Keys.onDownPressed: toggles.focusFirst()
                     icon: Bluetooth.icon
                     label: "Bluetooth"
-                    sublabel: !Bluetooth.enabled ? "Off" : Bluetooth.hasConnection ? (Bluetooth.primary?.name ?? "Connected") : "On"
+                    sublabel: !Bluetooth.enabled ? "Off"
+                            : Bluetooth.hasConnection ? (Bluetooth.primary?.name ?? "Connected")
+                                + (Bluetooth.primary?.batteryAvailable ? " · " + Math.round(Bluetooth.primary.battery * 100) + "%" : "")
+                            : "On"
                     active: Bluetooth.enabled
                     hasDetail: true
                     onToggled: Bluetooth.setEnabled(!Bluetooth.enabled)
@@ -327,7 +334,7 @@ Item {
                     }
                     IconButton {
                         id: outputButton
-                        icon: "speaker_group"
+                        icon: Audio.apps.length > 0 ? "tune" : "speaker_group"
                         onActivated: root.detail = "output"
                     }
                 }

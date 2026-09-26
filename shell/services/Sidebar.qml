@@ -17,4 +17,7 @@ Singleton {
     }
     function show(t) { if (t) tab = t; open = true; }
     function hide() { open = false; }
+    // Open the control centre straight on a detail list (wifi, bluetooth, output, focus)
+    signal detailRequested(string name)
+    function showDetail(name) { tab = "controls"; open = true; detailRequested(name); }
 }

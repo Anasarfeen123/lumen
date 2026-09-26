@@ -85,6 +85,26 @@ Singleton {
         if (name.startsWith("/")) return "file://" + name;
         return iconIndex[name] ?? Quickshell.iconPath(name, fallback ?? "application-x-executable");
     }
+    // Best desktop entry for a loose hint (binary, app name, window class):
+    // heuristicLookup first, then id / exec / name matches ("firefox" →
+    // org.mozilla.firefox).
+    function entryFor(...hints) {
+        for (const h of hints) {
+            if (!h) continue;
+            const e = DesktopEntries.heuristicLookup(h);
+            if (e) return e;
+        }
+        const all = DesktopEntries.applications.values;
+        for (const h of hints) {
+            if (!h) continue;
+            const q = String(h).toLowerCase();
+            const e = all.find(a => a.id.toLowerCase().endsWith("." + q) || a.id.toLowerCase() === q)
+                   ?? all.find(a => (a.execString ?? a.command?.join(" ") ?? "").toLowerCase().split(/[\s/]/).includes(q))
+                   ?? all.find(a => a.name.toLowerCase() === q);
+            if (e) return e;
+        }
+        return null;
+    }
     function iconFor(entry) { return iconNamed(entry?.icon ?? "", "application-x-executable"); }
 
     function launch(entry) {

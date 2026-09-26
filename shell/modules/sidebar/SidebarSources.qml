@@ -31,6 +31,7 @@ Scope {
         function open(): void { Sidebar.show(); }
         function controls(): void { Sidebar.toggle("controls"); }
         function notifications(): void { Sidebar.toggle("notifications"); }
+        function detail(name: string): void { Sidebar.showDetail(name); }
         function close(): void { Sidebar.hide(); }
     }
 
