@@ -134,7 +134,11 @@ PanelWindow {
                 results.move(-1);
             } else if (k === Qt.Key_Return || k === Qt.Key_Enter) {
                 if (win.gridMode) { if (grid.activateSelected()) Overview.hide(); }
-                else results.activate();
+                else results.activate(undefined, Overview.mode !== "clipboard" ? undefined
+                                          : (event.modifiers & Qt.ControlModifier) ? "plain"
+                                          : (event.modifiers & Qt.AltModifier) ? "copy" : "paste");
+            } else if (k === Qt.Key_P && (event.modifiers & Qt.AltModifier) && Overview.mode === "clipboard") {
+                results.togglePin();
             } else if (k === Qt.Key_Delete && event.modifiers & Qt.ShiftModifier) {
                 results.removeCurrent();
             } else {

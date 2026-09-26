@@ -23,18 +23,24 @@ GlassSurface {
         list.currentIndex = (list.currentIndex + d + count) % count;
         armedIndex = -1;
     }
-    function activate(i) {
+    function activate(i, mode) {
         const idx = i ?? list.currentIndex;
         const r = Search.results[idx];
         if (!r) return;
         if (r.destructive && armedIndex !== idx) { armedIndex = idx; disarm.restart(); return; }
         armedIndex = -1;
-        r.run();
-        done();
+        done();              // close first: a paste goes to the app underneath
+        r.run(mode);
     }
     function removeCurrent() {
         const r = Search.results[list.currentIndex];
         if (r?.kind === "clipboard") Clipboard.remove(r.id);
+        else if (r?.kind === "clipPin") Clipboard.unpin(r.pinIndex);
+    }
+    function togglePin() {
+        const r = Search.results[list.currentIndex];
+        if (r?.kind === "clipboard") Clipboard.pin(r.entry);
+        else if (r?.kind === "clipPin") Clipboard.unpin(r.pinIndex);
     }
 
     Timer { id: disarm; interval: 3000; onTriggered: root.armedIndex = -1 }

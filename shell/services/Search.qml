@@ -70,15 +70,28 @@ Singleton {
     }
 
     function clipboardResults(q) {
-        return Clipboard.entries
-            .filter(e => !q || e.text.toLowerCase().includes(q.toLowerCase()))
+        const ql = q.toLowerCase();
+        const pins = Clipboard.pins
+            .map((p, i) => ({ p, i }))
+            .filter(({ p }) => !q || (p.text ?? "").toLowerCase().includes(ql))
+            .map(({ p, i }) => ({
+                kind: "clipPin", pinIndex: i,
+                title: p.kind === "image" ? "Image" : p.text.replace(/\s+/g, " ").slice(0, 200),
+                subtitle: "Pinned", thumb: p.kind === "image" ? "file://" + p.file : "",
+                glyph: "push_pin", badge: "",
+                run: mode => Clipboard.usePin(p, mode) }));
+        const hist = Clipboard.entries
+            .filter(e => !q || e.text.toLowerCase().includes(ql))
+            .filter(e => e.isImage || !Clipboard.isPinnedText(e.text))
             .slice(0, 50)
             .map(e => ({
-                kind: "clipboard", id: e.id,
+                kind: "clipboard", id: e.id, entry: e,
                 title: e.isImage ? "Image" : e.text.replace(/\s+/g, " ").slice(0, 200),
                 subtitle: e.isImage ? e.text.replace(/^\[\[ binary data |\]\]$/g, "") : "",
+                thumb: e.isImage ? "file://" + e.thumb + "?v=" + Clipboard.thumbVersion : "",
                 glyph: e.isImage ? "image" : "content_paste", badge: "",
-                run: () => Clipboard.copy(e.id) }));
+                run: mode => Clipboard.use(e.id, mode) }));
+        return pins.concat(hist);
     }
 
     function searchResults(q) {

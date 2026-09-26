@@ -29,4 +29,13 @@ Scope {
         function state(): string { return JSON.stringify({ open: Overview.open, mode: Overview.mode, query: Overview.query, emoji: Emoji.all.length }); }
         function results(): string { return JSON.stringify(Search.results.map(r => ({ kind: r.kind, title: r.title, badge: r.badge }))); }
     }
+    // Dev only (LUMEN_DEV): exercise pins without a keyboard
+    IpcHandler {
+        target: "clipTest"
+        enabled: Quickshell.env("LUMEN_DEV") === "1"
+        function pinNewest(): void { const e = Clipboard.entries.find(x => !x.isImage); if (e) Clipboard.pin(e); }
+        function pinNewestImage(): void { const e = Clipboard.entries.find(x => x.isImage); if (e) Clipboard.pin(e); }
+        function unpinFirst(): void { Clipboard.unpin(0); }
+        function pins(): string { return JSON.stringify(Clipboard.pins.map(p => ({ kind: p.kind, text: (p.text || "").slice(0, 40), file: p.file }))); }
+    }
 }

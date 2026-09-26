@@ -32,6 +32,7 @@ Singleton {
             // Notifications (Lumen Settings → Notifications)
             property bool notifBanners: true      // show arrivals in the island
             property var mutedApps: []            // app names: history only, no banner or sound
+            property var clipPins: []             // pinned clipboard items: { kind: "text"|"image", text, file }
             // Lock screen widgets (Lumen Settings → Lock screen)
             property bool lockMedia: true
             property bool lockBattery: true

@@ -14,7 +14,8 @@ Item {
     signal activated()
     signal hovered()
 
-    height: 48
+    readonly property bool hasThumb: (modelData.thumb ?? "") !== ""
+    height: hasThumb ? 84 : 48
 
     Rectangle {
         anchors.fill: parent
@@ -26,7 +27,18 @@ Item {
 
     Item {
         id: iconBox
-        width: 32; height: 32
+        width: root.hasThumb ? 112 : 32; height: root.hasThumb ? 68 : 32
+
+        // Image clipboard entries: a real thumbnail
+        ClippingRectangle {
+            anchors.fill: parent
+            visible: root.hasThumb
+            radius: Theme.radius.sm
+            color: Theme.surfaceElevated
+            border.width: 1; border.color: Theme.border
+            Image { anchors.fill: parent; source: root.modelData.thumb ?? ""; fillMode: Image.PreserveAspectCrop
+                    sourceSize: Qt.size(224, 136); asynchronous: true; cache: false }
+        }
         anchors { left: parent.left; leftMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
 
         IconImage {
@@ -37,7 +49,7 @@ Item {
         }
         LIcon {
             anchors.centerIn: parent
-            visible: (root.modelData.icon ?? "") === "" && (root.modelData.glyph ?? "") !== ""
+            visible: !root.hasThumb && (root.modelData.icon ?? "") === "" && (root.modelData.glyph ?? "") !== ""
             icon: root.modelData.glyph ?? ""
             color: root.armed ? Theme.error : Theme.textSecondary
         }
