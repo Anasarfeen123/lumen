@@ -47,9 +47,17 @@ Item {
             source: root.modelData.icon ?? ""
             asynchronous: true
         }
+        // A copied colour shows itself
+        Rectangle {
+            anchors.centerIn: parent
+            visible: (root.modelData.swatch ?? "") !== ""
+            width: 22; height: 22; radius: 11
+            color: root.modelData.swatch ?? "transparent"
+            border.width: 1; border.color: Theme.border
+        }
         LIcon {
             anchors.centerIn: parent
-            visible: !root.hasThumb && (root.modelData.icon ?? "") === "" && (root.modelData.glyph ?? "") !== ""
+            visible: !root.hasThumb && (root.modelData.swatch ?? "") === "" && (root.modelData.icon ?? "") === "" && (root.modelData.glyph ?? "") !== ""
             icon: root.modelData.glyph ?? ""
             color: root.armed ? Theme.error : Theme.textSecondary
         }

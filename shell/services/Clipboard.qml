@@ -24,6 +24,39 @@ Singleton {
 
     function refresh() { proc.running = false; proc.running = true; }
 
+    // ── What kind of thing is it? (for icons, filters and masking) ──
+    property string filter: "all"                 // all | link | code | image | text
+    readonly property var filters: ["all", "link", "code", "image", "text"]
+    function cycleFilter(d) { filter = filters[(filters.indexOf(filter) + d + filters.length) % filters.length]; }
+    function kindOf(e) {
+        if (e.isImage) return "image";
+        const t = (e.text ?? "").trim();
+        if (/^(https?:\/\/|www\.)\S+$/i.test(t)) return "link";
+        if (/^[\w.+-]+@[\w-]+\.[\w.-]+$/.test(t)) return "email";
+        if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(t) || /^(rgb|hsl|oklch)a?\(/i.test(t)) return "color";
+        if (/^[~\/][^\s]*$/.test(t) && t.length > 1) return "path";
+        if (/^-?[\d.,]+$/.test(t)) return "number";
+        if (/^(sudo |\$ |git |dnf |pacman |apt |npm |cd |ls |systemctl |journalctl |flatpak |cargo |python3? |curl |wget |bash |sh |ssh |docker |kubectl |make |cmake )/.test(t)) return "command";
+        // A long, spaceless token mixing 3+ character classes: probably a password or API key
+        if (t.length >= 16 && !/\s/.test(t)) {
+            const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(r => r.test(t)).length;
+            if (classes >= 3) return "secret";
+        }
+        if (/[{};]\s*$|^\s*(def|function|class|import|const|let|var|fn|pub|#include|return)\b|=>|\)\s*\{/m.test(t)) return "code";
+        return "text";
+    }
+    function inFilter(kind) {
+        if (filter === "all") return true;
+        if (filter === "link") return kind === "link" || kind === "email";
+        if (filter === "code") return kind === "code" || kind === "command" || kind === "path";
+        if (filter === "text") return !["image", "link", "code", "command"].includes(kind);
+        return kind === filter;
+    }
+    readonly property var glyphs: ({ image: "image", link: "link", email: "alternate_email", color: "palette", path: "folder",
+                                     number: "tag", command: "terminal", secret: "key", code: "code", text: "notes" })
+    readonly property var labels: ({ image: "Image", link: "Link", email: "Email", color: "Colour", path: "Path",
+                                     number: "Number", command: "Command", secret: "Hidden — looks like a password", code: "Code", text: "" })
+
     // ── use ──
     // mode: "paste" (default) | "plain" | "copy"
     function use(id, mode) {

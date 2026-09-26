@@ -11,7 +11,7 @@ GlassSurface {
     radius: Theme.radius.lg
     implicitWidth: 600
     implicitHeight: count === 0 ? emptyLabel.implicitHeight + Theme.space.s6 * 2
-                                : Math.min(list.contentHeight, 470) + Theme.space.s2 * 2    // rows + group labels, up to ~8 rows
+                                : Math.min(list.contentHeight, 470) + Theme.space.s2 * 2 + (Overview.mode === "clipboard" ? 38 : 0)    // rows + labels (+ filter chips)
     Behavior on implicitHeight { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard } }
 
     readonly property int count: list.count
@@ -50,10 +50,33 @@ GlassSurface {
         function onResultsChanged() { list.currentIndex = 0; root.armedIndex = -1; }
     }
 
+    // Clipboard filters (Ctrl+← / Ctrl+→)
+    Row {
+        id: chips
+        visible: Overview.mode === "clipboard"
+        x: Theme.space.s3; y: Theme.space.s2
+        height: visible ? 30 : 0
+        spacing: 6
+        Repeater {
+            model: [{ id: "all", label: "All" }, { id: "link", label: "Links" }, { id: "code", label: "Code" }, { id: "image", label: "Images" }, { id: "text", label: "Text" }]
+            delegate: HoverTarget {
+                required property var modelData
+                readonly property bool on: Clipboard.filter === modelData.id
+                width: cl.implicitWidth + 20; height: 26
+                Rectangle { anchors.fill: parent; radius: height / 2; z: -1
+                            color: on ? Theme.withAlpha(Theme.accent, 0.18) : "transparent"
+                            border.width: 1; border.color: on ? Theme.withAlpha(Theme.accent, 0.5) : Theme.border }
+                LText { id: cl; anchors.centerIn: parent; role: "caption"; color: on ? Theme.accent : Theme.textSecondary; text: modelData.label }
+                onClicked: Clipboard.filter = modelData.id
+            }
+        }
+    }
+
     ListView {
         id: list
         anchors.fill: parent
         anchors.margins: Theme.space.s2
+        anchors.topMargin: chips.visible ? chips.height + Theme.space.s3 : Theme.space.s2
         clip: true
         model: Search.results
         currentIndex: 0

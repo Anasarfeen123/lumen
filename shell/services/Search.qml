@@ -93,7 +93,7 @@ Singleton {
         target: Overview
         function onQueryChanged() { if (Overview.mode === "search") Calc.evaluate(Overview.query.trim()); }
         function onModeChanged() {
-            if (Overview.mode === "clipboard") Clipboard.refresh();
+            if (Overview.mode === "clipboard") { Clipboard.filter = "all"; Clipboard.refresh(); }
             if (Overview.mode === "emoji") Emoji.ensure();
         }
         function onOpenChanged() {
@@ -124,25 +124,28 @@ Singleton {
     function clipboardResults(q) {
         const ql = q.toLowerCase();
         const pins = Clipboard.pins
-            .map((p, i) => ({ p, i }))
-            .filter(({ p }) => !q || (p.text ?? "").toLowerCase().includes(ql))
-            .map(({ p, i }) => ({
-                kind: "clipPin", pinIndex: i,
-                title: p.kind === "image" ? "Image" : p.text.replace(/\s+/g, " ").slice(0, 200),
-                subtitle: "Pinned", thumb: p.kind === "image" ? "file://" + p.file : "",
-                glyph: "push_pin", badge: "",
-                run: mode => Clipboard.usePin(p, mode) }));
+            .map((p, i) => ({ p, i, kind: p.kind === "image" ? "image" : Clipboard.kindOf({ text: p.text }) }))
+            .filter(({ p, kind }) => Clipboard.inFilter(kind) && (!q || (p.text ?? "").toLowerCase().includes(ql)))
+            .map(({ p, i, kind }) => ({
+                kind: "clipPin", group: "Pinned", pinIndex: i, clipKind: kind,
+                title: kind === "image" ? "Image" : kind === "secret" ? "•".repeat(Math.min(24, p.text.length)) : p.text.replace(/\s+/g, " ").slice(0, 200),
+                subtitle: Clipboard.labels[kind] || "Pinned", thumb: p.kind === "image" ? "file://" + p.file : "",
+                swatch: kind === "color" ? p.text.trim() : "",
+                glyph: Clipboard.glyphs[kind] ?? "push_pin", badge: "",
+                run: mode => kind === "link" && mode === "open" ? Quickshell.execDetached(["xdg-open", p.text.trim()]) : Clipboard.usePin(p, mode) }));
         const hist = Clipboard.entries
-            .filter(e => !q || e.text.toLowerCase().includes(ql))
-            .filter(e => e.isImage || !Clipboard.isPinnedText(e.text))
-            .slice(0, 50)
-            .map(e => ({
-                kind: "clipboard", id: e.id, entry: e,
-                title: e.isImage ? "Image" : e.text.replace(/\s+/g, " ").slice(0, 200),
-                subtitle: e.isImage ? e.text.replace(/^\[\[ binary data |\]\]$/g, "") : "",
+            .map(e => ({ e, kind: Clipboard.kindOf(e) }))
+            .filter(({ e, kind }) => Clipboard.inFilter(kind) && (!q || (kind !== "secret" && e.text.toLowerCase().includes(ql))))
+            .filter(({ e }) => e.isImage || !Clipboard.isPinnedText(e.text))
+            .slice(0, 60)
+            .map(({ e, kind }) => ({
+                kind: "clipboard", group: "Recent", id: e.id, entry: e, clipKind: kind,
+                title: e.isImage ? "Image" : kind === "secret" ? "•".repeat(Math.min(24, e.text.length)) : e.text.replace(/\s+/g, " ").slice(0, 200),
+                subtitle: e.isImage ? e.text.replace(/^\[\[ binary data |\]\]$/g, "") : (Clipboard.labels[kind] ?? ""),
                 thumb: e.isImage ? "file://" + e.thumb + "?v=" + Clipboard.thumbVersion : "",
-                glyph: e.isImage ? "image" : "content_paste", badge: "",
-                run: mode => Clipboard.use(e.id, mode) }));
+                swatch: kind === "color" ? e.text.trim() : "",
+                glyph: Clipboard.glyphs[kind] ?? "content_paste", badge: kind === "link" ? "⇧↵ open" : "",
+                run: mode => kind === "link" && mode === "open" ? Quickshell.execDetached(["xdg-open", e.text.trim()]) : Clipboard.use(e.id, mode) }));
         return pins.concat(hist);
     }
 

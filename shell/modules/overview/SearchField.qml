@@ -45,7 +45,7 @@ GlassSurface {
             role: "heading"
             font.weight: Font.Normal
             color: Theme.textMuted
-            text: ({ clipboard: "Search clipboard   ·   ↵ paste   Ctrl+↵ plain text   Alt+↵ copy   Alt+P pin",
+            text: ({ clipboard: "Search clipboard  ·  ↵ paste  Ctrl+↵ plain  ⇧↵ open link  Alt+P pin",
                      emoji: "Search emoji" })[Overview.mode]
                   ?? "Search apps, windows and actions   ·   = calculate   > run   ? web"
         }
