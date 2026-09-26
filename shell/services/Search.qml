@@ -66,9 +66,11 @@ Singleton {
         { title: "Lumen Halo", glyph: "auto_awesome", keys: "halo ai assistant ask chat claude ollama", fn: () => Ai.show() },
         { title: "System inspector", glyph: "monitor_heart", keys: "system inspector cpu gpu memory ram disk temperature hardware stats", fn: () => SettingsState.launch("system") },
         { title: "Security", glyph: "shield", keys: "security firewall updates ssh secure boot encryption", fn: () => SettingsState.launch("security") },
-        { title: "Find my phone", glyph: "phone_in_talk", keys: "find my phone ring locate lost", fn: () => Connect.phone ? Connect.act("ring", Connect.phone.id) : SettingsState.launch("phone") },
-        { title: "Send a file to my phone", glyph: "upload_file", keys: "send file phone share transfer", fn: () => Connect.phone ? Connect.act("pick-and-share", Connect.phone.id) : SettingsState.launch("phone") },
-        { title: "Send clipboard to my phone", glyph: "content_paste_go", keys: "send clipboard phone copy", fn: () => Connect.phone ? Connect.act("send-clipboard", Connect.phone.id) : SettingsState.launch("phone") },
+        { title: "Find my phone", glyph: "phone_in_talk", keys: "find my phone ring locate lost link", fn: () => Link.connected ? Link.ring() : SettingsState.launch("phone") },
+        { title: "Send a file to my phone", glyph: "upload_file", keys: "send file phone share transfer link", fn: () => Link.connected ? Link.pickAndSend() : SettingsState.launch("phone") },
+        { title: "Send clipboard to my phone", glyph: "content_paste_go", keys: "send clipboard phone copy link", fn: () => Link.connected ? Link.sendClipboard() : SettingsState.launch("phone") },
+        { title: "Send a screenshot to my phone", glyph: "screenshot_region", keys: "screenshot phone send share link", fn: () => Link.connected ? Link.screenshotToPhone() : SettingsState.launch("phone") },
+        { title: "Lumen Link", glyph: "phonelink", keys: "phone link kde connect pair connect android iphone", fn: () => SettingsState.launch("phone") },
         { title: "Keyboard shortcuts", glyph: "keyboard", keys: "shortcuts keybinds cheatsheet keys help", fn: () => CheatsheetState.open = true },
     ]
     // Settings pages as search results ("settings network", "bluetooth settings", "wifi")
