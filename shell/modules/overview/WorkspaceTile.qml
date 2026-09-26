@@ -65,6 +65,22 @@ Item {
             icon: "add"
             color: Theme.textMuted
         }
+
+        // Drop target: accent wash + "Move here"
+        Rectangle {
+            anchors.fill: parent
+            color: Theme.withAlpha(Theme.accent, 0.16)
+            opacity: drop.containsDrag ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Theme.motion.micro } }
+            z: 150
+            Rectangle {
+                anchors.centerIn: parent
+                height: 26; width: moveLbl.implicitWidth + 20; radius: 13
+                color: Theme.accent
+                LText { id: moveLbl; anchors.centerIn: parent; role: "caption"; color: Theme.onAccent
+                        text: root.isNew ? "New workspace" : "Move here" }
+            }
+        }
     }
 
     LText {

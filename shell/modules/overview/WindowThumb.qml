@@ -32,6 +32,12 @@ ClippingRectangle {
     border.width: mouse.containsMouse || mouse.drag.active ? 2 : 0
     border.color: Theme.accent
     z: mouse.drag.active ? 100 : (ipc.floating ? 2 : 1)
+    // Lifted while dragged; glides home if dropped nowhere
+    scale: mouse.drag.active ? 1.08 : 1
+    opacity: mouse.drag.active ? 0.92 : 1
+    Behavior on scale { NumberAnimation { duration: Theme.motion.micro; easing.type: Easing.OutBack } }
+    Behavior on x { enabled: !mouse.drag.active; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+    Behavior on y { enabled: !mouse.drag.active; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
 
     Drag.active: mouse.drag.active
     Drag.keys: ["lumen-window"]
