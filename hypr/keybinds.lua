@@ -102,6 +102,30 @@ end
 key("SUPER + Tab", global("lumen:overview"), "Overview")
 key("CTRL + SUPER + right", hl.dsp.focus({ workspace = "r+1" }), "Next workspace")
 key("CTRL + SUPER + left",  hl.dsp.focus({ workspace = "r-1" }), "Previous workspace")
+-- Only workspaces that have windows, wrapping from the last back to the first
+local function occupied(step)
+    return function()
+        local ids = {}
+        for _, ws in ipairs(hl.get_workspaces()) do
+            if ws.id > 0 and not ws.is_empty then ids[#ids + 1] = ws.id end
+        end
+        if #ids == 0 then return end
+        table.sort(ids)
+        local cur = hl.get_active_workspace()
+        local here = cur and cur.id or ids[1]
+        local target
+        if step > 0 then
+            for _, id in ipairs(ids) do if id > here then target = id; break end end
+            target = target or ids[1]
+        else
+            for i = #ids, 1, -1 do if ids[i] < here then target = ids[i]; break end end
+            target = target or ids[#ids]
+        end
+        hl.dispatch(hl.dsp.focus({ workspace = target }))
+    end
+end
+key("CTRL + SUPER + ALT + right", occupied(1), "Next workspace with windows (wraps)")
+key("CTRL + SUPER + ALT + left",  occupied(-1), "Previous workspace with windows (wraps)")
 key("SUPER + Page_Down", hl.dsp.focus({ workspace = "r+1" }))
 key("SUPER + Page_Up",   hl.dsp.focus({ workspace = "r-1" }))
 key("SUPER + SHIFT + Page_Down", hl.dsp.window.move({ workspace = "r+1" }), "Send window to next workspace")

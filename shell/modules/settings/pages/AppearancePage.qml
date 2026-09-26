@@ -49,6 +49,26 @@ Page {
         }
     }
 
+
+    // A slider that applies when you let go (each change rebuilds the theme)
+    component PrefSlider: LSlider {
+        id: ps
+        property string key
+        property real lo: 0
+        property real hi: 100
+        property real current: 50
+        property real pending: -1
+        width: 260
+        value: pending >= 0 ? pending : (current - lo) / (hi - lo)
+        onMoved: v => pending = v
+        onDraggingChanged: if (!dragging && pending >= 0) {
+            SettingsState.lumen(["set", key, String(Math.round(lo + pending * (hi - lo)))]);
+            settle.restart();
+        }
+        Timer { id: settle; interval: 1500; onTriggered: ps.pending = -1 }
+    }
+    readonly property var prefs: Theme.tokens.prefs ?? ({})
+
     Group {
         title: "Accent"
         SetRow {
@@ -83,6 +103,26 @@ Page {
                 }
             }
         }
+        SetRow {
+            icon: "tonality"
+            title: "Accent style"
+            description: ({ adaptive: "Your wallpaper's hue, kept clear of warning colours",
+                            exact: "The wallpaper's own hue, as close as legibility allows",
+                            subtle: "A softer accent that stays in the background",
+                            mono: "Almost grey: the desktop stays neutral" })[prefs.accent_style ?? "adaptive"] ?? ""
+            Segmented {
+                width: 330
+                options: [{ id: "adaptive", label: "Adaptive" }, { id: "exact", label: "Exact" }, { id: "subtle", label: "Subtle" }, { id: "mono", label: "Mono" }]
+                current: prefs.accent_style ?? "adaptive"
+                onPicked: id => SettingsState.lumen(["set", "accent_style", id])
+            }
+        }
+        SetRow {
+            icon: "contrast"
+            title: "Accent intensity"
+            description: Math.round(Number(prefs.accent_intensity ?? 100)) + "% · every setting keeps text readable"
+            PrefSlider { key: "accent_intensity"; lo: 50; hi: 130; current: Number(prefs.accent_intensity ?? 100); icon: "palette" }
+        }
     }
 
     Group {
@@ -92,6 +132,18 @@ Page {
             title: "Window transparency"
             description: "Frosted glass on apps. Video, games and fullscreen stay opaque. Super+Shift+G"
             LSwitch { checked: Theme.tokens.transparency ?? true; onToggled: SettingsState.lumen(["transparency", checked ? "off" : "on"]) }
+        }
+        SetRow {
+            icon: "blur_circular"
+            title: "Glass"
+            description: Number(prefs.glass_level ?? 50) < 40 ? "More solid" : Number(prefs.glass_level ?? 50) > 60 ? "Clearer" : "Balanced (default)"
+            PrefSlider { key: "glass_level"; lo: 0; hi: 100; current: Number(prefs.glass_level ?? 50); icon: "blur_on" }
+        }
+        SetRow {
+            icon: "speed"
+            title: "Animation speed"
+            description: (prefs.motion_scale ? Math.round(Number(prefs.motion_scale)) + "% duration" : "Normal") + " · lower is faster"
+            PrefSlider { key: "motion_scale"; lo: 50; hi: 200; current: Number(prefs.motion_scale || 100); icon: "animation" }
         }
         SetRow {
             icon: "animation"

@@ -103,12 +103,26 @@ def resolve(theme_name: str | None, accent_name: str | None, accent_hue: float |
         sys.exit(f"build.py: unknown theme '{theme_name}' (no {theme_file})")
     theme = tomllib.loads(theme_file.read_text())
 
+    # Accent style (Settings → Appearance):
+    #   adaptive  wallpaper hue, kept 25° clear of status colours (default)
+    #   exact     the wallpaper's own hue, only 8° of clearance
+    #   subtle    softer chroma · mono  near-neutral (lightness kept, so contrast holds)
+    style = state.get("accent_style", "adaptive")
+    if style not in ("adaptive", "exact", "subtle", "mono"):
+        style = "adaptive"
+    def num(key, lo, hi, default):
+        try:
+            return max(lo, min(hi, float(state.get(key, default))))
+        except (TypeError, ValueError):
+            return default
+    intensity = num("accent_intensity", 50, 130, 100) / 100
+
     # Accent hue: explicit > wallpaper-sampled (state) > named preset.
     if accent_hue is None:
         if accent_name == "wallpaper":
             accent_hue = state.get("wallpaper_hue")
             try:
-                accent_hue = avoid_status_hues(float(accent_hue), theme)
+                accent_hue = avoid_status_hues(float(accent_hue), theme, 8.0 if style == "exact" else 25.0)
             except (TypeError, ValueError):
                 accent_hue = tokens["accents"]["ion"]
         elif accent_name in tokens["accents"]:
@@ -119,8 +133,11 @@ def resolve(theme_name: str | None, accent_name: str | None, accent_hue: float |
     nh = theme["neutral_hue"]
     colors = {k: oklch_to_hex(L, C, nh) for k, (L, C) in theme["neutral"].items()}
     acc = theme["accent"]
-    colors["accent"] = oklch_to_hex(acc["l"], acc["c"], accent_hue)
-    colors["accent_hover"] = oklch_to_hex(acc["l"] + acc["hover_dl"], acc["c"], accent_hue)
+    chroma = acc["c"] * intensity * {"subtle": 0.55, "mono": 0.0}.get(style, 1.0)
+    if style == "mono":
+        chroma = 0.025                          # a whisper of hue, so it still reads as "the active thing"
+    colors["accent"] = oklch_to_hex(acc["l"], chroma, accent_hue)
+    colors["accent_hover"] = oklch_to_hex(acc["l"] + acc["hover_dl"], chroma, accent_hue)
     colors["on_accent"] = oklch_to_hex(*acc["on_accent"], accent_hue)
     for k, (L, C, H) in theme["status"].items():
         colors[k] = oklch_to_hex(L, C, H)
@@ -140,7 +157,10 @@ def resolve(theme_name: str | None, accent_name: str | None, accent_hue: float |
 
     edge = theme["edge"]
     scale = theme["glass"]["alpha_scale"]
-    glass = {k: min(1.0, v * scale) for k, v in tokens["glass"].items()}
+    # Glass slider: 0 = most solid … 50 = the design default … 100 = clearest
+    glass_level = num("glass_level", 0, 100, 50)
+    glass_mult = 1.25 - glass_level / 100 * 0.5
+    glass = {k: max(0.3, min(1.0, v * scale * glass_mult)) for k, v in tokens["glass"].items()}
 
     # Contrast gate: every text role must meet WCAG AA on surface.
     checks = {
@@ -165,6 +185,8 @@ def resolve(theme_name: str | None, accent_name: str | None, accent_hue: float |
     if border is not None:
         window["border"] = border
     speed = {"fast": 0.7, "normal": 1.0, "relaxed": 1.3}.get(state.get("anim_speed", ""), 1.0)
+    if "motion_scale" in state:                 # the continuous slider wins over the preset
+        speed = num("motion_scale", 50, 200, 100) / 100
     for k in ("micro", "normal", "large", "window"):
         motion[k] = round(motion[k] * speed)
     window["follow_mouse"] = 0 if state.get("follow_mouse") == "off" else 1
@@ -185,7 +207,9 @@ def resolve(theme_name: str | None, accent_name: str | None, accent_hue: float |
         "motion": motion,
         "prefs": {k: state.get(k, d) for k, d in (("gaps", "normal"), ("corners", "soft"), ("border", "normal"),
                                                   ("anim_speed", "normal"), ("follow_mouse", "on"),
-                                                  ("cursor", "Bibata-Modern-Classic"), ("cursor_size", "24"))},
+                                                  ("cursor", "Bibata-Modern-Classic"), ("cursor_size", "24"),
+                                                  ("accent_style", "adaptive"), ("accent_intensity", "100"),
+                                                  ("glass_level", "50"), ("motion_scale", ""))},
         "idle": idle_prefs(state),
         "cursor": cursor,
         "blur": tokens["blur"],

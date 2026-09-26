@@ -6,7 +6,8 @@
 #   lumen transparency [on|off|toggle]   window transparency (shell glass stays)
 #   lumen accent-hue <0-360>         set the wallpaper-derived accent hue (used by the picker)
 #   lumen clock <12h|24h>  ·  lumen motion <full|reduced>  ·  lumen reload
-#   lumen set <gaps|corners|border|anim_speed|follow_mouse|cursor|cursor_size|idle_lock|idle_sleep> <value>
+#   lumen set <gaps|corners|border|anim_speed|follow_mouse|cursor|cursor_size|idle_lock|idle_sleep|
+#              accent_style|accent_intensity|glass_level|motion_scale> <value>
 #   lumen check                     contrast report for the active theme
 #   lumen progress <title> <0-100|-1|done|fail> [detail]   show progress in the island
 #   lumen run [--title T] -- <command…>   run it; the island shows it working, then ✓ or ✗
@@ -100,6 +101,17 @@ case ${1:-} in
                 # GTK apps read it from gsettings
                 gsettings set org.gnome.desktop.interface cursor-theme "$cur" 2>/dev/null || true
                 gsettings set org.gnome.desktop.interface cursor-size "$size" 2>/dev/null || true ;;
+            accent_style=adaptive|accent_style=exact|accent_style=subtle|accent_style=mono)
+                set_state "$2" "$3"; reload ;;
+            accent_intensity=*|glass_level=*|motion_scale=*)
+                # numbers only, within range (build.py clamps too)
+                case $3 in ''|*[!0-9]*) echo "lumen: $2 takes a whole number" >&2; exit 2 ;; esac
+                case $2 in
+                    accent_intensity) [ "$3" -ge 50 ] && [ "$3" -le 130 ] ;;
+                    glass_level)      [ "$3" -ge 0 ]  && [ "$3" -le 100 ] ;;
+                    motion_scale)     [ "$3" -ge 50 ] && [ "$3" -le 200 ] ;;
+                esac || { echo "lumen: $2 out of range" >&2; exit 2; }
+                set_state "$2" "$3"; reload ;;
             idle_lock=2|idle_lock=5|idle_lock=10|idle_lock=15|idle_lock=30|idle_lock=never|\
             idle_sleep=15|idle_sleep=30|idle_sleep=60|idle_sleep=battery|idle_sleep=never)
                 set_state "$2" "$3"; python3 "$LUMEN_ROOT/theme/build.py" >/dev/null; restart_idle ;;
