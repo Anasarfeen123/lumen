@@ -46,7 +46,7 @@ Other distributions work if you install the same programs yourself. The installe
 None of these are installed automatically.
 
 - **Face ID** on the lock screen: install [Gaze](https://gaze.gundulabs.com), then use Settings → Face ID.
-- **Local AI** for Ask Lumen: install [Ollama](https://ollama.com), then pull a model (for example `ollama pull llama3.2`). Read Ollama's install script before running it.
+- **Local AI** for Lumen Halo: install Ollama from your distribution (Fedora: `sudo dnf install ollama`, then `sudo systemctl enable --now ollama`), or from [ollama.com](https://ollama.com) after reading its install script. Then download a model from Settings → Halo (Llama 3.2 3B is quick on most laptops; Gemma 3 4B can read your screen).
 - **Qt apps in Lumen colours:** install `qt6ct`. Lumen then styles Qt apps in its own session only.
 - **Update checks on Arch:** install `pacman-contrib` for `checkupdates`.
 

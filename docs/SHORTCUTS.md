@@ -17,7 +17,7 @@
 | <kbd>Super</kbd> + <kbd>V</kbd> | Clipboard history |
 | <kbd>Super</kbd> + <kbd>.</kbd> | Emoji picker |
 | <kbd>Super</kbd> + <kbd>I</kbd> | Lumen Settings |
-| <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd> | Ask Lumen (AI) |
+| <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd> | Lumen Halo (AI) |
 
 ## Windows
 
@@ -57,6 +57,8 @@
 | <kbd>Super</kbd> + <kbd>Tab</kbd> | Overview |
 | <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>→</kbd> | Next workspace |
 | <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>←</kbd> | Previous workspace |
+| <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>→</kbd> | Next workspace with windows (wraps) |
+| <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>←</kbd> | Previous workspace with windows (wraps) |
 | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>PgDn</kbd> | Send window to next workspace |
 | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>PgUp</kbd> | Send window to previous workspace |
 | <kbd>Super</kbd> + <kbd>Back button</kbd> | Previous / next workspace (Back / Forward buttons) |

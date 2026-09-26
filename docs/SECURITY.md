@@ -32,8 +32,9 @@ Nothing goes online until you set it up:
 | Feature | When | What's sent |
 |---|---|---|
 | Weather | After you type a city | The city name, once, to Open-Meteo's geocoder; then its coordinates, every 30 minutes |
-| Ask Lumen, Claude | Only when you press Enter | Your question, plus the selection or screenshot, but only if you turned those chips on |
-| Ask Lumen, Ollama | Only when you press Enter | Nothing leaves your computer |
+| Lumen Halo, Claude | Only when you press Enter | Your question, plus the selection or screenshot, but only if you turned those chips on |
+| Lumen Halo, Ollama | Only when you press Enter | Nothing leaves your computer |
+| Halo model downloads | Only when you press Download in Settings → Halo | The model name, to Ollama's registry (the same one `ollama pull` uses) |
 | Updates | Every 6 hours in a real session | Your package manager's normal metadata check |
 
 - Sunrise and sunset are calculated on your machine.

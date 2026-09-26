@@ -686,8 +686,13 @@ the shell starts KDE's agent, so prompts are never left unanswered. Dev review w
 **GTK**: adw-gtk3-dark with color-scheme prefer-dark (already the user's global setting).
 **Qt**: KDE's platform theme (Breeze) by default. If `qt6ct` is installed (`sudo dnf install qt6ct`,
 official repo), lumen-session switches the Lumen session to it. `build.py` generates
-`generated/qt6ct/` (a palette from the tokens, Breeze style, UI and mono fonts), and
-`~/.config/qt6ct/qt6ct.conf` is linked to it unless you already have your own file there.
+`generated/qt6ct/` (a palette from the tokens, the Darkly style when installed, else Breeze, the shell's
+icon theme, UI and mono fonts), and `~/.config/qt6ct/qt6ct.conf` is linked to it unless you already have
+your own file there. KDE apps off Plasma pick Breeze Light through KColorSchemeManager (qt6ct reports no
+dark colour scheme), so `build.py` also writes `generated/share/color-schemes/Lumen.colors` and per-app
+`[UiSettings] ColorScheme=Lumen` defaults in `generated/xdg/`. The Lumen session appends those folders to
+`XDG_DATA_DIRS` / `XDG_CONFIG_DIRS` *after* the user's own, so kdeglobals and Plasma are never touched and
+a scheme picked inside an app still wins. The overview passes the same variables to apps it launches.
 **Cursor**: GTK apps read it from gsettings, which is user-wide, so Lumen sets it at login and on
 `lumen set cursor`.
 
@@ -732,3 +737,34 @@ underneath and "Show N more". The toolbar has a Do Not Disturb pill and Clear al
 
 Bar popups (app menu, tray drawer) use the xdg-popup grab (`grabFocus`), not HyprlandFocusGrab. The
 focus grab didn't know about the popup surface, so it swallowed clicks inside it.
+
+## 27. Connectivity tiles: one control, one job
+
+A tile used to toggle its radio on click and open its list from a small chevron; people opened
+the tile to see networks and switched Wi-Fi off instead. Now the **round icon disc is the switch**
+(filled with the accent when on) and **the rest of the tile opens the list**. Keyboard: Space
+toggles, Enter or → opens. Lists group what matters (Wi-Fi: Connected · Saved · Other; Bluetooth:
+My devices · Nearby) and keep secondary actions behind **⋯** so a click never disconnects by accident.
+
+## 28. Devices in the island
+
+Plugging something in is an event the island should explain, calmly. A device never seen before
+gets a card with a **New** badge; drives and displays always get a card, because there is something
+to do (Open · Eject, Arrange). Everything else, and every disconnect, is a one-line pill with the
+device's real name and icon. Types come from USB interface classes, never from guessing names.
+
+## 29. Lumen Halo
+
+The assistant is a panel under the island, not a window: it belongs to the desktop. Its mark is a
+**ring of light**; while it works, a slow gradient turns around the panel's edge and brightens
+(motion explains that something is happening, with nothing bouncing). Rules:
+
+- **Nothing is read until you turn it on; nothing is sent until you press Enter.** Context is a row
+  of chips (Selection, Clipboard, Screen, Window, System, Project).
+- **Skills are slash commands**, so the empty prompt stays calm and power is one `/` away.
+- **Answers are for doing**: Copy, Insert into the app you came from, Save to notes, Retry; shell
+  code blocks can run in a terminal only after a second press, and risky ones say so.
+- **Local first**: with Ollama, "Automatic" answers with the smallest text model (it fits in video
+  memory, so it's fast) and a vision model only when a screenshot is attached.
+- Closing Halo never loses an answer: the island shows it thinking and says when it's ready.
+

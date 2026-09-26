@@ -22,7 +22,7 @@ Extremely capable underneath. Extremely simple on the surface.
 
 <br>
 
-Lumen turns Hyprland into one coherent desktop: a floating glass bar with a **Dynamic Island** at its heart, a control centre and a planner, an Alt+Tab switcher, a lock screen with Face ID, a settings app, and a built-in assistant. It all comes from one design system, so it looks and moves like a single product.
+Lumen turns Hyprland into one coherent desktop: a floating glass bar with a **Dynamic Island** at its heart, a control centre and a planner, an Alt+Tab switcher, a lock screen with Face ID, a settings app, and Lumen Halo, an assistant that can run entirely on your machine. It all comes from one design system, so it looks and moves like a single product.
 
 ## Highlights
 
@@ -31,7 +31,7 @@ Lumen turns Hyprland into one coherent desktop: a floating glass bar with a **Dy
 <td width="50%" valign="top">
 
 ### The island
-One pill at the top of the screen tells you what just happened: music, notifications, volume, timers, downloads, recording, Caps Lock. It grows only as much as the moment needs, then settles back into a clock.
+One pill at the top of the screen tells you what just happened: music, notifications, volume, timers, downloads, recording, a drive or keyboard you just plugged in. It grows only as much as the moment needs, then settles back into a clock.
 
 </td>
 <td width="50%"><img src="docs/showcase/img/10-island-states.jpg" alt="Six island states"></td>
@@ -41,7 +41,7 @@ One pill at the top of the screen tells you what just happened: music, notificat
 <td valign="top">
 
 ### Two sidebars
-**Controls** (<kbd>Super</kbd>+<kbd>A</kbd>): Wi-Fi, Bluetooth, sixteen toggles, per-app volume, media, stats and a calendar.
+**Controls** (<kbd>Super</kbd>+<kbd>A</kbd>): Wi-Fi and Bluetooth (pair nearby devices in one click), sixteen toggles, per-app volume, media, stats and a calendar.
 **Notifications** (<kbd>Super</kbd>+<kbd>N</kbd>): grouped by app, swipe to dismiss.
 **Planner** (<kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd>): weather, agenda (“fri 7pm Concert”), to-dos and notes.
 
@@ -57,11 +57,11 @@ Tap <kbd>Super</kbd> to search apps and windows, do maths, run commands or start
 <td><img src="docs/showcase/img/03-overview.jpg" alt="Overview and search"></td>
 </tr>
 <tr>
-<td><img src="docs/showcase/img/07-ai.jpg" alt="Ask Lumen explaining an error"></td>
+<td><img src="docs/showcase/img/19-halo.jpg" alt="Lumen Halo explaining an error, with commands you can copy or run"></td>
 <td valign="top">
 
-### Ask Lumen
-Select an error and ask what it means, or let it read your screen (<kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd>). Answers come from a local model through **Ollama**, or from **Claude** with your own key. It's off until you choose, and conversations are never saved.
+### Lumen Halo
+The assistant built into the desktop (<kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd>). Select an error and ask, let it read your screen, or type `/` for skills: `/diagnose` checks your system, `/cmd` writes a command you can run, `/commit` writes a commit message from your diff. Answers come from a **local model through Ollama** (it picks a fast one automatically) or from **Claude** with your own key. Nothing is sent until you press Enter, and conversations are never saved.
 
 </td>
 </tr>
@@ -83,6 +83,7 @@ Focus modes (Work, Game, Sleep) on a schedule. Night light that follows the suns
 | <img src="docs/showcase/img/05-notifications.jpg" alt="Notifications"><br>Notifications | <img src="docs/showcase/img/06-planner.jpg" alt="Planner"><br>Planner | <img src="docs/showcase/img/08-switcher.jpg" alt="Alt+Tab"><br>Alt+Tab |
 | <img src="docs/showcase/img/18-settings-appearance.jpg" alt="Settings"><br>Settings | <img src="docs/showcase/img/14-wallpapers.jpg" alt="Wallpapers"><br>Wallpapers | <img src="docs/showcase/img/11-cheatsheet.jpg" alt="Cheatsheet"><br>Every shortcut (<kbd>Super</kbd>+<kbd>/</kbd>) |
 | <img src="docs/showcase/img/16-focus-modes.jpg" alt="Focus"><br>Focus modes | <img src="docs/showcase/img/15-password-prompt.jpg" alt="Admin prompt"><br>Admin prompt | <img src="docs/showcase/img/18-settings-updates.jpg" alt="Updates"><br>Updates |
+| <img src="docs/showcase/img/20-device-card.jpg" alt="A display announced by the island"><br>Device alerts | <img src="docs/showcase/img/21-control-wifi.jpg" alt="Wi-Fi list"><br>Wi-Fi & Bluetooth | <img src="docs/showcase/img/23-dolphin.jpg" alt="Dolphin in Lumen colours"><br>Your apps match |
 
 More in the [feature guide](docs/FEATURES.md) and the [showcase page](https://anasarfeen123.github.io/lumen/showcase/).
 
@@ -112,15 +113,16 @@ Inside any Wayland desktop, `bin/lumen-session` runs Lumen in a window, so nothi
 | Tap <kbd>Super</kbd> | Search apps, windows, maths, commands |
 | <kbd>Super</kbd>+<kbd>A</kbd> · <kbd>Super</kbd>+<kbd>N</kbd> | Control centre · Notifications |
 | <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd> | Planner: weather, agenda, to-dos, notes |
+| <kbd>Ctrl</kbd>+<kbd>Super</kbd>+<kbd>Alt</kbd>+<kbd>←</kbd>/<kbd>→</kbd> | Previous / next workspace that has windows |
 | <kbd>Alt</kbd>+<kbd>Tab</kbd> | Switch windows |
 | <kbd>Super</kbd>+<kbd>V</kbd> | Clipboard history |
-| <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd> | Ask Lumen |
+| <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd> | Lumen Halo (assistant) |
 | <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> · <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> | Screenshot a region · Copy text from the screen |
 | <kbd>F12</kbd> · <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd> | Drop-down terminal · Music |
 | <kbd>Super</kbd>+<kbd>L</kbd> · <kbd>Super</kbd>+<kbd>I</kbd> | Lock · Settings |
 | <kbd>Super</kbd>+<kbd>/</kbd> | Every shortcut |
 
-All 78 shortcuts and the gestures: **[docs/SHORTCUTS.md](docs/SHORTCUTS.md)**.
+All 79 shortcuts and the gestures: **[docs/SHORTCUTS.md](docs/SHORTCUTS.md)**.
 
 ## Documentation
 
