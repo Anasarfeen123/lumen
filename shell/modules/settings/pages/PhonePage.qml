@@ -45,6 +45,14 @@ Page {
                 }
             }
         }
+        SetRow {
+            visible: Link.phone?.paired ?? false
+            icon: "content_paste_go"
+            title: "Share clipboard with " + (Link.phone?.name ?? "your phone")
+            description: Link.clipSync === "on" ? "Copy on one, paste on the other. When something arrives from the phone the island shows it (passwords stay hidden)."
+                                                : "Off — nothing you copy leaves this computer"
+            LSwitch { checked: Link.clipSync === "on"; onToggled: Link.setClipSync(!checked) }
+        }
     }
 
     // ── Doctor ──

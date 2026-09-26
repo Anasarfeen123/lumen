@@ -36,7 +36,13 @@ Page {
             title: Math.round(Battery.percentage * 100) + "%"
             description: Battery.charging ? (Battery.timeToFull > 0 ? "Charging — full in " + Battery.formatDuration(Battery.timeToFull) : "Charging")
                        : Battery.pluggedIn ? "Plugged in"
-                       : Battery.timeToEmpty > 0 ? Battery.formatDuration(Battery.timeToEmpty) + " remaining" : "On battery"
+                       : Battery.forecastText ? "About " + Battery.forecastText + " left at this rate" : "On battery"
+        }
+        SetRow {
+            icon: "insights"
+            title: "Usual battery life"
+            description: Battery.usualText ? "A full charge usually lasts about " + Battery.usualText + ", from your last 7 days. Lumen warns when you should plug in (45 and 15 minutes left)."
+                                           : "Lumen learns how long your battery lasts as you use it on battery, and warns when you should plug in."
         }
         SetRow {
             icon: "health_and_safety"

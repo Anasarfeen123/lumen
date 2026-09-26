@@ -48,6 +48,24 @@ Item {
         x: root.centre - root.islandHalf - root.gap - width
         room: root.centre - root.islandHalf - root.gap - root.leftLimit - root.gap
 
+        // On air: the mic or camera is in use (a privacy light; always first)
+        Chip {
+            id: onAir
+            want: Meeting.onAir || Meeting.live
+            onClicked: SettingsState.launch("sound")
+            Rectangle {
+                width: 8; height: 8; radius: 4
+                anchors.verticalCenter: parent.verticalCenter
+                color: Theme.error
+                SequentialAnimation on opacity {
+                    running: onAir.fits && !Theme.reducedMotion; loops: Animation.Infinite; alwaysRunToEnd: true
+                    NumberAnimation { to: 0.45; duration: 900; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 1; duration: 900; easing.type: Easing.InOutSine }
+                }
+            }
+            LIcon { anchors.verticalCenter: parent.verticalCenter; icon: Meeting.icon; size: 15; fill: 1; color: Theme.error }
+            LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"; text: Meeting.label; color: Theme.text }
+        }
         Chip {
             id: media
             want: Media.present
@@ -96,6 +114,13 @@ Item {
         x: root.centre + root.islandHalf + root.gap
         room: root.rightLimit - root.gap - (root.centre + root.islandHalf + root.gap)
 
+        // Time left, only when it matters: on battery and below 30 %
+        Chip {
+            want: Battery.forecastText !== "" && (Battery.mock || (Battery.available && !Battery.pluggedIn && Battery.percentage < 0.3))
+            onClicked: SettingsState.launch("power")
+            LIcon { anchors.verticalCenter: parent.verticalCenter; icon: Battery.icon; size: 15; color: Battery.forecastMin < 20 ? Theme.warning : Theme.textSecondary }
+            LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"; text: Battery.forecastText + " left"; color: Battery.forecastMin < 20 ? Theme.warning : Theme.text }
+        }
         Chip {
             want: Weather.ready
             onClicked: Planner.toggle()

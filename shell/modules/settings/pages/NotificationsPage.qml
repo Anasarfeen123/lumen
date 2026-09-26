@@ -116,6 +116,12 @@ Page {
             title: "On the lock screen"
             description: "Only a count and app names — never what they say"
         }
+        SetRow {
+            icon: "videocam"
+            title: "Meeting mode"
+            description: "Hold notifications during calls (Meet, Zoom, Teams, Discord… or the camera on), keep the screen awake and pause a focus timer. The island says what waited. A red dot in the Ribbon shows whenever the mic or camera is in use."
+            LSwitch { checked: Meeting.enabled; onToggled: Meeting.setEnabled(!checked) }
+        }
     }
 
     Group {

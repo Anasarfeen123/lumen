@@ -12,6 +12,9 @@
 #   link.sh add-address <ip> | remove-address <ip>   find the phone by address (networks that hide devices)
 #   link.sh backend lan|bluetooth on|off   KDE Connect's own link backends
 #   link.sh refresh                         look for devices again
+#   link.sh clip-sync <id> on|off|status   KDE Connect's clipboard plugin for that phone (shares both ways)
+#   link.sh from-phone                      exit 0 if KDE Connect received data in the last 2.5 s
+#                                           (tells a clipboard change that came from the phone apart)
 # Everything goes through kdeconnect-cli / the daemon's D-Bus; no network
 # code of its own. Nothing here needs root.
 set -u
@@ -118,6 +121,26 @@ events)
     dbus-monitor --session "type='signal',sender='$DEST'" 2>/dev/null | parse_events ;;
 parse-events)   # (testing) parse dbus-monitor text from stdin
     parse_events ;;
+clip-sync)
+    id=${2:?device id}
+    printf '%s' "$id" | grep -Eqx '[A-Za-z0-9_-]{1,64}' || exit 2
+    path="$OBJ/devices/$id"
+    case ${3:-status} in
+        on|off)
+            v=true; [ "$3" = off ] && v=false
+            busctl --user call "$DEST" "$path" org.kde.kdeconnect.device setPluginEnabled sb kdeconnect_clipboard "$v" >/dev/null ;;
+        status)
+            busctl --user call "$DEST" "$path" org.kde.kdeconnect.device isPluginEnabled s kdeconnect_clipboard 2>/dev/null |
+                awk '{print ($2 == "true") ? "on" : "off"}' ;;
+        *) exit 2 ;;
+    esac ;;
+from-phone)
+    # KDE Connect's clipboard plugin has no "received" signal. A clipboard
+    # change counts as the phone's when kdeconnectd's link just received data.
+    ss -tinp state established 2>/dev/null | awk '
+        /users:\(\("kdeconnectd"/ { want = 1; next }
+        want { want = 0; for (i = 1; i <= NF; i++) if ($i ~ /^lastrcv:/) { v = substr($i, 9) + 0; if (v <= 2500) found = 1 } }
+        END { exit found ? 0 : 1 }' ;;
 ring|ping|send-clipboard|pair|unpair)
     exec kdeconnect-cli -d "${2:?device id}" "--$1" ;;
 share)

@@ -96,6 +96,51 @@ Singleton {
     property bool hasScrcpy: false
     Process { running: true; command: ["sh", "-c", "command -v scrcpy"]; onExited: code => root.hasScrcpy = code === 0 }
 
+    // ── clipboard sync (KDE Connect's clipboard plugin: both ways) ──
+    // "on" / "off" / "" (unknown) for the current phone
+    property string clipSync: ""
+    function refreshClip() {
+        if (mock) return;
+        if (!phone?.id) { clipSync = ""; return; }
+        clipProbe.command = [script, "clip-sync", phone.id, "status"];
+        if (!clipProbe.running) clipProbe.running = true;
+    }
+    function setClipSync(on) {
+        if (!phone?.id) return;
+        clipSync = on ? "on" : "off";
+        run(["clip-sync", phone.id, on ? "on" : "off"]);
+        Island.system(on ? "content_paste_go" : "content_paste_off", on ? "Clipboard shared" : "Clipboard not shared", phone.name);
+    }
+    onPhoneChanged: refreshClip()
+    Process {
+        id: clipProbe
+        stdout: StdioCollector { onStreamFinished: root.clipSync = text.trim() }
+    }
+    // Copied on the phone → "Copied from <phone>" in the island. There's no
+    // "received" signal, so a clipboard change counts as the phone's when
+    // kdeconnectd's link received data a moment before (link.sh from-phone).
+    Process {
+        running: root.announces && root.connected && root.clipSync === "on" && !root.mock
+        command: ["wl-paste", "--watch", "echo", "changed"]
+        stdout: SplitParser { onRead: clipCheck.restart() }
+    }
+    // After Lumen's own "Copied" pill (same key), so this one replaces it
+    Timer { id: clipCheck; interval: 450; onTriggered: if (!fromPhone.running) fromPhone.running = true }
+    Process {
+        id: fromPhone
+        command: ["sh", "-c", '"$1" from-phone || exit 1; wl-paste -l 2>/dev/null | grep -q "^image/" && { echo "IMAGE"; exit 0; }; wl-paste -n 2>/dev/null | head -c 400', "sh", root.script]
+        stdout: StdioCollector { onStreamFinished: if (text !== "") root.copiedFromPhone(text) }
+    }
+    function copiedFromPhone(text) {
+        const image = text === "IMAGE";
+        const kind = image ? "image" : Clipboard.kindOf({ text });
+        const flat = text.replace(/\s+/g, " ").trim();
+        const detail = image ? "An image" : kind === "secret" ? "•".repeat(Math.min(12, flat.length)) + " (hidden)"
+                     : flat.length > 60 ? flat.slice(0, 58) + "…" : flat;
+        Island.push({ kind: "system", key: "copied", priority: Island.priority.system, duration: 2600, force: true,
+                      data: { icon: "phone_android", title: "Copied from " + (phone?.name ?? "your phone"), detail, tone: "normal" } });
+    }
+
     // ── live events → the island ──
     readonly property bool announces: Persist.automates || mock
     Process {
@@ -162,6 +207,7 @@ Singleton {
         enabled: Quickshell.env("LUMEN_DEV") === "1"
         function mock(): void {
             root.mock = true; root.available = true; root.backends = { lan: true, bluetooth: false };
+            root.clipSync = "on";
             root.devices = [{ id: "mock1", name: "Anas's Phone", type: "smartphone", paired: true, reachable: true, battery: 82, charging: false, via: "wifi", signal: 3 }];
         }
         function connect(): void { root.announceConnected(root.devices[0]); }
@@ -170,5 +216,7 @@ Singleton {
         function away(): void { root.devices = root.devices.map(d => Object.assign({}, d, { reachable: false, via: "" })); }
         function none(): void { root.mock = true; root.available = true; root.devices = []; }
         function real(): void { root.mock = false; root.refresh(); }
+        function clip(t: string): void { root.clipSync = "on"; root.copiedFromPhone(t); }
+        function clipSecret(): void { root.copiedFromPhone("aB3$xY9!kLm2Qw7Zp0Rt"); }
     }
 }
