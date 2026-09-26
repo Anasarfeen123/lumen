@@ -3,6 +3,10 @@
 // with its title, workspace, CPU and memory, and what it's playing.
 // Click a preview to go there; middle-click closes that window.
 // It never takes the keyboard, and it leaves when the pointer does.
+//
+// It's a layer of its own (not a popup), so moving from one icon to the next
+// glides the same card over instead of re-opening a window, the previews keep
+// streaming, and it fades rather than blinking.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -13,9 +17,10 @@ import qs.theme
 import qs.components
 import qs.services
 
-PopupWindow {
+PanelWindow {
     id: pop
     required property var barWindow
+    property bool shown: false
 
     property var toplevels: []          // what to show
     property string heading: ""
@@ -32,7 +37,7 @@ PopupWindow {
         heading = title;
         atX = x;
         want = toplevels.length > 0;
-        if (visible) { stats.refresh(); return; }
+        if (shown) { stats.refresh(); return; }
         showTimer.restart();
     }
     function leave() { want = false; hideTimer.restart(); }
@@ -45,20 +50,24 @@ PopupWindow {
             const ws = Hyprland.workspaces.values.find(w => w.id === id);
             pop.peek(ws?.toplevels?.values ?? [], "Workspace " + id, 420);
         }
-        function hide(): void { pop.want = false; pop.visible = false; }
+        function hide(): void { pop.want = false; pop.shown = false; }
     }
 
-    Timer { id: showTimer; interval: 380; onTriggered: if (pop.want) { pop.visible = true; stats.refresh(); } }
-    Timer { id: hideTimer; interval: 220; onTriggered: if (!pop.want && !cardHover.hovered) pop.visible = false }
+    Timer { id: showTimer; interval: 380; onTriggered: if (pop.want) { pop.shown = true; stats.refresh(); } }
+    Timer { id: hideTimer; interval: 220; onTriggered: if (!pop.want && !cardHover.hovered) pop.shown = false }
 
-    anchor.window: barWindow
-    anchor.rect.x: Math.max(0, Math.min(barWindow.width - implicitWidth, atX - implicitWidth / 2))
-    anchor.rect.y: Theme.edgeGap + Theme.barHeight + Theme.space.s1 - margin
-    implicitWidth: panel.width + margin * 2
-    implicitHeight: panel.height + margin * 2
+    screen: barWindow.screen
+    anchors { top: true; left: true; right: true }
+    implicitHeight: Theme.edgeGap + Theme.barHeight + 360
+    exclusionMode: ExclusionMode.Ignore
     color: "transparent"
-    visible: false
-    mask: Region { item: panel }
+    WlrLayershell.namespace: "lumen-peek"
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    // Only the card takes the pointer, and only while it's shown
+    mask: Region { item: pop.shown ? panel : null }
+    visible: shown || panel.opacity > 0.01
+    // Forget the windows once the card has faded (not before: no collapsing mid-fade)
     onVisibleChanged: if (!visible) toplevels = []
 
     // Per-window CPU / memory (process tree), refreshed while visible
@@ -76,17 +85,23 @@ PopupWindow {
         id: proc
         stdout: StdioCollector { onStreamFinished: { try { stats.data = JSON.parse(text); } catch (e) {} } }
     }
-    Timer { interval: 2000; repeat: true; running: pop.visible; onTriggered: stats.refresh() }
+    Timer { interval: 2000; repeat: true; running: pop.shown; onTriggered: stats.refresh() }
 
     GlassSurface {
         id: panel
-        x: pop.margin; y: pop.margin
+        // Glides to sit under whatever the pointer is on (kept on screen)
+        x: Math.max(Theme.edgeGap, Math.min(pop.width - width - Theme.edgeGap, pop.atX - width / 2))
+        y: Theme.edgeGap + Theme.barHeight + Theme.space.s2
+        Behavior on x { enabled: panel.opacity > 0.5; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+        Behavior on width { enabled: panel.opacity > 0.5; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+        Behavior on height { enabled: panel.opacity > 0.5; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+        clip: true
         level: "panel"
         radius: Theme.radius.md
         width: cards.implicitWidth + Theme.space.s3 * 2
         height: col.implicitHeight + Theme.space.s3 * 2
-        opacity: pop.visible ? 1 : 0
-        transform: Translate { y: pop.visible ? 0 : -6; Behavior on y { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } } }
+        opacity: pop.shown ? 1 : 0
+        transform: Translate { y: pop.shown ? 0 : -6; Behavior on y { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } } }
         Behavior on opacity { NumberAnimation { duration: Theme.motion.normal } }
         HoverHandler { id: cardHover; onHoveredChanged: if (!hovered) pop.leave(); else pop.want = true }
 
@@ -143,7 +158,7 @@ PopupWindow {
                                     const addr = card.ipc.address ?? ("0x" + card.modelData.address);
                                     if (m.button === Qt.MiddleButton) Hyprland.dispatch(`hl.dsp.window.close({ window = "address:${addr}" })`);
                                     else Hyprland.dispatch(`hl.dsp.focus({ window = "address:${addr}" })`);
-                                    pop.visible = false;
+                                    pop.shown = false;
                                 }
                             }
                         }

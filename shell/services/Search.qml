@@ -290,6 +290,10 @@ Singleton {
             for (const g of groups) out.push(...g.rows);
         }
 
+        // Just "=" (the calculator key): say what it can do instead of a web search
+        if (/^=\s*$/.test(text))
+            return [{ kind: "calc", group: "Calculator", title: "Type a calculation", glyph: "calculate", badge: "",
+                      subtitle: "Maths, units (5 ft to cm), percentages, and money in ₹ ($100, 2 lakh / 12)", run: () => {} }];
         if (text !== "")
             out.push({ kind: "web", group: "Web", title: `Search the web for “${text}”`, subtitle: "", glyph: "travel_explore", badge: "Web",
                        run: () => Quickshell.execDetached(["xdg-open", webSearchUrl.replace("%s", encodeURIComponent(text))]) });

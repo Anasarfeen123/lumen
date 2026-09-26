@@ -38,6 +38,15 @@ if [ -z "${LUMEN_NESTED:-}" ]; then
         run "$agent"
     fi
 
+    # Power button → Lumen's power menu (hypr/keybinds.lua), instead of logind
+    # switching the laptop off at once. The inhibitor lives exactly as long as
+    # this Hyprland; without the shell (safe mode) logind keeps the button.
+    hpid=$(hyprctl -j instances 2>/dev/null | jq -r --arg s "${HYPRLAND_INSTANCE_SIGNATURE:-}" '.[] | select(.instance == $s) | .pid')
+    if [ -f "$LUMEN_ROOT/shell/shell.qml" ] && [ -z "${LUMEN_SAFE:-}" ] && [ -n "$hpid" ]; then
+        run systemd-inhibit --what=handle-power-key --who=Lumen --why="Lumen shows a power menu" --mode=block \
+            tail --pid="$hpid" -f /dev/null
+    fi
+
     # Idle: dim → lock → screen off → suspend (timings: Settings → Power)
     [ -f "$LUMEN_ROOT/generated/hypr/hypridle.conf" ] || python3 "$LUMEN_ROOT/theme/build.py" >>"$LOG" 2>&1
     run hypridle -c "$LUMEN_ROOT/generated/hypr/hypridle.conf"

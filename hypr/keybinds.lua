@@ -53,7 +53,7 @@ key("SUPER + ALT + Space", function()
 end, "Float / tile")
 key("SUPER + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }), "Fullscreen")
 key("SUPER + D", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }), "Maximise (keeps bar and gaps)")
-key("SUPER + P", hl.dsp.window.pin(), "Keep on all workspaces")
+key("SUPER + ALT + P", hl.dsp.window.pin(), "Keep on all workspaces")
 key("SUPER + U", hl.dsp.window.pseudo(), "Pseudo-tile")
 key("SUPER + J", hl.dsp.layout("togglesplit"), "Flip split")
 key("SUPER + ALT + Return", global("lumen:appMenu"), "Menu of the focused app")
@@ -162,6 +162,41 @@ key("SUPER + SHIFT + P", exec("playerctl play-pause"), "Play / pause", { locked 
 key("SUPER + SHIFT + N", exec("playerctl next"), "Next track", { locked = true })
 key("SUPER + SHIFT + B", exec("playerctl previous"), "Previous track", { locked = true })
 key("SUPER + M", global("lumen:island"), "Expand the island (media) — Esc closes")
+
+-- ── Laptop keys (Fn row, ASUS WMI hotkeys and friends) ──
+-- Each one says what it did in the island (services/HwKeys.qml). Not bound
+-- here on purpose: the sleep key (logind suspends, hypridle locks first) and
+-- Fn+F5 on ASUS (the firmware switches the performance profile itself — the
+-- island still shows the new mode). The power button opens the power menu:
+-- Lumen holds logind's power-key inhibitor while it runs (bin/lumen-startup).
+group("Laptop keys")
+local hw = ipc .. " keys "
+key("XF86RFKill", exec(hw .. "airplane"), "Airplane mode", { locked = true })
+key("XF86WLAN", exec(hw .. "wifi"), nil, { locked = true })
+key("XF86Bluetooth", exec(hw .. "bluetooth"), nil, { locked = true })
+key("XF86TouchpadToggle", exec(hw .. "touchpad"), "Touchpad on / off", { locked = true })
+key("CTRL + SUPER + F24", exec(hw .. "touchpad"), nil, { locked = true })   -- how many laptops send the touchpad key
+key("XF86TouchpadOn", exec(hw .. "touchpadOn"), nil, { locked = true })
+key("XF86TouchpadOff", exec(hw .. "touchpadOff"), nil, { locked = true })
+key("XF86KbdBrightnessUp", exec(hw .. "kbdUp"), "Keyboard light up", lr)
+key("XF86KbdBrightnessDown", exec(hw .. "kbdDown"), "Keyboard light down", lr)
+key("XF86KbdLightOnOff", exec(hw .. "kbdCycle"), nil, { locked = true })
+key("SUPER + P", exec(hw .. "display"), "Displays: extend · mirror · external only · laptop only")
+key("XF86Display", exec(hw .. "display"), nil)
+key("XF86Calculator", exec(hw .. "calculator"), "Calculator (the overview, ready for maths)")
+key("XF86Launch3", exec(hw .. "performance"), "Power mode: balanced → performance → saver")
+key("XF86Launch4", exec(hw .. "performance"), nil)
+key("XF86Launch1", global("lumen:settings"), nil)
+key("XF86PowerOff", exec(hw .. "power"), "Power menu")
+key("XF86LogOff", exec(hw .. "power"), nil)
+key("XF86ScreenSaver", exec(ipc .. " lock lock"), nil)
+key("XF86WebCam", exec(hw .. "camera"), nil)
+key("XF86AudioStop", exec("playerctl stop"), nil, { locked = true })
+key("XF86AudioMedia", hl.dsp.workspace.toggle_special("music"), nil)
+key("XF86WWW", exec(browser), nil)
+key("XF86Mail", exec("xdg-open mailto:"), nil)
+key("XF86Phone", exec(ipc .. " link ring"), nil)
+key("XF86Tools", global("lumen:settings"), nil)
 
 -- ── Sidebar & notifications (same keys as ii) ──
 group("Control centre")
