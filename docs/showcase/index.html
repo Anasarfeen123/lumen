@@ -1,435 +1,555 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lumen for Hyprland</title>
-<meta name="description" content="Lumen — a calm, capable Hyprland desktop built as one product.">
+<meta name="description" content="Lumen: a calm, capable Hyprland desktop built as one product. Dynamic Island, control centre, Lumen Halo AI, lock screen with Face ID, and a settings app.">
+<meta name="theme-color" content="#0d1014">
+<meta property="og:title" content="Lumen for Hyprland">
+<meta property="og:description" content="Extremely capable underneath. Extremely simple on the surface.">
+<meta property="og:image" content="img/01-desktop.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,300..800&family=JetBrains+Mono:wght@400;600&display=swap">
-<style>
-  /* Lumen's own tokens (theme/tokens.toml, dark theme, sunset accent). Dark by design. */
-  :root {
-    color-scheme: dark;
-    --ink: #0b0e12;
-    --surface: #151a20;
-    --raise: #1d232b;
-    --line: rgba(238, 241, 244, 0.09);
-    --text: #eef1f4;
-    --muted: #9aa1a9;
-    --faint: #6c737b;
-    --accent: #f9a779;
-    --accent-ink: #2a160b;
-    --glow: rgba(249, 167, 121, 0.28);
-    --ui: "Google Sans Flex", "Google Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
-    --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-    --r-lg: 22px;
-    --r-md: 14px;
-  }
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition: none !important; animation: none !important; } }
-  body {
-    margin: 0;
-    background: var(--ink);
-    color: var(--text);
-    font: 400 16px/1.6 var(--ui);
-    padding-inline: clamp(16px, 4vw, 48px);
-    padding-block: 0 64px;
-    -webkit-font-smoothing: antialiased;
-  }
-  h1, h2, h3 { text-wrap: balance; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
-  p { margin: 0; }
-  a { color: var(--accent); }
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
-  .wrap { max-width: 1180px; margin-inline: auto; }
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400..500,0..1,0&display=block">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%230b0d10'/%3E%3Crect x='14' y='26' width='36' height='12' rx='6' fill='%23fff'/%3E%3C/svg%3E">
+</head>
+<body>
 
-  /* ── The island as navigation ── */
-  .island-nav {
-    position: sticky;
-    top: calc(env(safe-area-inset-top, 0px) + 12px);
-    z-index: 20;
-    display: flex; justify-content: center;
-    pointer-events: none;
-    margin-top: 12px;
-  }
-  .island {
-    pointer-events: auto;
-    display: inline-flex; align-items: center; gap: 10px;
-    padding: 8px 16px 8px 10px;
-    border-radius: 999px;
-    background: rgba(12, 15, 19, 0.82);
-    backdrop-filter: blur(18px) saturate(1.4);
-    -webkit-backdrop-filter: blur(18px) saturate(1.4);
-    border: 1px solid var(--line);
-    box-shadow: 0 8px 28px rgba(0,0,0,0.45);
-    color: var(--text);
-    font: 600 14px/1 var(--ui);
-    cursor: pointer;
-    transition: padding 280ms cubic-bezier(.2,0,0,1), background 200ms;
-  }
-  .island:hover { background: rgba(22, 27, 33, 0.9); }
-  .island .dot { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 50% 50%, var(--accent) 0 35%, var(--glow) 36% 100%); flex: none; }
-  .island .sec { color: var(--muted); font-weight: 500; }
-  .island-menu {
-    pointer-events: auto;
-    position: absolute; top: calc(100% + 8px);
-    display: grid; gap: 2px;
-    min-width: 240px; padding: 8px;
-    border-radius: var(--r-md);
-    background: rgba(14, 18, 23, 0.94);
-    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-    border: 1px solid var(--line);
-    box-shadow: 0 16px 40px rgba(0,0,0,0.5);
-  }
-  .island-menu a { display: block; padding: 8px 12px; border-radius: 10px; color: var(--text); text-decoration: none; font-weight: 500; }
-  .island-menu a:hover, .island-menu a[aria-current="true"] { background: var(--raise); }
-  .island-menu a[aria-current="true"] { color: var(--accent); }
+<!-- ── Navigation: a small island ── -->
+<nav class="topnav glass" id="topnav" aria-label="Sections">
+  <a class="brand" href="#top" aria-label="Lumen, back to top"><span class="logo"><i></i></span>Lumen</a>
+  <a class="nl" href="#island">Island</a>
+  <a class="nl" href="#controls">Controls</a>
+  <a class="nl" href="#find">Search</a>
+  <a class="nl" href="#focus">Focus</a>
+  <a class="nl" href="#halo">Halo</a>
+  <a class="nl" href="#settings">Settings</a>
+  <a class="nl" href="#themes">Themes</a>
+  <a class="nl" href="#gallery">Gallery</a>
+  <a class="nl gh" href="https://github.com/Anasarfeen123/lumen">GitHub</a>
+</nav>
 
-  /* ── Hero ── */
-  header.hero { padding-block: clamp(40px, 8vw, 96px) 40px; display: grid; gap: 28px; }
-  .eyebrow { color: var(--accent); font: 600 13px/1 var(--ui); letter-spacing: 0.14em; text-transform: uppercase; }
-  .hero h1 { font-size: clamp(56px, 11vw, 132px); line-height: 0.92; font-weight: 700; letter-spacing: -0.035em; font-variation-settings: "opsz" 144; }
-  .hero h1 .pill {
-    display: inline-block; vertical-align: 0.12em;
-    width: 0.62em; height: 0.24em; margin-left: 0.14em;
-    border-radius: 999px; background: var(--text);
-    box-shadow: 0 0 0.35em 0.08em var(--glow), 0 0 1.2em 0.3em rgba(249,167,121,0.14);
-  }
-  .thesis { font-size: clamp(20px, 2.6vw, 28px); line-height: 1.35; color: var(--text); max-width: 30ch; font-weight: 450; }
-  .thesis span { color: var(--muted); }
-  .facts { display: flex; flex-wrap: wrap; gap: 8px; }
-  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 14px; }
-  .chip b { color: var(--text); font-weight: 600; }
-  .shot { margin: 0; border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--line); background: var(--surface); box-shadow: 0 30px 80px rgba(0,0,0,0.55); }
-  .shot img { display: block; width: 100%; height: auto; cursor: zoom-in; }
-  .hero .shot { box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 0 0 1px var(--line), 0 0 120px -20px var(--glow); }
+<main id="top">
 
-  /* ── Sections ── */
-  section { padding-block: clamp(56px, 8vw, 104px) 0; scroll-margin-top: 80px; }
-  .sec-head { display: grid; gap: 14px; max-width: 64ch; margin-bottom: 32px; }
-  .sec-head h2 { font-size: clamp(32px, 4.6vw, 52px); line-height: 1.05; letter-spacing: -0.025em; }
-  .sec-head p { color: var(--muted); font-size: 18px; }
-  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 20px; }
-  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 20px; }
-  .feature { display: grid; gap: 14px; align-content: start; }
-  .feature h3 { font-size: 20px; }
-  .feature p { color: var(--muted); max-width: 60ch; }
-  .keys { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: var(--faint); font-size: 13px; }
-  kbd {
-    font: 600 12px/1 var(--mono); color: var(--text);
-    padding: 5px 8px; border-radius: 7px;
-    background: var(--raise); border: 1px solid var(--line); border-bottom-width: 2px;
-  }
-  .crop { aspect-ratio: 16 / 10; }
-  .crop img { height: 100%; object-fit: cover; }
-  .crop.right img { object-position: 100% 0; }
-  .crop.left img { object-position: 0 0; }
-  .crop.top img { object-position: 50% 0; }
-
-  /* ── Island states: the signature ── */
-  .islands { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); align-items: start; }
-  .islands ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
-  .islands li { display: grid; grid-template-columns: 112px 1fr; gap: 14px; align-items: baseline; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
-  .islands li b { color: var(--text); font-weight: 600; font-size: 15px; }
-  .islands li span { color: var(--muted); font-size: 15px; }
-
-  /* ── Gallery ── */
-  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 14px; }
-  .gallery button { all: unset; display: grid; gap: 8px; cursor: zoom-in; border-radius: var(--r-md); }
-  .gallery button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-  .gallery img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface); transition: transform 200ms cubic-bezier(.2,0,0,1), border-color 200ms; }
-  .gallery button:hover img { transform: translateY(-2px); border-color: rgba(249,167,121,0.4); }
-  .gallery span { color: var(--muted); font-size: 14px; }
-
-  /* ── Install ── */
-  .install { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
-  .panel { border: 1px solid var(--line); background: var(--surface); border-radius: var(--r-lg); padding: clamp(18px, 3vw, 28px); display: grid; gap: 16px; align-content: start; }
-  .panel h3 { font-size: 18px; }
-  .panel p, .panel li { color: var(--muted); }
-  .panel ul { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
-  .code { position: relative; border-radius: var(--r-md); background: #090c0f; border: 1px solid var(--line); overflow-x: auto; }
-  .code pre { margin: 0; padding: 16px 18px; font: 400 14px/1.7 var(--mono); color: var(--text); }
-  .code pre .c { color: var(--faint); }
-  .code button { position: absolute; top: 10px; right: 10px; font: 600 12px/1 var(--ui); color: var(--text); background: var(--raise); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; cursor: pointer; }
-  .code button:hover { border-color: rgba(249,167,121,0.5); }
-  .distros { display: flex; flex-wrap: wrap; gap: 8px; }
-
-  footer { margin-top: 96px; padding-top: 28px; border-top: 1px solid var(--line); color: var(--faint); font-size: 14px; display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; }
-
-  /* ── Lightbox ── */
-  dialog.lb { padding: 0; border: 0; background: transparent; max-width: min(96vw, 1600px); width: 100%; }
-  dialog.lb::backdrop { background: rgba(5, 7, 9, 0.86); backdrop-filter: blur(6px); }
-  dialog.lb figure { margin: 0; display: grid; gap: 12px; }
-  dialog.lb img { width: 100%; height: auto; max-height: 82vh; object-fit: contain; border-radius: var(--r-md); }
-  dialog.lb figcaption { display: flex; justify-content: space-between; gap: 12px; align-items: center; color: var(--muted); font-size: 15px; }
-  dialog.lb .nav { display: flex; gap: 8px; }
-  dialog.lb button { font: 600 13px/1 var(--ui); color: var(--text); background: var(--raise); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; cursor: pointer; }
-</style>
-
-<div class="island-nav">
-  <button class="island" id="island" aria-expanded="false" aria-controls="island-menu">
-    <span class="dot" aria-hidden="true"></span>
-    <span>Lumen</span>
-    <span class="sec" id="island-sec">Overview</span>
-  </button>
-  <nav class="island-menu" id="island-menu" hidden aria-label="Sections"></nav>
-</div>
-
-<div class="wrap">
-  <header class="hero" id="top" data-name="Overview">
-    <div class="eyebrow">A Hyprland desktop, built as one product</div>
-    <h1>Lumen<span class="pill" aria-hidden="true"></span></h1>
-    <p class="thesis">Extremely capable underneath. <span>Extremely simple on the surface.</span></p>
-    <div class="facts">
-      <span class="chip"><b>Hyprland</b> 0.56, Lua config</span>
-      <span class="chip"><b>Quickshell</b> shell, one design system</span>
-      <span class="chip"><b>Fedora</b> first · Arch, Debian/Ubuntu, openSUSE</span>
-      <span class="chip"><b>No</b> telemetry, no <code style="font-family:var(--mono)">curl | sh</code></span>
+<!-- ── Hero ── -->
+<header class="hero">
+  <div class="sky" data-parallax="0.25"></div>
+  <div class="stars" data-parallax="0.1"></div>
+  <div class="wrap hero-inner">
+    <span class="eyebrow rv"><span class="dot"></span>Hyprland 0.56+ · Quickshell · GPL-3.0</span>
+    <h1 class="rv d1">A calm desktop,<br><span class="grad">capable underneath.</span></h1>
+    <p class="lede rv d2">Lumen turns Hyprland into one coherent product: a Dynamic Island, a control centre and planner, an on-device assistant called Lumen Halo, a lock screen with Face ID, and a settings app, all from one design system.</p>
+    <div class="ctas rv d3">
+      <a class="btn primary" href="#install"><span class="ms">download</span>Install Lumen</a>
+      <a class="btn" href="https://github.com/Anasarfeen123/lumen"><span class="ms">code</span>View on GitHub</a>
     </div>
-    <figure class="shot"><img src="img/01-desktop.jpg" alt="Lumen desktop with btop, fastfetch and Kate tiled under a merged floating bar with the island at its centre" data-cap="The desktop: one floating bar, the island at its heart, blur everywhere" width="1600" height="900"></figure>
-  </header>
 
-  <section id="island" data-name="The island">
-    <div class="sec-head">
-      <div class="eyebrow">The signature</div>
-      <h2>The island is the desktop's voice</h2>
-      <p>One pill at the top of the screen tells you what just happened and what's going on. It grows only as much as the moment needs, then settles back into a clock.</p>
+    <div class="stage rv d3">
+      <div class="screen" role="img" aria-label="A Lumen desktop with the Dynamic Island cycling through its states">
+        <div class="fakebar">
+          <div class="pill glass left"><div class="ws"><i class="on"></i><i></i><i></i><i></i></div><span class="muted" style="margin-left:6px">Firefox</span></div>
+          <div class="pill glass right stat"><span class="ms">wifi</span><span class="ms">bluetooth</span><span class="ms">volume_up</span><span>84%</span></div>
+        </div>
+
+        <div class="island" id="isl" tabindex="0" aria-live="polite" aria-label="Dynamic Island demo. Click to go to the next state.">
+          <div class="st on" data-s="clock"><span class="eq"><i></i><i></i><i></i><i></i></span><span class="clock" id="clk">9:41</span><span class="muted" style="font-size:12px">Sat 26</span></div>
+          <div class="st card" data-s="media">
+            <div class="art"></div>
+            <div style="flex:1;min-width:0">
+              <div class="t">Nascence</div><div class="s">Austin Wintory · Journey</div>
+              <div class="prog"><b></b></div>
+              <div class="ctrls"><span class="ms">shuffle</span><span class="ms f">skip_previous</span><span class="ms f">pause</span><span class="ms f">skip_next</span><span class="ms">repeat</span></div>
+            </div>
+          </div>
+          <div class="st card" data-s="notif">
+            <div class="appic"><span class="ms f">forum</span></div>
+            <div style="flex:1;min-width:0">
+              <div class="t">Maya · Discord</div><div class="s">Pushed the fix, can you review before standup?</div>
+              <div class="chips"><span class="chip p"><span class="ms">reply</span>Reply</span><span class="chip">Mark read</span></div>
+            </div>
+          </div>
+          <div class="st" data-s="osd"><div class="osd"><span class="ms f">volume_up</span><div class="bar"><b id="volb"></b></div><span class="clock" id="volv">62</span></div></div>
+          <div class="st card" data-s="usb">
+            <div class="tile52"><span class="ms f">keyboard</span></div>
+            <div><div class="t">Keychron K2<span class="badge">New</span></div><div class="s">Keyboard · connected by USB</div></div>
+          </div>
+          <div class="st card" data-s="drive">
+            <div class="tile52"><span class="ms f">hard_drive</span></div>
+            <div style="flex:1;min-width:0">
+              <div class="t">BACKUP</div><div class="s">USB drive · 63.9 GB · EXFAT</div>
+              <div class="chips"><span class="chip p"><span class="ms">folder_open</span>Open</span><span class="chip"><span class="ms">eject</span>Eject</span></div>
+            </div>
+          </div>
+          <div class="st" data-s="timer"><span class="ring" id="tring"></span><span class="clock" id="tval">24:12</span><span class="muted" style="font-size:12px">Focus 1</span></div>
+        </div>
+      </div>
+      <div class="states" role="tablist" aria-label="Island states" id="stateBtns"></div>
     </div>
-    <div class="islands">
-      <figure class="shot"><img src="img/10-island-states.jpg" alt="Six island states: clock, now playing expanded, notification, timer, workspace switch, screenshot copied" data-cap="Six of the island's states" width="1592" height="888"></figure>
-      <ul>
-        <li><b>At rest</b><span>Time and date, with a live equalizer when music plays.</span></li>
-        <li><b>Now playing</b><span>Hover to expand: artwork, controls and a glow in the album's own colour.</span></li>
-        <li><b>Arrivals</b><span>Notifications, volume, brightness, Caps Lock, keyboard layout, Wi-Fi and devices.</span></li>
-        <li><b>Live work</b><span>Timers and stopwatches, screen recording, download progress, updates.</span></li>
-        <li><b>Gestures</b><span>Scroll for volume (Shift: brightness), middle-click to play or pause, right-click for background apps.</span></li>
+
+    <div class="picker glass rv" role="group" aria-label="Accent colour">
+      Accent
+      <button style="--c:#f4ac6f" data-accent="ember" aria-pressed="true" aria-label="Ember"></button>
+      <button style="--c:#6cb8f5" data-accent="ion" aria-pressed="false" aria-label="Ion"></button>
+      <button style="--c:#b59cf5" data-accent="iris" aria-pressed="false" aria-label="Iris"></button>
+      <button style="--c:#6fd3a8" data-accent="jade" aria-pressed="false" aria-label="Jade"></button>
+    </div>
+  </div>
+</header>
+
+<!-- ── Island ── -->
+<section class="feat" id="island">
+  <div class="wrap split">
+    <div>
+      <div class="sec-head rv">
+        <span class="kicker"><span class="ms">radio_button_checked</span>The Dynamic Island</span>
+        <h2>One pill that tells you what just happened.</h2>
+        <p>Music, notifications, volume, timers, downloads, recording, Caps Lock, new devices. It grows only as much as the moment needs, then settles back into a clock.</p>
+      </div>
+      <ul class="bullets rv d1">
+        <li><span class="ms">touch_app</span><div><b>Hover to peek.</b> Now playing with artwork glow, or what you're working on: git branch, changes, CPU and GPU.</div></li>
+        <li><span class="ms">swipe</span><div><b>Scroll for volume</b>, Shift+scroll for brightness, middle-click to play or pause, right-click for background apps.</div></li>
+        <li><span class="ms">sync</span><div><b>Long jobs report progress.</b> <code class="mono">lumen run -- make</code> puts a live bar in the island and tells you when it's done.</div></li>
       </ul>
     </div>
-  </section>
+    <figure class="rv d2" style="margin:0">
+      <button class="shot" data-lb="img/10-island-states.jpg" aria-label="Enlarge: six island states"><img src="img/10-island-states.jpg" alt="Six Dynamic Island states: clock, now playing, notification, volume, timer and screenshot" loading="lazy"></button>
+      <figcaption>Real screenshots of the island's states.</figcaption>
+    </figure>
+  </div>
+</section>
 
-  <section id="sidebars" data-name="Sidebars">
-    <div class="sec-head">
-      <div class="eyebrow">Two sidebars</div>
-      <h2>Your controls on the right, your day on the left</h2>
-      <p>The control centre and notifications share one glass panel with tabs. The planner holds weather, your agenda, to-dos and a scratchpad.</p>
-    </div>
-    <div class="grid-3">
-      <div class="feature">
-        <figure class="shot crop right"><img src="img/04-control-centre.jpg" alt="Control centre with greeting, Wi-Fi and Bluetooth tiles, sixteen toggles, sliders, media, stats and calendar" data-cap="Control centre" width="1600" height="900"></figure>
-        <h3>Control centre</h3>
-        <p>Sixteen toggles in four even rows, sliders with live values, now playing, system stats and a month calendar. Arrow keys move between toggles.</p>
-        <div class="keys"><kbd>Super</kbd><kbd>A</kbd></div>
+<!-- ── Control centre ── -->
+<section class="feat" id="controls">
+  <div class="wrap split rev">
+    <div>
+      <div class="sec-head rv">
+        <span class="kicker"><span class="ms">tune</span>Control centre</span>
+        <h2>The icon is the switch. The tile opens the list.</h2>
+        <p>One control never does two things. Wi-Fi groups what you're on, what you've saved and what's nearby. Bluetooth finds nearby devices only while you're looking, and pairs them in one click.</p>
       </div>
-      <div class="feature">
-        <figure class="shot crop right"><img src="img/05-notifications.jpg" alt="Notifications grouped by app, with a collapsed Discord stack" data-cap="Notifications, grouped by app" width="1600" height="900"></figure>
-        <h3>Notifications</h3>
-        <p>One card per app. Busy apps collapse into a stack with “Show more”. Swipe to dismiss, Do Not Disturb one tap away.</p>
-        <div class="keys"><kbd>Super</kbd><kbd>N</kbd></div>
-      </div>
-      <div class="feature">
-        <figure class="shot crop left"><img src="img/06-planner.jpg" alt="Planner sidebar with Lisbon weather, agenda, to-dos and notes" data-cap="The planner: weather, agenda, to-dos, notes" width="1600" height="900"></figure>
-        <h3>Planner</h3>
-        <p>Type “fri 7pm Concert” and it's in your agenda, with a reminder in the island ten minutes before. Weather from Open-Meteo, no account.</p>
-        <div class="keys"><kbd>Super</kbd><kbd>Shift</kbd><kbd>A</kbd></div>
-      </div>
+      <ul class="bullets rv d1">
+        <li><span class="ms">wifi</span><div><b>Wi-Fi:</b> Connected · Saved · Other networks, a password field in place, and <b>⋯</b> for Disconnect or Forget. Ethernet is detected too.</div></li>
+        <li><span class="ms">bluetooth_searching</span><div><b>Bluetooth:</b> your devices with battery levels, then Nearby. Click to pair; it's trusted, so it reconnects by itself.</div></li>
+        <li><span class="ms">grid_view</span><div><b>Sixteen toggles</b>, per-app volume, now playing, live system stats and a calendar. Arrow keys work everywhere.</div></li>
+      </ul>
+      <p class="muted rv d2" style="margin-top:18px;font-size:14px"><span class="ms" style="font-size:16px">mouse</span> Try it: click a tile to open its list, click the round icon to switch it.</p>
     </div>
-  </section>
-
-  <section id="find" data-name="Finding things">
-    <div class="sec-head">
-      <div class="eyebrow">Tap Super</div>
-      <h2>Everything is one keystroke away</h2>
-      <p>Tap Super alone for search: apps, windows, a calculator, commands and timers (“timer 25m”). Alt+Tab shows live previews in the order you used them.</p>
-    </div>
-    <div class="grid-2">
-      <div class="feature">
-        <figure class="shot"><img src="img/03-overview.jpg" alt="Overview with search field, recent apps and live workspace previews" data-cap="Overview & search" width="1600" height="900"></figure>
-        <h3>Overview</h3>
-        <p>Live workspace previews. Drag a window onto another workspace to move it there.</p>
-        <div class="keys"><kbd>Super</kbd> tap · <kbd>Super</kbd><kbd>Tab</kbd></div>
-      </div>
-      <div class="feature">
-        <figure class="shot"><img src="img/08-switcher.jpg" alt="Alt+Tab switcher with live window previews" data-cap="Alt+Tab switcher" width="1600" height="900"></figure>
-        <h3>Window switcher</h3>
-        <p>Release Alt to switch. <kbd>Q</kbd> closes the selected window, Alt+` cycles one app's windows.</p>
-        <div class="keys"><kbd>Alt</kbd><kbd>Tab</kbd></div>
-      </div>
-    </div>
-  </section>
-
-  <section id="ai" data-name="Ask Lumen">
-    <div class="sec-head">
-      <div class="eyebrow">Built-in assistant</div>
-      <h2>Ask about what's in front of you</h2>
-      <p>Select an error and ask what it means, or let it read your screen. Answers come from a local model through Ollama, or from Claude with your own key. It's off until you choose, and nothing is kept.</p>
-    </div>
-    <div class="feature">
-      <figure class="shot"><img src="img/07-ai.jpg" alt="Ask Lumen panel explaining an EADDRINUSE error from selected text" data-cap="Ask Lumen, explaining a selected error" width="1600" height="900"></figure>
-      <div class="keys"><kbd>Super</kbd><kbd>Shift</kbd><kbd>Space</kbd></div>
-    </div>
-  </section>
-
-  <section id="calm" data-name="Calm by default">
-    <div class="sec-head">
-      <div class="eyebrow">Calm by default</div>
-      <h2>Quiet when you need it, secure when it matters</h2>
-      <p>Focus modes, per-app volume, a lock screen with Face ID, and admin prompts drawn by the desktop itself.</p>
-    </div>
-    <div class="grid-2">
-      <div class="feature">
-        <figure class="shot"><img src="img/09-lock-screen.jpg" alt="Lock screen with large clock, media, battery, calendar and notification widgets" data-cap="Lock screen" width="1600" height="900"></figure>
-        <h3>Lock screen</h3>
-        <p>Widgets for music, battery, calendar and notification counts, never their content. Face ID unlocks the lock screen only; your password always works.</p>
-      </div>
-      <div class="feature">
-        <figure class="shot crop right"><img src="img/16-focus-modes.jpg" alt="Focus modes list: Off, Do Not Disturb, Work, Game, Sleep" data-cap="Focus modes" width="1600" height="900"></figure>
-        <h3>Focus modes</h3>
-        <p>Work lets the apps you allow through. Game turns effects off. Sleep warms the screen. Put Work and Sleep on a schedule.</p>
-      </div>
-      <div class="feature">
-        <figure class="shot crop right"><img src="img/17-sound.jpg" alt="Sound page with output device and per-app volume" data-cap="Output and per-app volume" width="1600" height="900"></figure>
-        <h3>Per-app volume</h3>
-        <p>One slider per app that's playing. Click an app's icon to mute just that app.</p>
-      </div>
-      <div class="feature">
-        <figure class="shot"><img src="img/15-password-prompt.jpg" alt="Administrator access prompt drawn by Lumen" data-cap="Admin password prompt" width="1600" height="900"></figure>
-        <h3>Admin prompts</h3>
-        <p>Lumen is the polkit agent: a clear card that says what's asking and why. Only the password field takes your keyboard.</p>
-      </div>
-    </div>
-  </section>
-
-  <section id="settings" data-name="Settings">
-    <div class="sec-head">
-      <div class="eyebrow">Lumen Settings</div>
-      <h2>Sixteen pages, every one searchable</h2>
-      <p>Themes and accents, a wallpaper that can follow the sun, Face ID, idle timings, battery care, AI, and system updates that install only when you say so.</p>
-    </div>
-    <div class="grid-2">
-      <figure class="shot"><img src="img/18-settings-appearance.jpg" alt="Settings Appearance page with themes, accent colours and toggles" data-cap="Settings → Appearance" width="1600" height="900"></figure>
-      <figure class="shot"><img src="img/18-settings-updates.jpg" alt="Settings Updates page listing two available updates" data-cap="Settings → Updates" width="1600" height="900"></figure>
-    </div>
-  </section>
-
-  <section id="gallery" data-name="Gallery">
-    <div class="sec-head">
-      <div class="eyebrow">Everything</div>
-      <h2>The whole tour</h2>
-      <p>Click any screen to see it full size. Arrow keys step through.</p>
-    </div>
-    <div class="gallery" id="gallery"></div>
-  </section>
-
-  <section id="install" data-name="Install">
-    <div class="sec-head">
-      <div class="eyebrow">Get it</div>
-      <h2>A guided install that asks before every step</h2>
-      <p>Preview everything with a dry run first. Packages come from your distribution. Fonts and the cursor are optional downloads from their official projects. Nothing is ever piped into a shell.</p>
-    </div>
-    <div class="install">
-      <div class="panel">
-        <h3>Install</h3>
-        <div class="code"><button type="button" data-copy="install-cmd">Copy</button><pre id="install-cmd"><span class="c"># get the source, then preview, then install</span>
-git clone &lt;your Lumen repository&gt; ~/Projects/lumen
-cd ~/Projects/lumen
-./install.sh --dry-run
-./install.sh</pre></div>
-        <div class="distros">
-          <span class="chip"><b>Fedora</b> 43+</span>
-          <span class="chip"><b>Arch</b> · EndeavourOS · CachyOS</span>
-          <span class="chip"><b>Debian</b> · Ubuntu · Mint</span>
-          <span class="chip"><b>openSUSE</b> Tumbleweed</span>
+    <div class="mock-bg photo rv d1">
+      <div class="cc panel glass" id="cc">
+        <div class="cc-head"><div class="avatar">A</div><div><div class="t">Good evening, Anas</div><div class="s">Saturday, 26 September · 84%</div></div></div>
+        <div class="main" style="display:grid;gap:14px">
+          <div class="tiles">
+            <div class="qt on" data-detail="wifi" role="button" tabindex="0" aria-label="Wi-Fi: open networks">
+              <button class="disc" data-toggle aria-label="Turn Wi-Fi on or off"><span class="ms">wifi</span></button>
+              <div class="lbl"><b>Wi-Fi</b><span data-sub>Home-5G</span></div><span class="ms chev">chevron_right</span>
+            </div>
+            <div class="qt on" data-detail="bt" role="button" tabindex="0" aria-label="Bluetooth: open devices">
+              <button class="disc" data-toggle aria-label="Turn Bluetooth on or off"><span class="ms">bluetooth</span></button>
+              <div class="lbl"><b>Bluetooth</b><span data-sub>WH-1000XM5 · 80%</span></div><span class="ms chev">chevron_right</span>
+            </div>
+          </div>
+          <div class="grid4">
+            <button class="rt" aria-pressed="false"><span class="disc"><span class="ms">do_not_disturb_on</span></span>Focus</button>
+            <button class="rt on" aria-pressed="true"><span class="disc"><span class="ms">coffee</span></span>Caffeine</button>
+            <button class="rt" aria-pressed="false"><span class="disc"><span class="ms">nightlight</span></span>Night light</button>
+            <button class="rt on" aria-pressed="true"><span class="disc"><span class="ms">mic</span></span>Mic</button>
+            <button class="rt" aria-pressed="false"><span class="disc"><span class="ms">flight</span></span>Airplane</button>
+            <button class="rt on" aria-pressed="true"><span class="disc"><span class="ms">bolt</span></span>Performance</button>
+            <button class="rt" aria-pressed="false"><span class="disc"><span class="ms">sports_esports</span></span>Game mode</button>
+            <button class="rt on" aria-pressed="true"><span class="disc"><span class="ms">blur_on</span></span>Glass</button>
+          </div>
+          <div class="slider" style="--v:62%"><b></b><span class="ms f">volume_up</span><em>62%</em></div>
+          <div class="slider" style="--v:80%"><b></b><span class="ms f">brightness_6</span><em>80%</em></div>
         </div>
-        <p>Needs Hyprland 0.56 or newer. The installer checks, and tells you exactly what's missing on your distribution.</p>
-      </div>
-      <div class="panel">
-        <h3>What it won't do</h3>
-        <ul>
-          <li>Touch another Hyprland setup, KDE or your system configuration.</li>
-          <li>Run anything as root except your package manager (and, if you ask, one login-screen entry).</li>
-          <li>Enable Face ID for sudo, logins or admin prompts. It only unlocks the lock screen.</li>
-          <li>Send anything anywhere unless you set it up (weather city, AI provider).</li>
-        </ul>
-        <p><code style="font-family:var(--mono);color:var(--text)">./uninstall.sh</code> undoes it and leaves your packages alone.</p>
+
+        <div class="detail" data-panel="wifi">
+          <div class="dhead"><button class="iconbtn" data-back aria-label="Back"><span class="ms">arrow_back</span></button><div class="t">Wi-Fi <span class="ms spin">progress_activity</span></div><span class="switch" aria-hidden="true"></span></div>
+          <div class="list">
+            <div class="sechd">Connected</div>
+            <div class="row cur" tabindex="0"><span class="ms lead">signal_wifi_4_bar</span><div><b>Home-5G</b><span class="sub">Connected · secured</span></div><span class="trail"><span class="ms">check</span><button class="iconbtn" data-more aria-label="More"><span class="ms">more_horiz</span></button></span>
+              <div class="more"><span class="chip"><span class="ms">link_off</span>Disconnect</span><span class="chip d"><span class="ms">delete</span>Forget</span></div></div>
+            <div class="sechd">Saved networks</div>
+            <div class="row" tabindex="0"><span class="ms lead">network_wifi_3_bar</span><div><b>Office</b></div><span class="trail"><button class="iconbtn" data-more aria-label="More"><span class="ms">more_horiz</span></button></span>
+              <div class="more"><span class="chip"><span class="ms">wifi</span>Join</span><span class="chip d"><span class="ms">delete</span>Forget</span></div></div>
+            <div class="sechd">Other networks</div>
+            <div class="row" tabindex="0"><span class="ms lead">network_wifi_2_bar</span><div><b>Café Aurora</b><span class="sub">Open network</span></div><span class="trail"></span></div>
+            <div class="row" tabindex="0"><span class="ms lead">network_wifi_1_bar</span><div><b>Pixel hotspot</b></div><span class="trail"><span class="ms">lock</span></span></div>
+          </div>
+        </div>
+
+        <div class="detail" data-panel="bt">
+          <div class="dhead"><button class="iconbtn" data-back aria-label="Back"><span class="ms">arrow_back</span></button><div class="t">Bluetooth <span class="ms spin">progress_activity</span></div><span class="switch" aria-hidden="true"></span></div>
+          <div class="list">
+            <div class="sechd">My devices</div>
+            <div class="row cur" tabindex="0"><span class="ms lead">headphones</span><div><b>WH-1000XM5</b><span class="sub">Connected · 80% battery</span></div><span class="trail"><span class="ms">check</span><button class="iconbtn" data-more aria-label="More"><span class="ms">more_horiz</span></button></span>
+              <div class="more"><span class="chip"><span class="ms">link_off</span>Disconnect</span><span class="chip d"><span class="ms">delete</span>Forget</span></div></div>
+            <div class="row" tabindex="0"><span class="ms lead">mouse</span><div><b>MX Master 3S</b><span class="sub">Not connected</span></div><span class="trail"><button class="iconbtn" data-more aria-label="More"><span class="ms">more_horiz</span></button></span>
+              <div class="more"><span class="chip"><span class="ms">link</span>Connect</span><span class="chip d"><span class="ms">delete</span>Forget</span></div></div>
+            <div class="sechd">Nearby</div>
+            <div class="row" tabindex="0" data-pair><span class="ms lead">speaker</span><div><b>JBL Flip 6</b><span class="sub">Click to pair</span></div><span class="trail"></span></div>
+            <div class="row" tabindex="0" data-pair><span class="ms lead">sports_esports</span><div><b>DualSense</b><span class="sub">Click to pair</span></div><span class="trail"></span></div>
+          </div>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <footer>
-    <span>Lumen · Hyprland + Quickshell · design tokens in <code style="font-family:var(--mono)">theme/tokens.toml</code></span>
-    <span><kbd>Super</kbd><kbd>/</kbd> shows every shortcut</span>
-  </footer>
+<!-- ── Device alerts ── -->
+<section class="feat" id="devices">
+  <div class="wrap">
+    <div class="sec-head center rv" style="text-align:center">
+      <span class="kicker"><span class="ms">usb</span>Device alerts</span>
+      <h2>Plug something in. The island knows what it is.</h2>
+      <p>USB devices are recognised by type. The first time you connect a device you get a card with a “New” badge. Drives get Open and Eject, displays get Arrange. Devices you use every day get a quiet one-line note when they connect or disconnect, with their real name.</p>
+    </div>
+    <div class="devs" id="devs" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- ── Sidebars: notifications + planner ── -->
+<section class="feat" id="sidebars">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="kicker"><span class="ms">view_sidebar</span>Notifications &amp; planner</span>
+      <h2>Your messages on the right, your day on the left.</h2>
+      <p>Notifications group by app and swipe away. The planner holds weather, an agenda you write in plain language (“fri 7pm Concert”), to-dos and a notes pad that saves as you type.</p>
+    </div>
+    <div class="shot-row">
+      <figure class="rv" style="margin:0"><button class="shot" data-lb="img/05-notifications.jpg" aria-label="Enlarge: notifications"><img src="img/05-notifications.jpg" alt="Notification centre with cards grouped by app" loading="lazy"></button><figcaption>Notifications (Super+N): grouped, swipe to dismiss, Do Not Disturb.</figcaption></figure>
+      <figure class="rv d1" style="margin:0"><button class="shot" data-lb="img/06-planner.jpg" aria-label="Enlarge: planner"><img src="img/06-planner.jpg" alt="Planner sidebar with weather, agenda, to-dos and notes" loading="lazy"></button><figcaption>Planner (Super+Shift+A): reminders arrive in the island ten minutes early.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- ── Search ── -->
+<section class="feat" id="find">
+  <div class="wrap split">
+    <div>
+      <div class="sec-head rv">
+        <span class="kicker"><span class="ms">search</span>Overview</span>
+        <h2>Tap Super. Type what you mean.</h2>
+        <p>Apps and windows, maths, settings, commands with parameters, timers, projects and your clipboard, ranked into groups as you type.</p>
+      </div>
+      <ul class="bullets rv d1">
+        <li><span class="ms">terminal</span><div><b>Commands that take values:</b> <code class="mono">volume 40</code>, <code class="mono">brightness 70</code>, <code class="mono">open project lumen</code>, <code class="mono">kill slack</code>.</div></li>
+        <li><span class="ms">bookmark</span><div><b>Snapshots:</b> <code class="mono">save coding</code> and <code class="mono">restore coding</code> bring back a whole layout.</div></li>
+        <li><span class="ms">drag_pan</span><div><b>Live workspace previews.</b> Drag a window onto another workspace to move it.</div></li>
+      </ul>
+    </div>
+    <div class="mock-bg rv d1">
+      <div class="search glass" aria-live="polite">
+        <div class="sfield"><span class="ms">search</span><span id="q"></span><span class="caret"></span></div>
+        <div class="results" id="results"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Clipboard + Alt+Tab ── -->
+<section class="feat" id="clipboard">
+  <div class="wrap split rev">
+    <div>
+      <div class="sec-head rv">
+        <span class="kicker"><span class="ms">content_paste</span>Clipboard &amp; switching</span>
+        <h2>A clipboard that knows what you copied.</h2>
+        <p>Links, emails, colours, paths, commands and code are recognised and filterable. Anything that looks like a secret is masked. Enter pastes straight into the app you were in.</p>
+      </div>
+      <ul class="bullets rv d1">
+        <li><span class="ms">keyboard</span><div><b>Enter</b> pastes, <b>Ctrl+Enter</b> pastes plain, <b>Shift+Enter</b> opens a link, <b>Alt+P</b> pins.</div></li>
+        <li><span class="ms">tab</span><div><b>Alt+Tab</b> shows live previews in the order you last used them. <b>Alt+`</b> cycles one app's windows.</div></li>
+      </ul>
+    </div>
+    <div class="mock-bg rv d1">
+      <div class="clip glass">
+        <div class="filters" id="cfilters" role="tablist" aria-label="Clipboard filters">
+          <button class="on" data-k="all">All</button><button data-k="link">Links</button><button data-k="color">Colours</button><button data-k="command">Commands</button><button data-k="secret">Secrets</button>
+        </div>
+        <div class="ci" data-k="link"><span class="ic"><span class="ms">link</span></span><div><b>https://github.com/Anasarfeen123/lumen</b><span>Link · Shift+Enter opens</span></div><span class="kbd">1</span></div>
+        <div class="ci" data-k="color"><span class="sw" style="background:#f4ac6f"></span><div><b class="mono">#f4ac6f</b><span>Colour</span></div><span class="kbd">2</span></div>
+        <div class="ci" data-k="command"><span class="ic"><span class="ms">terminal</span></span><div><b class="mono">git push origin main</b><span>Command</span></div><span class="kbd">3</span></div>
+        <div class="ci" data-k="secret"><span class="ic"><span class="ms">key</span></span><div><b class="masked">••••••••••••••••</b><span>Looks like a secret · hidden</span></div><span class="kbd">4</span></div>
+        <div class="ci" data-k="color"><span class="sw" style="background:#6cb8f5"></span><div><b class="mono">oklch(0.76 0.11 240)</b><span>Colour</span></div><span class="kbd">5</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Focus ── -->
+<section class="feat" id="focus">
+  <div class="wrap split">
+    <div>
+      <div class="sec-head rv">
+        <span class="kicker"><span class="ms">self_improvement</span>Focus modes</span>
+        <h2>Tell it what you're doing. It arranges the rest.</h2>
+        <p>Each mode is a checklist you can read: what goes quiet, what dims, what stays awake. Deep work runs a 25/5 Pomodoro in the island; Game switches to performance; Sleep warms the screen. Work and Sleep can follow a schedule.</p>
+      </div>
+    </div>
+    <div class="mock-bg rv d1">
+      <div class="focus glass">
+        <div class="modes" id="modes" role="tablist" aria-label="Focus modes"></div>
+        <div class="pomo">
+          <div class="bigring" id="bring"><span id="btime">25:00</span><small id="bphase">Focus</small></div>
+          <ul class="checks" id="checks"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Context ── -->
+<section class="feat" id="context">
+  <div class="wrap split rev">
+    <div>
+      <div class="sec-head rv">
+        <span class="kicker"><span class="ms">code</span>Context</span>
+        <h2>Hover the island. See what you're working on.</h2>
+        <p>In an editor or terminal, the island shows the project, its git branch and changes, and live CPU, GPU and memory. In a game it shows frame-relevant stats; during a presentation it holds notifications and keeps the screen awake.</p>
+      </div>
+    </div>
+    <div class="rv d1">
+      <div class="ctx glass">
+        <div class="ctx-top"><div class="tile52"><span class="ms f">terminal</span></div><div><div class="t" style="font-weight:600">lumen</div><div class="muted" style="font-size:12.5px">~/Projects/lumen · kitty</div></div><span class="gitchip"><span class="ms" style="font-size:14px">commit</span> main · +3 ~2</span></div>
+        <div class="meters" id="meters">
+          <div class="meter">CPU<b>18%</b><i style="--m:18%"></i></div>
+          <div class="meter">GPU<b>7%</b><i style="--m:7%"></i></div>
+          <div class="meter">Memory<b>9.7G</b><i style="--m:62%"></i></div>
+          <div class="meter">Temp<b>52°</b><i style="--m:52%"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Halo ── -->
+<section class="feat" id="halo">
+  <div class="wrap">
+    <div class="sec-head center rv" style="text-align:center">
+      <span class="kicker"><span class="ms">auto_awesome</span>Lumen Halo</span>
+      <h2>An assistant that lives in your desktop, and can stay on it.</h2>
+      <p>Select an error and ask. Let it read your screen. Diagnose your system. Answers stream from a local model through Ollama, so nothing leaves your computer, or from Claude with your own key. It's off until you choose, and nothing is ever saved.</p>
+    </div>
+
+    <div class="halo-wrap rv d1" id="haloWrap">
+      <div class="halo-glow"></div>
+      <div class="halo glass">
+        <div class="hhead"><span class="hlogo" aria-hidden="true"></span><h3>Lumen Halo</h3><span class="priv"><span class="ms f">shield_lock</span>Local · gemma3:4b</span><span style="margin-left:auto" class="kbd">Super+Shift+Space</span></div>
+        <div class="ctxchips" id="hchips">
+          <span class="chip p"><span class="ms">format_quote</span>Selection · 12 words</span><span class="chip"><span class="ms">content_paste</span>Clipboard</span><span class="chip"><span class="ms">screenshot_monitor</span>Screen</span><span class="chip"><span class="ms">web_asset</span>Window</span><span class="chip"><span class="ms">monitor_heart</span>System</span><span class="chip"><span class="ms">commit</span>Project</span>
+        </div>
+        <div class="hbody" id="hbody" aria-live="polite"></div>
+        <div class="slash">
+          <div class="slashmenu glass" id="slashmenu">
+            <div><code>/explain</code><span>Explain the selection</span></div>
+            <div><code>/fix</code><span>Fix grammar and tone</span></div>
+            <div><code>/translate</code><span>Translate to any language</span></div>
+            <div><code>/cmd</code><span>Write a shell command</span></div>
+            <div><code>/diagnose</code><span>Check Wi-Fi, services, logs</span></div>
+            <div><code>/commit</code><span>Commit message from your diff</span></div>
+          </div>
+          <div class="hin"><span class="txt" id="htxt"><span class="muted">Ask anything, or type / for skills</span></span><span class="send"><span class="ms">arrow_upward</span></span></div>
+        </div>
+      </div>
+      <div class="halo-ring"></div>
+    </div>
+
+    <div class="feat-grid">
+      <div class="fg rv"><span class="ms">bolt</span><b>Slash skills</b><p><code>/explain</code> <code>/summarize</code> <code>/fix</code> <code>/translate</code> <code>/reply</code> <code>/cmd</code> <code>/diagnose</code> <code>/commit</code> <code>/define</code></p></div>
+      <div class="fg rv d1"><span class="ms">attach_file</span><b>Context you choose</b><p>Selection, clipboard, a screenshot, the active window, system health, or your project's git diff. Each is a chip you switch on.</p></div>
+      <div class="fg rv d2"><span class="ms">terminal</span><b>Answers you can use</b><p>Copy, insert into the app you came from, run a suggested command in a terminal (after you confirm it), or save it to your notes.</p></div>
+      <div class="fg rv"><span class="ms">shield_lock</span><b>Private by default</b><p>Local models via Ollama. Nothing is sent until you press Enter, and conversations exist only in memory.</p></div>
+      <div class="fg rv d1"><span class="ms">monitor_heart</span><b>Knows your system</b><p><code>/diagnose</code> reads NetworkManager, failed services, recent errors, disk and memory, then explains what it found.</p></div>
+      <div class="fg rv d2"><span class="ms">radio_button_checked</span><b>Works in the background</b><p>Close the panel mid-answer and the island shows Halo thinking; it tells you when the answer is ready.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Lock screen ── -->
+<section class="feat" id="lock">
+  <div class="wrap split">
+    <div>
+      <div class="sec-head rv">
+        <span class="kicker"><span class="ms">lock</span>Lock screen &amp; security</span>
+        <h2>A glance to unlock. Your password always works.</h2>
+        <p>A big clock, now playing, battery and notification counts (never their content). Face ID through Gaze unlocks only the lock screen, never sudo or your keyring. Admin prompts are drawn by Lumen and say exactly what's asking.</p>
+      </div>
+      <ul class="bullets rv d1">
+        <li><span class="ms">face</span><div><b>Face ID</b> with liveness checks; on battery the camera starts only when you press F2.</div></li>
+        <li><span class="ms">admin_panel_settings</span><div><b>Polkit agent built in.</b> A clear card, the app's name, and the exact action.</div></li>
+        <li><span class="ms">shield</span><div><b>Security page:</b> firewall, SSH, Secure Boot, disk encryption and SELinux at a glance.</div></li>
+      </ul>
+    </div>
+    <div class="rv d1">
+      <div class="lockmock" role="img" aria-label="Lumen lock screen with a Face ID scan in progress">
+        <div class="faceid"><div class="scan"><span class="ms">face</span></div><span>Looking for you…</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Settings ── -->
+<section class="feat" id="settings">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="kicker"><span class="ms">settings</span>Settings</span>
+      <h2>Twenty pages, grouped, searchable, and live.</h2>
+      <p>Changes apply the moment you make them: to the shell, windows, terminal and lock screen. The Advanced page shows the config files, checks them, opens the logs and reloads everything.</p>
+    </div>
+    <div class="settings glass rv d1">
+      <div class="snav" id="snav" role="tablist" aria-label="Settings pages"></div>
+      <div class="spage" id="spage" aria-live="polite"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Qt apps ── -->
+<section class="feat" id="apps">
+  <div class="wrap split rev">
+    <div>
+      <div class="sec-head rv">
+        <span class="kicker"><span class="ms">apps</span>Your apps, in Lumen colours</span>
+        <h2>Dolphin, Kate, Okular and friends match the desktop.</h2>
+        <p>Lumen generates a KDE colour scheme, the Darkly style and your icon theme for Qt apps, so they look like part of the desktop. It applies only inside Lumen: Plasma and your own settings are left untouched.</p>
+      </div>
+    </div>
+    <div class="rv d1">
+      <div class="dolphin" role="img" aria-label="Dolphin file manager in Lumen colours with accent-tinted folders">
+        <div class="dtool"><span class="ms">arrow_back</span><span class="ms">arrow_forward</span><div class="crumbs">home › anas › Projects › <b>lumen</b></div><span class="ms">search</span></div>
+        <div class="dbody">
+          <div class="dside"><div><span class="ms">home</span>Home</div><div><span class="ms">desktop_windows</span>Desktop</div><div class="on"><span class="ms">folder</span>Projects</div><div><span class="ms">download</span>Downloads</div><div><span class="ms">image</span>Pictures</div><div><span class="ms">music_note</span>Music</div></div>
+          <div class="dfiles">
+            <div class="file"><div class="folder"></div>bin</div><div class="file"><div class="folder"></div>docs</div><div class="file"><div class="folder"></div>hypr</div><div class="file"><div class="folder"></div>shell</div><div class="file"><div class="folder"></div>theme</div><div class="file"><div class="folder"></div>scripts</div><div class="file"><div class="doc" data-t="MD"></div>README.md</div><div class="file"><div class="doc" data-t="SH"></div>install.sh</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Theme lab ── -->
+<section class="feat" id="themes">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="kicker"><span class="ms">palette</span>Theme engine</span>
+      <h2>Every colour is computed, and every combination passes contrast.</h2>
+      <p>Colours are written in OKLCH, so light and dark themes keep the same contrast. Pick an accent from your wallpaper, choose how strongly it tints, and tune glass and motion. After sunset the accent warms and motion calms. Try it:</p>
+    </div>
+    <div class="lab">
+      <div class="controls glass rv">
+        <div class="ctl"><label>Accent style</label>
+          <div class="seg" id="styleSeg" role="tablist" aria-label="Accent style"><button class="on" data-st="exact">Exact</button><button data-st="adaptive">Adaptive</button><button data-st="subtle">Subtle</button><button data-st="mono">Mono</button></div></div>
+        <div class="ctl"><label for="rHue">Accent hue <output id="oHue">55°</output></label><input id="rHue" type="range" min="0" max="360" value="55"></div>
+        <div class="ctl"><label for="rInt">Accent intensity <output id="oInt">100%</output></label><input id="rInt" type="range" min="50" max="130" value="100"></div>
+        <div class="ctl"><label for="rGlass">Glass <output id="oGlass">60%</output></label><input id="rGlass" type="range" min="0" max="100" value="60"></div>
+        <div class="ctl"><label for="rMotion">Animation speed <output id="oMotion">100%</output></label><input id="rMotion" type="range" min="50" max="200" value="100"></div>
+      </div>
+      <div class="preview rv d1">
+        <div class="glass" id="labCard">
+          <div class="cc-head"><div class="avatar">A</div><div><div class="t">Lumen</div><div class="s">Your accent, everywhere</div></div></div>
+          <div class="tiles">
+            <div class="qt on"><span class="disc"><span class="ms">wifi</span></span><div class="lbl"><b>Wi-Fi</b><span>Home-5G</span></div></div>
+            <div class="qt"><span class="disc"><span class="ms">bluetooth</span></span><div class="lbl"><b>Bluetooth</b><span>Off</span></div></div>
+          </div>
+          <div class="slider" style="--v:70%"><b></b><span class="ms f">volume_up</span><em>70%</em></div>
+          <div class="chips"><span class="chip p"><span class="ms">check</span>Applied instantly</span><span class="chip"><span class="ms">contrast</span>AA contrast</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Snapshots + Connect ── -->
+<section class="feat" id="more">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="kicker"><span class="ms">widgets</span>And more</span>
+      <h2>The little things, done properly.</h2>
+    </div>
+    <div class="duo">
+      <div class="card rv">
+        <span class="ms accent" style="font-size:28px">bookmarks</span>
+        <h3>Workspace snapshots</h3>
+        <p>Save the windows you have open, where they are and what folder each terminal is in. Restore the whole setup later with one command.</p>
+        <div class="term"><span class="p">❯</span> lumen snapshot save coding<br><span class="o">saved 6 windows on 3 workspaces</span><br><span class="p">❯</span> lumen snapshot restore coding</div>
+      </div>
+      <div class="card rv d1">
+        <span class="ms accent" style="font-size:28px">smartphone</span>
+        <h3>Lumen Connect</h3>
+        <p>Your phone, through KDE Connect: battery in the sidebar, ring it, send files, share the clipboard, and its notifications in the island.</p>
+        <div class="phone" aria-hidden="true"><div class="bars"><i></i><i></i><i></i><i></i></div></div>
+      </div>
+      <div class="card rv d2">
+        <span class="ms accent" style="font-size:28px">terminal</span>
+        <h3>Scriptable to the core</h3>
+        <p>Everything Settings does is a command, and long jobs report to the island.</p>
+        <div class="term"><span class="p">❯</span> lumen accent wallpaper<br><span class="p">❯</span> lumen set glass_level 70<br><span class="p">❯</span> lumen run --title Build -- make<br><span class="c"># progress appears in the island</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Shortcuts ── -->
+<section class="feat" id="keys">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="kicker"><span class="ms">keyboard</span>Keyboard first</span>
+      <h2>Everything is one shortcut away.</h2>
+      <p>Press <kbd>Super</kbd>+<kbd>/</kbd> for the full cheatsheet, generated from the config itself.</p>
+    </div>
+    <div class="keys" id="keysGrid"></div>
+  </div>
+</section>
+
+<!-- ── Gallery ── -->
+<section class="feat" id="gallery">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="kicker"><span class="ms">photo_library</span>Gallery</span>
+      <h2>The whole tour, in real screenshots.</h2>
+      <p>Click any picture to enlarge it. Arrow keys move between them; Esc closes.</p>
+    </div>
+    <div class="gallery" id="gallery-grid"></div>
+  </div>
+</section>
+
+<!-- ── Install ── -->
+<section class="feat" id="install">
+  <div class="wrap install">
+    <div class="sec-head rv" style="margin:0">
+      <span class="kicker"><span class="ms">download</span>Install</span>
+      <h2>A guided install that asks before every step.</h2>
+      <p>Packages come from your distribution's own repositories: Fedora, Arch, Debian/Ubuntu and openSUSE. Fonts and the cursor are optional downloads from their official projects. Nothing is ever piped into a shell, and <code class="mono">./uninstall.sh</code> removes it again.</p>
+      <div class="ctas" style="justify-content:flex-start;margin-top:8px">
+        <a class="btn primary" href="https://github.com/Anasarfeen123/lumen"><span class="ms">code</span>Get it on GitHub</a>
+        <a class="btn" href="https://github.com/Anasarfeen123/lumen/blob/main/docs/INSTALL.md"><span class="ms">menu_book</span>Install guide</a>
+      </div>
+    </div>
+    <div class="rv d1">
+      <div class="term" id="installCode"><button class="copy" id="copyBtn">Copy</button><span class="p">❯</span> git clone https://github.com/Anasarfeen123/lumen.git ~/Projects/lumen<br><span class="p">❯</span> cd ~/Projects/lumen<br><span class="p">❯</span> ./install.sh --dry-run   <span class="c"># shows every step; changes nothing</span><br><span class="p">❯</span> ./install.sh             <span class="c"># asks before each step</span></div>
+      <p class="muted" style="font-size:14px;margin-top:12px">Just curious? <code class="mono">bin/lumen-session</code> runs Lumen in a window inside your current Wayland desktop.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span style="display:flex;align-items:center;gap:10px"><span class="logo"><i></i></span>Lumen · free software under GPL-3.0</span>
+    <span>Built on <a href="https://hyprland.org">Hyprland</a> and <a href="https://quickshell.org">Quickshell</a>. Icons: Material Symbols.</span>
+  </div>
+</footer>
+
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Screenshot viewer" aria-hidden="true">
+  <button class="iconbtn close" data-lb-close aria-label="Close"><span class="ms">close</span></button>
+  <button class="iconbtn nav prev" data-lb-prev aria-label="Previous"><span class="ms">chevron_left</span></button>
+  <figure><img id="lbImg" alt=""><figcaption id="lbCap"></figcaption></figure>
+  <button class="iconbtn nav next" data-lb-next aria-label="Next"><span class="ms">chevron_right</span></button>
 </div>
 
-<dialog class="lb" id="lb" aria-label="Screenshot">
-  <figure>
-    <img id="lb-img" alt="">
-    <figcaption><span id="lb-cap"></span><span class="nav"><button type="button" id="lb-prev" aria-label="Previous">←</button><button type="button" id="lb-next" aria-label="Next">→</button><button type="button" id="lb-close">Close</button></span></figcaption>
-  </figure>
-</dialog>
-
-<script>
-(() => {
-  // ── Gallery (all screens) ──
-  const shots = [
-    ["01-desktop", "Desktop, merged floating bar"], ["02-empty-workspace", "Empty workspace: three floating pills"],
-    ["03-overview", "Overview & search"], ["04-control-centre", "Control centre"], ["05-notifications", "Notifications"],
-    ["06-planner", "Planner"], ["07-ai", "Ask Lumen"], ["08-switcher", "Alt+Tab switcher"], ["09-lock-screen", "Lock screen"],
-    ["10-island-states", "Island states"], ["11-cheatsheet", "Every shortcut (Super+/)"], ["12-power-menu", "Power menu"],
-    ["13-app-menu", "The focused app's menu"], ["14-wallpapers", "Wallpaper picker"], ["15-password-prompt", "Admin prompt"],
-    ["16-focus-modes", "Focus modes"], ["17-sound", "Per-app volume"], ["18-settings-appearance", "Settings: Appearance"],
-    ["18-settings-updates", "Settings: Updates"],
-  ];
-  const gallery = document.getElementById("gallery");
-  shots.forEach(([file, cap], i) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.innerHTML = `<img src="img/${file}.jpg" alt="${cap}" loading="lazy" width="1600" height="900"><span>${cap}</span>`;
-    b.addEventListener("click", () => open(i));
-    gallery.appendChild(b);
-  });
-
-  // ── Lightbox: gallery items + any page screenshot ──
-  const lb = document.getElementById("lb"), img = document.getElementById("lb-img"), capEl = document.getElementById("lb-cap");
-  let idx = 0;
-  function show(i) { idx = (i + shots.length) % shots.length; img.src = `img/${shots[idx][0]}.jpg`; img.alt = shots[idx][1]; capEl.textContent = shots[idx][1]; }
-  function open(i) { show(i); if (!lb.open) lb.showModal(); }
-  document.getElementById("lb-prev").onclick = () => show(idx - 1);
-  document.getElementById("lb-next").onclick = () => show(idx + 1);
-  document.getElementById("lb-close").onclick = () => lb.close();
-  lb.addEventListener("click", e => { if (e.target === lb) lb.close(); });
-  lb.addEventListener("keydown", e => { if (e.key === "ArrowLeft") show(idx - 1); if (e.key === "ArrowRight") show(idx + 1); });
-  document.querySelectorAll(".shot img").forEach(el => el.addEventListener("click", () => {
-    const f = el.getAttribute("src").replace(/^img\/|\.jpg$/g, "");
-    open(Math.max(0, shots.findIndex(s => s[0] === f)));
-  }));
-
-  // ── Copy buttons ──
-  document.querySelectorAll("[data-copy]").forEach(btn => btn.addEventListener("click", () => {
-    const pre = document.getElementById(btn.dataset.copy);
-    const text = pre.innerText.split("\n").filter(l => !l.startsWith("#")).join("\n");
-    const done = () => { btn.textContent = "Copied"; setTimeout(() => btn.textContent = "Copy", 1400); };
-    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done, () => select(pre));
-    else select(pre);
-  }));
-  function select(el) { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
-
-  // ── The island nav: shows the section you're in; click for the list ──
-  const island = document.getElementById("island"), menu = document.getElementById("island-menu"), secEl = document.getElementById("island-sec");
-  const sections = [...document.querySelectorAll("[data-name]")];
-  sections.forEach(s => {
-    const a = document.createElement("a");
-    a.href = "#" + s.id; a.textContent = s.dataset.name;
-    a.addEventListener("click", () => { menu.hidden = true; island.setAttribute("aria-expanded", "false"); });
-    menu.appendChild(a);
-  });
-  island.addEventListener("click", () => { menu.hidden = !menu.hidden; island.setAttribute("aria-expanded", String(!menu.hidden)); });
-  document.addEventListener("keydown", e => { if (e.key === "Escape" && !menu.hidden) { menu.hidden = true; island.setAttribute("aria-expanded", "false"); island.focus(); } });
-  document.addEventListener("click", e => { if (!menu.hidden && !island.contains(e.target) && !menu.contains(e.target)) { menu.hidden = true; island.setAttribute("aria-expanded", "false"); } });
-  function current() {
-    let best = sections[0];
-    for (const s of sections) if (s.getBoundingClientRect().top < window.innerHeight * 0.35) best = s;
-    secEl.textContent = best.dataset.name;
-    menu.querySelectorAll("a").forEach(a => a.setAttribute("aria-current", String(a.getAttribute("href") === "#" + best.id)));
-  }
-  addEventListener("scroll", current, { passive: true });
-  current();
-})();
-</script>
+<script src="app.js"></script>
+</body>
+</html>

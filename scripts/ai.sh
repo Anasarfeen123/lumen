@@ -98,11 +98,13 @@ ask)
                               else {t:(.message.content // "")} end' ||
           err "Couldn't reach Ollama at $OLLAMA — is it running? (ollama serve)" ;;
     mock)   # dev/showcase only: a canned, streamed answer (no network)
-        for chunk in "That error means " "**the port is already in use** — another process is listening on \`:8080\`.\n\n" \
-                     "**Fix it:**\n\n1. Find it: \`ss -ltnp | grep 8080\`\n" "2. Stop that process, or start yours on another port\n\n" \
+        for chunk in "That error means **port 8080 is already taken**, most likely by an earlier copy of your dev server that's still running.\n\n" \
+                     "**See what's using it:**\n\n\`\`\`sh\nss -ltnp 'sport = :8080'\n\`\`\`\n\n" \
+                     "Then either stop that process, or start yours on another port:\n\n\`\`\`sh\nPORT=8081 npm run dev\n\`\`\`\n\n" \
                      "Nothing here is destructive; check what the process is before you stop it."; do
-            t=$(printf '%bx' "$chunk"); jq -cn --arg t "${t%x}" '{t:$t}'; sleep 0.15
-        done ;;
+            t=$(printf '%bx' "$chunk"); jq -cn --arg t "${t%x}" '{t:$t}'; sleep 0.12
+        done
+        jq -cn '{s:{n:212, ms:4100}}' ;;
     *) err "No AI provider chosen — pick one in Settings → AI." ;;
     esac ;;
 *)

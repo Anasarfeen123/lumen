@@ -39,7 +39,7 @@ Singleton {
     readonly property string visionModel: localInfo.find(i => i.vision)?.name ?? ""
     readonly property string model: {
         if (auto) return textModel;
-        const m = Persist.data.aiModel;
+        const m = Persist.data.aiModel === "auto" ? "" : Persist.data.aiModel;
         if (provider === "ollama" && m && !(status.ollamaModels ?? []).includes(m) && (status.ollamaModels ?? []).length) return textModel;
         return (m || defaults[provider]) ?? "";
     }
