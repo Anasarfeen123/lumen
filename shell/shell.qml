@@ -22,6 +22,7 @@ import qs.modules.cheatsheet
 import qs.modules.settings
 import qs.modules.polkit
 import qs.modules.switcher
+import qs.modules.planner
 
 ShellRoot {
     // A desktop you use must not restart itself because a file changed on
@@ -113,6 +114,14 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: PowerMenu {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    // Left sidebar: weather, agenda, to-dos, notes
+    Variants {
+        model: Quickshell.screens
+        delegate: PlannerWindow {
             required property var modelData
             screen: modelData
         }
