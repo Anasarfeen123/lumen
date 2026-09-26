@@ -24,6 +24,7 @@ import qs.modules.polkit
 import qs.modules.switcher
 import qs.modules.planner
 import qs.modules.ai
+import qs.modules.dropzone
 
 ShellRoot {
     // A desktop you use must not restart itself because a file changed on
@@ -123,6 +124,14 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: PlannerWindow {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    // Drop Zone: drag files to the right edge for Send to phone, Copy, Compress…
+    Variants {
+        model: Quickshell.screens
+        delegate: DropZoneWindow {
             required property var modelData
             screen: modelData
         }
