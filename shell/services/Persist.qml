@@ -28,6 +28,7 @@ Singleton {
             // Bar & island (Lumen Settings → Bar & Island)
             property bool islandDate: true
             property bool islandWorkspace: true
+            property string islandScroll: "timeline"   // scroll on the island: "timeline" | "volume"
             property bool hotCornerLeft: true
             property bool hotCornerRight: true
             // Look & sound (Lumen Settings → Appearance)

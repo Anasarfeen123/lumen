@@ -177,9 +177,11 @@ PanelWindow {
             acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
             onClicked: m => win.activate(m.button)
-            // Scroll = the Now timeline (scrub the last hour), always — one
-            // gesture, one meaning. Volume scrolls on the status pill (and the
-            // volume keys). Modifier keys can't be used here: the island never
+            // Scroll does ONE thing, chosen in Settings → Bar & Island:
+            //   timeline (default)  scrub the Now timeline (the last hour)
+            //   volume              volume; a sideways scroll opens the timeline
+            // (while the timeline is open, any scroll scrubs it).
+            // Modifier keys can't be used here: the island never
             // has keyboard focus, so Wayland doesn't tell it about Shift/Ctrl.
             // Touchpads send small deltas: they add up to one step per notch's
             // worth (120).
@@ -187,6 +189,10 @@ PanelWindow {
             onWheel: w => {
                 const sideways = Math.abs(w.angleDelta.x) > Math.abs(w.angleDelta.y);
                 const d = sideways ? w.angleDelta.x : w.angleDelta.y;
+                if ((Persist.data.islandScroll ?? "timeline") === "volume" && !Island.timelineOpen && !sideways) {
+                    Audio.nudge(d > 0 ? 0.05 : -0.05);
+                    return;
+                }
                 if (!win.isFocused) return;
                 acc += d;
                 if (Math.abs(acc) < 120) return;

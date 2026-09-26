@@ -23,6 +23,19 @@ Page {
             description: "Briefly shows the workspace name when you switch"
             LSwitch { checked: Persist.data.islandWorkspace; onToggled: Persist.data.islandWorkspace = !checked }
         }
+        SetRow {
+            icon: "swipe_vertical"
+            title: "Scroll on the island"
+            description: Persist.data.islandScroll === "volume"
+                ? "Changes the volume · the Now timeline opens with a sideways scroll"
+                : "Scrubs the Now timeline (the last hour) · volume scrolls on the status icons"
+            Segmented {
+                width: 220
+                options: [{ id: "timeline", label: "Timeline" }, { id: "volume", label: "Volume" }]
+                current: Persist.data.islandScroll ?? "timeline"
+                onPicked: id => Persist.data.islandScroll = id
+            }
+        }
     }
 
     Group {
