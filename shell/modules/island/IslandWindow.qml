@@ -176,25 +176,26 @@ PanelWindow {
             acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
             onClicked: m => win.activate(m.button)
-            // Scroll = volume · Ctrl = brightness · Shift or sideways = the timeline
-            // (while it's open, any scroll scrubs). Touchpads send small
-            // deltas: they add up to one step per notch's worth (120).
+            // Scroll = the Now timeline (scrub the last hour), except over the
+            // expanded player, where it's the volume. Modifier keys can't be
+            // used here: the island never has keyboard focus, so Wayland
+            // doesn't tell it about Shift/Ctrl. Volume also scrolls on the
+            // status pill. Touchpads send small deltas: they add up to one
+            // step per notch's worth (120).
             property real acc: 0
             onWheel: w => {
                 const sideways = Math.abs(w.angleDelta.x) > Math.abs(w.angleDelta.y);
                 const d = sideways ? w.angleDelta.x : w.angleDelta.y;
-                if (Island.timelineOpen || sideways || (w.modifiers & Qt.ShiftModifier)) {
-                    if (!win.isFocused) return;
-                    acc += d;
-                    if (Math.abs(acc) < 120 && Island.timelineOpen) return;
-                    const steps = acc > 0 ? -1 : 1;          // up / left = back in time
-                    acc = 0;
-                    Island.scrub(steps);
+                if (win.shown === "mediaExpanded" && !Island.timelineOpen && !sideways) {
+                    Audio.nudge(d > 0 ? 0.05 : -0.05);
                     return;
                 }
-                const up = d > 0;
-                if (w.modifiers & Qt.ControlModifier) up ? Brightness.up() : Brightness.down();
-                else Audio.nudge(up ? 0.05 : -0.05);
+                if (!win.isFocused) return;
+                acc += d;
+                if (Math.abs(acc) < 120) return;
+                const steps = acc > 0 ? -1 : 1;          // up / left = back in time
+                acc = 0;
+                Island.scrub(steps);
             }
         }
 
