@@ -28,6 +28,8 @@ Singleton {
         unplug:  ["ocean/stereo/device-removed.oga", "freedesktop/stereo/device-removed.oga"],
         power:   ["freedesktop/stereo/power-plug.oga", "ocean/stereo/device-added.oga"],
         warning: ["ocean/stereo/battery-low.oga", "freedesktop/stereo/dialog-warning.oga"],
+        alarm:   ["ocean/stereo/alarm-clock-elapsed.oga", "freedesktop/stereo/alarm-clock-elapsed.oga", "freedesktop/stereo/complete.oga"],
+        done:    ["freedesktop/stereo/complete.oga", "ocean/stereo/complete-media-burn.oga"],
     })
     property real lastVolumeSound: 0
 

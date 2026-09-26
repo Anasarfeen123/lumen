@@ -103,6 +103,16 @@ Singleton {
                                 run: () => Quickshell.execDetached(["sh", "-c", cmd]) });
             return out;
         }
+        // Timers: "timer 5m", "25 min timer", "t 90s", "stopwatch"
+        {
+            let m = /^(?:timer|t)\s+(.+)$/i.exec(q) ?? /^(.+?)\s+timer$/i.exec(q);
+            const ms = m ? Countdown.parse(m[1]) : 0;
+            if (ms > 0) out.push({ kind: "timer", title: "Start a " + Countdown.fmt(ms) + " timer", subtitle: "Shown in the island · click it to pause",
+                                  glyph: "timer", badge: "Start", run: () => Countdown.startTimer(ms, "") });
+            if (/^stop ?watch$/i.test(q)) out.push({ kind: "timer", title: "Start a stopwatch", subtitle: "Shown in the island · right-click it to stop",
+                                  glyph: "avg_pace", badge: "Start", run: () => Countdown.startStopwatch() });
+            if (out.length) return out;
+        }
         const webOnly = q.startsWith("?");
         const text = webOnly ? q.slice(1).trim() : q;
 

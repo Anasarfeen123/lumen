@@ -59,6 +59,8 @@ key("SUPER + J", hl.dsp.layout("togglesplit"), "Flip split")
 key("SUPER + ALT + Return", global("lumen:appMenu"), "Menu of the focused app")
 key("SUPER + ALT + T", global("lumen:tray"), "Apps running in the background (tray)")
 key("SUPER + SHIFT + G", exec(bin .. "/lumen transparency toggle"), "Window transparency on/off")
+-- Caps Lock indicator: passes the key through, then the shell reads the LED
+key("Caps_Lock", global("lumen:capsLock"), nil, { transparent = true, non_consuming = true, ignore_mods = true })
 
 key("SUPER + left",  hl.dsp.focus({ direction = "left" }),  "Focus ← → ↑ ↓")
 key("SUPER + right", hl.dsp.focus({ direction = "right" }))

@@ -97,7 +97,7 @@ PanelWindow {
         return ({
             idle: idleC, idlePeek: peekC, osd: osdC, workspace: wsC, system: sysC,
             screenshot: shotC, recording: recC, mediaCompact: mediaCompactC,
-            mediaExpanded: mediaExpandedC, notification: notifC, critical: critC
+            mediaExpanded: mediaExpandedC, notification: notifC, critical: critC, timer: timerC
         })[v] ?? idleC;
     }
 
@@ -112,6 +112,7 @@ PanelWindow {
     Component { id: mediaExpandedC; MediaExpanded {} }
     Component { id: notifC; Notification { info: win.shownData } }
     Component { id: critC; Critical {} }
+    Component { id: timerC; TimerView {} }
 
     // ── The body ──
     GlassSurface {
@@ -216,6 +217,7 @@ PanelWindow {
 
     function activate(button) {
         if (button === Qt.MiddleButton) { Media.toggle(); return; }
+        if (button === Qt.RightButton && win.shown === "timer") { Countdown.stop(); return; }
         if (button === Qt.RightButton) {
             // Resting island → the tray drawer; otherwise dismiss what it shows
             if (["idle", "idlePeek"].includes(win.shown)) TrayState.toggle(win.screen?.name ?? "");
@@ -223,6 +225,9 @@ PanelWindow {
             return;
         }
         switch (win.shown) {
+        case "timer":
+            Countdown.toggle();
+            break;
         case "recording":
             Quickshell.execDetached([Theme.lumenRoot + "/scripts/screen-record.sh", "stop"]);
             break;

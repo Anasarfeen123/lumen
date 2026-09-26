@@ -56,6 +56,7 @@ Singleton {
     readonly property string persistentKind:
         (criticalBattery && !criticalDismissed) ? "critical"
         : recording ? "recording"
+        : Countdown.active ? "timer"
         : "idle"
 
     readonly property string kind: active?.kind ?? persistentKind
