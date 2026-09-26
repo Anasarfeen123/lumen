@@ -19,6 +19,7 @@ pragma Singleton
 //     dropped instead of replayed (notifications live on in history)
 import QtQuick
 import Quickshell
+import Quickshell.Io
 
 Singleton {
     id: root
@@ -64,6 +65,7 @@ Singleton {
 
     // The exact view to render
     readonly property string variant: {
+        if (timelineOpen) return "timeline";
         const open = pinned || hovered;
         if (kind === "nowPlaying") return open ? "mediaExpanded" : "mediaCompact";
         // Hovering the resting island: music you're playing, else what you're
@@ -74,7 +76,7 @@ Singleton {
             : mediaPresent ? "mediaExpanded" : "idlePeek";
         return kind;
     }
-    readonly property bool expanded: ["mediaExpanded", "notification", "critical", "screenshot", "context", "device"].includes(variant)
+    readonly property bool expanded: ["mediaExpanded", "notification", "critical", "screenshot", "context", "device", "timeline"].includes(variant)
 
     Timer {
         interval: 2000
@@ -94,6 +96,7 @@ Singleton {
         if (!ready && !ev.force) return;
         ev.key = ev.key ?? ev.kind;
         ev.createdAt = ev.createdAt ?? Date.now();
+        remember(ev);
         if (active && active.key === ev.key) {
             active = ev;
             dismissTimer.restart();
@@ -124,13 +127,86 @@ Singleton {
     }
 
     function dismiss() {
+        if (timelineOpen) { closeTimeline(); return; }
         if (active) advance();
         else if (kind === "critical") criticalDismissed = true;
         pinned = false;
     }
 
     function togglePinned() { pinned = !pinned; }
-    function unpin() { pinned = false; }
+    function unpin() { pinned = false; timelineOpen = false; }
+
+    // ── "Now" timeline ─────────────────────────────────────────────────────
+    // Scrub the last hour like a film strip (Shift+scroll or sideways scroll on
+    // the island): notifications, what the island announced, and what's
+    // coming up in the next hour. Kept in memory only.
+    property var recent: []             // [{ time, key, kind, icon, title, detail, path? }]
+    function remember(ev) {
+        if (!["system", "device", "screenshot"].includes(ev.kind)) return;   // notifications come from their history
+        const d = ev.data ?? {};
+        const item = ev.kind === "screenshot"
+            ? { icon: "screenshot_monitor", title: "Screenshot", detail: (d.path ?? "").replace(/^.*\//, ""), path: d.path ?? "" }
+            : { icon: d.icon ?? "info", title: d.title ?? "", detail: d.detail ?? "" };
+        if (!item.title) return;
+        const now = Date.now();
+        let r = recent.filter(e => now - e.time < 3600000);
+        // A burst of the same thing (volume, progress updates) is one moment
+        if (r.length && r[r.length - 1].key === ev.key && now - r[r.length - 1].time < 10000) r.pop();
+        r.push(Object.assign({ time: now, key: ev.key, kind: ev.kind }, item));
+        recent = r.slice(-50);
+    }
+    function timelineEntries() {
+        const now = Date.now(), hour = 3600000, out = [];
+        for (const e of recent) if (now - e.time < hour) out.push(Object.assign({}, e));
+        const h = Notifications.model;
+        for (let i = 0; i < h.count; i++) {
+            const e = h.get(i);
+            if (now - e.time >= hour) continue;
+            out.push({ time: e.time, kind: "notification", icon: "notifications", image: e.icon, nid: e.nid,
+                       title: e.summary || e.appName, detail: [e.appName, Notifications.plain(e.body)].filter(x => x).join(" · ") });
+        }
+        for (const e of (Planner.upcoming ?? []))
+            if (!e.allDay && e.when > now && e.when - now <= hour)
+                out.push({ time: e.when, kind: "event", icon: "event", title: e.title, detail: "Coming up", future: true });
+        return out.sort((a, b) => a.time - b.time);
+    }
+    property bool timelineOpen: false
+    property var timeline: []
+    property int timelineIndex: 0
+    readonly property var timelineItem: timeline[timelineIndex] ?? null
+    function openTimeline() {
+        timeline = timelineEntries();
+        const now = Date.now();
+        let i = timeline.length - 1;
+        while (i > 0 && timeline[i].future && timeline[i].time > now) i--;       // start at "just now", not the future
+        timelineIndex = Math.max(0, i);
+        timelineOpen = true;
+        pinned = true;                  // keyboard: ←/→ scrub, Esc closes
+    }
+    // Dev only (LUMEN_DEV): an hour of sample moments
+    IpcHandler {
+        target: "timelineTest"
+        enabled: Quickshell.env("LUMEN_DEV") === "1"
+        function scrub(steps: int): void { root.scrub(steps); }
+        function fill(): void {
+            const now = Date.now(), m = 60000;
+            root.recent = [
+                { time: now - 52 * m, key: "a", kind: "device", icon: "keyboard", title: "Keychron K2", detail: "Keyboard · connected by USB" },
+                { time: now - 41 * m, key: "b", kind: "system", icon: "bluetooth_connected", title: "WH-CH520", detail: "82% battery" },
+                { time: now - 33 * m, key: "c", kind: "screenshot", icon: "screenshot_monitor", title: "Screenshot", detail: "Screenshot_2026-09-26_19-02.png" },
+                { time: now - 21 * m, key: "d", kind: "system", icon: "task_alt", title: "Build finished", detail: "2m 14s" },
+                { time: now - 9 * m, key: "e", kind: "system", icon: "wifi", title: "VITC-HOS2-4", detail: "Connected" },
+                { time: now - 2 * m, key: "f", kind: "device", icon: "hard_drive", title: "BACKUP", detail: "USB drive · 63.9 GB · EXFAT" },
+            ];
+        }
+    }
+    function closeTimeline() { timelineOpen = false; pinned = false; }
+    function toggleTimeline() { if (timelineOpen) closeTimeline(); else openTimeline(); }
+    // steps < 0: back in time
+    function scrub(steps) {
+        if (!timelineOpen) { openTimeline(); return; }
+        timelineIndex = Math.max(0, Math.min(timeline.length - 1, timelineIndex + steps));
+    }
 
     // Convenience emitters
     function osd(channel, icon, value, label) {

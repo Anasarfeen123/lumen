@@ -76,5 +76,11 @@ Page {
                 onPicked: id => Persist.data.musicApp = id
             }
         }
+        SetRow {
+            icon: "lyrics"
+            title: "Lyrics"
+            description: "In the island's now playing, from LRCLIB (lrclib.net, free, no account). Sends the song's title and artist, only while you have the island open; answers are cached."
+            LSwitch { checked: Persist.data.lyrics ?? true; onToggled: Persist.data.lyrics = !checked }
+        }
     }
 }

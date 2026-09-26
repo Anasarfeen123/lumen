@@ -6,7 +6,9 @@
 // text never squashes. Only the island's own size animates.
 //
 // Pointer:  hover ≥300 ms → peek   ·   click → pin / act   ·   leave → collapse (250 ms)
-// Keyboard: Super+M pins (focus grabbed) · Space play/pause · ←/→ prev/next · Esc close
+//           scroll → volume · Ctrl+scroll → brightness
+//           Shift+scroll or sideways scroll → the "Now" timeline (then plain scroll scrubs)
+// Keyboard: Super+M pins (focus grabbed) · Space play/pause · ←/→ prev/next (timeline: scrub) · Esc close
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
@@ -50,7 +52,8 @@ PanelWindow {
     anchors.top: true
     color: "transparent"
     implicitWidth: Theme.island.expandedWidth + 2 * Theme.space.s8
-    implicitHeight: Theme.edgeGap + Theme.island.mediaHeight + Theme.space.s8 + Theme.space.s4
+    // Tall enough for the tallest view (lyrics, the timeline) plus its shadow
+    implicitHeight: Theme.edgeGap + Math.max(Theme.island.mediaHeight, body.targetH) + Theme.space.s8 + Theme.space.s4
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "lumen-island"
     WlrLayershell.layer: WlrLayer.Overlay
@@ -97,7 +100,7 @@ PanelWindow {
         return ({
             idle: idleC, idlePeek: peekC, osd: osdC, workspace: wsC, system: sysC,
             screenshot: shotC, recording: recC, mediaCompact: mediaCompactC,
-            mediaExpanded: mediaExpandedC, notification: notifC, critical: critC, timer: timerC, progress: progressC, context: contextC, device: deviceC
+            mediaExpanded: mediaExpandedC, notification: notifC, critical: critC, timer: timerC, progress: progressC, context: contextC, device: deviceC, timeline: timelineC
         })[v] ?? idleC;
     }
 
@@ -116,12 +119,13 @@ PanelWindow {
     Component { id: progressC; Progress { info: win.shownData } }
     Component { id: contextC; ContextView {} }
     Component { id: deviceC; Device { info: win.shownData } }
+    Component { id: timelineC; Timeline {} }
 
     // ── The body ──
     GlassSurface {
         id: body
 
-        readonly property bool bodyExpanded: ["mediaExpanded", "notification", "critical", "screenshot", "context", "device"].includes(win.shown)
+        readonly property bool bodyExpanded: ["mediaExpanded", "notification", "critical", "screenshot", "context", "device", "timeline"].includes(win.shown)
         readonly property int padX: bodyExpanded ? Theme.space.s4 : Theme.space.s4
         readonly property int padY: bodyExpanded ? Theme.space.s4 : 0
         readonly property real targetW: bodyExpanded
@@ -160,8 +164,8 @@ PanelWindow {
             cursorShape: Qt.PointingHandCursor
             onHoveredChanged: {
                 if (win.isFocused) Island.pointerInside = hovered;
-                if (hovered) { leaveTimer.stop(); enterTimer.restart(); }
-                else { enterTimer.stop(); leaveTimer.restart(); }
+                if (hovered) { leaveTimer.stop(); enterTimer.restart(); timelineLeave.stop(); }
+                else { enterTimer.stop(); leaveTimer.restart(); if (Island.timelineOpen) timelineLeave.restart(); }
             }
         }
 
@@ -172,10 +176,24 @@ PanelWindow {
             acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
             onClicked: m => win.activate(m.button)
+            // Scroll = volume · Ctrl = brightness · Shift or sideways = the timeline
+            // (while it's open, any scroll scrubs). Touchpads send small
+            // deltas: they add up to one step per notch's worth (120).
+            property real acc: 0
             onWheel: w => {
-                // Scroll over the island = volume (brightness with Shift)
-                const up = w.angleDelta.y > 0;
-                if (w.modifiers & Qt.ShiftModifier) up ? Brightness.up() : Brightness.down();
+                const sideways = Math.abs(w.angleDelta.x) > Math.abs(w.angleDelta.y);
+                const d = sideways ? w.angleDelta.x : w.angleDelta.y;
+                if (Island.timelineOpen || sideways || (w.modifiers & Qt.ShiftModifier)) {
+                    if (!win.isFocused) return;
+                    acc += d;
+                    if (Math.abs(acc) < 120 && Island.timelineOpen) return;
+                    const steps = acc > 0 ? -1 : 1;          // up / left = back in time
+                    acc = 0;
+                    Island.scrub(steps);
+                    return;
+                }
+                const up = d > 0;
+                if (w.modifiers & Qt.ControlModifier) up ? Brightness.up() : Brightness.down();
                 else Audio.nudge(up ? 0.05 : -0.05);
             }
         }
@@ -201,6 +219,9 @@ PanelWindow {
 
         focus: true
         Keys.onPressed: event => {
+            if (Island.timelineOpen && (event.key === Qt.Key_Left || event.key === Qt.Key_Right)) {
+                Island.scrub(event.key === Qt.Key_Left ? -1 : 1); event.accepted = true; return;
+            }
             if (event.key === Qt.Key_Escape) Island.unpin();
             else if (event.key === Qt.Key_Space) Media.toggle();
             else if (event.key === Qt.Key_Right) Media.next();
@@ -216,6 +237,8 @@ PanelWindow {
 
     // Hover intent — ignore the pointer passing over on its way somewhere else
     Timer { id: enterTimer; interval: 300; onTriggered: { win.hoverIntent = true; if (win.isFocused) Island.hovered = true; } }
+    // Moving away closes the timeline (a moment's grace to come back)
+    Timer { id: timelineLeave; interval: 900; onTriggered: if (Island.timelineOpen) Island.closeTimeline() }
     Timer { id: leaveTimer; interval: 250; onTriggered: { win.hoverIntent = false; if (win.isFocused) Island.hovered = false; } }
 
     function activate(button) {

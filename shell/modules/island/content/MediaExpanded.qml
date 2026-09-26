@@ -2,8 +2,12 @@
 //   ╭──────────────────────────────────────────╮
 //   │ [art]  Title                    ⏮ ⏯ ⏭  │
 //   │        Artist                            │
+//   │        ♪ the line being sung             │
 //   │ 1:42 ━━━━━━━━━━━━━━━━━━━━━━░░░░░░░ 3:30   │
+//   │ [players]                [Lyrics] ⤮ ↻   │
 //   ╰──────────────────────────────────────────╯
+// Lyrics (LRCLIB, Settings → Sound): the current line sits softly under the
+// artist; the Lyrics chip opens three lines that glide up as the song plays.
 import QtQuick
 import qs.theme
 import qs.components
@@ -12,7 +16,13 @@ import qs.services
 Item {
     id: root
     implicitWidth: Theme.island.expandedWidth - 2 * Theme.space.s4
-    implicitHeight: 64 + Theme.space.s3 + 16 + (extras.visible ? extras.height + Theme.space.s2 : 0)
+    implicitHeight: 64 + Theme.space.s3 + (lyricsView.visible ? lyricsView.height + Theme.space.s3 : 0)
+                    + 16 + (extras.visible ? extras.height + Theme.space.s2 : 0)
+    Behavior on implicitHeight { enabled: !Theme.reducedMotion; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+
+    // Lyrics are looked up only while this view is on screen
+    Binding { target: Lyrics; property: "wanted"; value: root.visible }
+    readonly property bool showLyrics: Lyrics.mode && Lyrics.available
 
     // Position only needs refreshing while this view is on screen.
     Timer {
@@ -26,7 +36,7 @@ Item {
     // Several players → pick which one this controls; shuffle / repeat when supported
     Row {
         id: extras
-        visible: Media.players.length > 1 || Media.shuffleOk || Media.loopOk
+        visible: Media.players.length > 1 || Media.shuffleOk || Media.loopOk || Lyrics.available
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
         height: 26
         spacing: 6
@@ -51,6 +61,19 @@ Item {
         height: 26
         spacing: 2
         HoverTarget {
+            id: lyricsChip
+            visible: Lyrics.available
+            width: lyRow.implicitWidth + 16; height: 24
+            anchors.verticalCenter: parent.verticalCenter
+            onClicked: Lyrics.mode = !Lyrics.mode
+            Rectangle { anchors.fill: parent; radius: height / 2; z: -1
+                        color: Lyrics.mode ? Theme.withAlpha(Theme.accent, 0.18) : "transparent"
+                        border.width: 1; border.color: Lyrics.mode ? Theme.withAlpha(Theme.accent, 0.5) : Theme.border }
+            Row { id: lyRow; anchors.centerIn: parent; spacing: 4
+                  LIcon { icon: "lyrics"; size: 14; color: Lyrics.mode ? Theme.accent : Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
+                  LText { role: "caption"; text: "Lyrics"; color: Lyrics.mode ? Theme.accent : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter } }
+        }
+        HoverTarget {
             visible: Media.shuffleOk
             width: 28; height: 26; onClicked: Media.toggleShuffle()
             LIcon { anchors.centerIn: parent; icon: "shuffle"; size: 17; color: (Media.active?.shuffle ?? false) ? Theme.accent : Theme.textMuted }
@@ -68,6 +91,83 @@ Item {
         spacing: 2
         LText { width: parent.width; role: "heading"; text: Media.title || "Nothing playing"; elide: Text.ElideRight }
         LText { width: parent.width; role: "body"; color: Theme.textSecondary; text: Media.artist; elide: Text.ElideRight; visible: text !== "" }
+        // The line being sung, softly (hidden while the full lyrics are open)
+        LText {
+            width: parent.width
+            visible: !root.showLyrics && Lyrics.state === "synced" && text !== ""
+            role: "caption"
+            color: Theme.withAlpha(Media.hasTint ? Qt.lighter(Media.tint, 1.35) : Theme.accent, 0.9)
+            elide: Text.ElideRight
+            text: Lyrics.current ? "♪  " + Lyrics.current : ""
+        }
+    }
+
+    // ── Lyrics ──
+    Item {
+        id: lyricsView
+        visible: root.showLyrics
+        anchors { left: parent.left; right: parent.right; top: art.bottom; topMargin: Theme.space.s3 }
+        height: 92
+        clip: true
+
+        // Synced: three lines, the sung one bright and centred; they glide up
+        ListView {
+            id: lines
+            anchors.fill: parent
+            visible: Lyrics.state === "synced"
+            model: Lyrics.state === "synced" ? Lyrics.lines : []
+            interactive: false
+            currentIndex: Math.max(0, Lyrics.index)
+            highlightRangeMode: ListView.StrictlyEnforceRange
+            preferredHighlightBegin: height / 2 - 15
+            preferredHighlightEnd: height / 2 + 15
+            highlightMoveDuration: Theme.reducedMotion ? 0 : 420
+            highlightMoveVelocity: -1
+            delegate: Item {
+                required property var modelData
+                required property int index
+                readonly property int dist: Math.abs(index - Lyrics.index)
+                readonly property bool isNow: index === Lyrics.index
+                width: lines.width
+                height: 30
+                LText {
+                    anchors.fill: parent
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    elide: Text.ElideRight
+                    text: modelData.text || "♪"
+                    font.pixelSize: isNow ? 17 : 13
+                    font.weight: isNow ? Font.DemiBold : Font.Normal
+                    color: isNow ? Theme.text : Theme.textMuted
+                    opacity: isNow ? 1 : dist === 1 ? 0.7 : 0.3
+                    Behavior on font.pixelSize { enabled: !Theme.reducedMotion; NumberAnimation { duration: Theme.motion.normal } }
+                    Behavior on opacity { NumberAnimation { duration: Theme.motion.normal } }
+                }
+            }
+        }
+
+        // Plain lyrics (no timing): scroll through them yourself
+        Flickable {
+            anchors.fill: parent
+            visible: Lyrics.state === "plain"
+            contentHeight: plainCol.height
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            Column {
+                id: plainCol
+                width: parent.width
+                spacing: 4
+                LText { role: "caption"; color: Theme.textMuted; text: "Lyrics without timing" }
+                LText { width: parent.width; wrapMode: Text.Wrap; color: Theme.textSecondary; text: Lyrics.plain; verticalAlignment: Text.AlignTop }
+            }
+        }
+
+        LText {
+            anchors.centerIn: parent
+            visible: Lyrics.state === "instrumental"
+            color: Theme.textMuted
+            text: "♪  Instrumental"
+        }
     }
 
     Row {
