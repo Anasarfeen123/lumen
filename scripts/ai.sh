@@ -1,16 +1,20 @@
 #!/bin/sh
-# ai.sh — the Lumen AI panel's only connection to a model.
+# ai.sh — Lumen Halo's only connection to a model.
 #
-#   ai.sh ask <request.json>     stream an answer as JSON lines: {"t":"text"} … or {"e":"error"}
+#   ai.sh ask <request.json>     stream an answer as JSON lines: {"t":"text"} … {"s":{n,ms}} or {"e":"error"}
 #   ai.sh capture <out.jpg>      screenshot of the focused monitor, scaled for a model
 #   ai.sh set-key anthropic      read an API key from stdin, store it (mode 600)
 #   ai.sh forget-key anthropic   delete the stored key
 #   ai.sh status                 which providers are usable
+#   ai.sh warm <model>           load a local model now, so the first answer is quick
+#   ai.sh pull <model>           download a local model from Ollama's registry: {"p":0-100,"st":"…"} lines
+#   ai.sh rm <model>             delete a local model
 #
 # request.json: { provider: "anthropic"|"ollama", model, system,
 #                 messages: [{ role, text, image?: "/path.jpg" }] }
 # The API key is read from ~/.local/state/lumen/ai/anthropic.key and passed to
 # curl on stdin, never on the command line. Nothing else leaves the machine.
+# Model downloads (pull) come only from the registry Ollama itself uses.
 set -eu
 DIR=${XDG_STATE_HOME:-$HOME/.local/state}/lumen/ai
 KEY="$DIR/anthropic.key"
@@ -32,6 +36,23 @@ status)
     o=no; curl -fsS --max-time 1 "$OLLAMA/api/tags" >/dev/null 2>&1 && o=yes
     models=$( [ $o = yes ] && curl -fsS --max-time 2 "$OLLAMA/api/tags" | jq -c '[.models[].name]' || echo '[]')
     jq -cn --arg a "$a" --arg o "$o" --argjson m "$models" '{anthropic:($a=="yes"), ollama:($o=="yes"), ollamaModels:$m}' ;;
+warm)
+    m=${2:?}
+    jq -cn --arg m "$m" '{model:$m, keep_alive:"15m"}' |
+      curl -fsS --max-time 60 -H 'content-type: application/json' --data-binary @- "$OLLAMA/api/generate" >/dev/null 2>&1 || true ;;
+pull|rm)
+    m=${2:?}
+    # model names only: letters, digits, . _ - : and one optional namespace /
+    printf '%s' "$m" | grep -Eq '^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)?(:[A-Za-z0-9._-]+)?$' || err "Not a model name: $m"
+    if [ "$1" = rm ]; then
+        jq -cn --arg m "$m" '{model:$m}' | curl -fsS -X DELETE -H 'content-type: application/json' --data-binary @- "$OLLAMA/api/delete" >/dev/null && echo '{"p":100,"st":"removed"}' || err "Couldn't remove $m"
+        exit 0
+    fi
+    jq -cn --arg m "$m" '{model:$m, stream:true}' |
+      curl -sS -N --max-time 7200 -H 'content-type: application/json' --data-binary @- "$OLLAMA/api/pull" 2>/dev/null |
+      jq -c --unbuffered 'if .error then {e:.error}
+                          elif .total and .completed then {p:((.completed * 100 / .total) | floor), st:.status}
+                          else {st:.status} end' || err "Couldn't reach Ollama at $OLLAMA" ;;
 capture)
     out=${2:?}
     mon=$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .name')
@@ -62,7 +83,9 @@ ask)
           '{model, stream:true, messages:([{role:"system", content:.system}] + [.messages[] | {role, content:.text} + (if .image then {images:[$imgs[.image]]} else {} end)])}' \
           "$req" > "$body"
         curl -sS -N --max-time 300 -H 'content-type: application/json' --data-binary @"$body" "$OLLAMA/api/chat" 2>/dev/null |
-          jq -c --unbuffered 'if .error then {e:.error} else {t:(.message.content // "")} end' ||
+          jq -c --unbuffered 'if .error then {e:.error}
+                              elif .done then {s:{n:(.eval_count // 0), ms:((.eval_duration // 0) / 1000000 | floor)}}
+                              else {t:(.message.content // "")} end' ||
           err "Couldn't reach Ollama at $OLLAMA — is it running? (ollama serve)" ;;
     mock)   # dev/showcase only: a canned, streamed answer (no network)
         for chunk in "That error means " "**the port is already in use** — another process is listening on \`:8080\`.\n\n" \
