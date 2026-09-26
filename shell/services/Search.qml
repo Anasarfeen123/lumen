@@ -10,6 +10,8 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
+import Quickshell.Services.UPower
 import qs.theme
 
 Singleton {
@@ -35,7 +37,53 @@ Singleton {
         { title: "Accent: Ember", glyph: "palette", keys: "accent colour color ember amber orange", cmd: [Theme.lumenRoot + "/bin/lumen", "accent", "ember"] },
         { title: "Accent: Iris", glyph: "palette", keys: "accent colour color iris violet purple", cmd: [Theme.lumenRoot + "/bin/lumen", "accent", "iris"] },
         { title: "Accent: Jade", glyph: "palette", keys: "accent colour color jade green mint", cmd: [Theme.lumenRoot + "/bin/lumen", "accent", "jade"] },
+        { title: "Accent from wallpaper", glyph: "wallpaper", keys: "accent colour color wallpaper match adaptive", cmd: [Theme.lumenRoot + "/bin/lumen", "accent", "wallpaper"] },
+
+        // Live system actions — they run here, no terminal needed
+        { title: "Mute microphone", glyph: "mic_off", keys: "mute mic microphone unmute", state: () => Audio.micMuted, fn: () => Audio.toggleMicMute() },
+        { title: "Mute sound", glyph: "volume_off", keys: "mute sound audio volume unmute speaker", state: () => Audio.muted, fn: () => Audio.toggleMute() },
+        { title: "Wi-Fi", glyph: "wifi", keys: "wifi wi-fi wireless network internet on off", state: () => Network.wifiEnabled, fn: () => Network.setWifiEnabled(!Network.wifiEnabled) },
+        { title: "Bluetooth", glyph: "bluetooth", keys: "bluetooth bt on off", state: () => Bluetooth.enabled, fn: () => Bluetooth.setEnabled(!Bluetooth.enabled) },
+        { title: "Airplane mode", glyph: "flight", keys: "airplane flight mode radios", state: () => Airplane.on, fn: () => Airplane.toggle() },
+        { title: "Caffeine (keep awake)", glyph: "coffee", keys: "caffeine awake keep awake no sleep inhibit", state: () => Caffeine.on, fn: () => Caffeine.toggle() },
+        { title: "Night light", glyph: "nightlight", keys: "night light warm blue light filter", state: () => NightLight.enabled, fn: () => NightLight.toggle() },
+        { title: "Do Not Disturb", glyph: "do_not_disturb_on", keys: "dnd do not disturb quiet silence notifications focus", state: () => Notifications.dnd, fn: () => Notifications.setDnd(!Notifications.dnd) },
+        { title: "Focus: Deep work", glyph: "psychology", keys: "focus deep work pomodoro concentrate", fn: () => Focus.set("deep") },
+        { title: "Focus: Study", glyph: "school", keys: "focus study learn pomodoro", fn: () => Focus.set("study") },
+        { title: "Focus: Work", glyph: "work", keys: "focus work mode", fn: () => Focus.set("work") },
+        { title: "Focus: Game", glyph: "sports_esports", keys: "focus game gaming mode performance", fn: () => Focus.set("game") },
+        { title: "Focus: Sleep", glyph: "bedtime", keys: "focus sleep night bedtime", fn: () => Focus.set("sleep") },
+        { title: "Focus off", glyph: "do_not_disturb_off", keys: "focus off normal", fn: () => Focus.set("off") },
+        { title: "Performance mode", glyph: "bolt", keys: "power performance profile fast", fn: () => { PowerProfiles.profile = PowerProfile.Performance; } },
+        { title: "Balanced power", glyph: "balance", keys: "power balanced profile", fn: () => { PowerProfiles.profile = PowerProfile.Balanced; } },
+        { title: "Battery saver", glyph: "battery_saver", keys: "power saver battery eco profile", fn: () => { PowerProfiles.profile = PowerProfile.PowerSaver; } },
+        { title: "Window glass", glyph: "blur_on", keys: "glass transparency blur windows", cmd: [Theme.lumenRoot + "/bin/lumen", "transparency", "toggle"] },
+        { title: "Copy text from screen", glyph: "document_scanner", keys: "ocr copy text screen read", cmd: [Theme.lumenRoot + "/scripts/screen-text.sh"], delay: true },
+        { title: "Shuffle wallpaper", glyph: "shuffle", keys: "wallpaper random shuffle background", fn: () => Wallpapers.random() },
+        { title: "Control centre", glyph: "tune", keys: "control centre center quick settings", fn: () => Sidebar.show("controls") },
+        { title: "Notifications", glyph: "notifications", keys: "notifications history", fn: () => Sidebar.show("notifications") },
+        { title: "Planner", glyph: "event_note", keys: "planner calendar agenda todo notes weather", fn: () => { Planner.open = true; } },
+        { title: "Ask Lumen", glyph: "auto_awesome", keys: "ai assistant ask chat claude ollama", fn: () => Ai.show() },
+        { title: "System inspector", glyph: "monitor_heart", keys: "system inspector cpu gpu memory ram disk temperature hardware stats", fn: () => SettingsState.launch("system") },
+        { title: "Security", glyph: "shield", keys: "security firewall updates ssh secure boot encryption", fn: () => SettingsState.launch("security") },
+        { title: "Keyboard shortcuts", glyph: "keyboard", keys: "shortcuts keybinds cheatsheet keys help", fn: () => CheatsheetState.open = true },
     ]
+    // Settings pages as search results ("settings network", "bluetooth settings", "wifi")
+    readonly property var settingsActions: SettingsState.pages.map(pg => ({
+        title: pg.label + " settings", glyph: pg.icon, keys: "settings preferences " + pg.label + " " + pg.keys, fn: () => SettingsState.launch(pg.id) }))
+
+    // ~/Projects folders for "open project …"
+    property var projects: []
+    Process {
+        id: projectScan
+        command: ["sh", "-c", 'for d in "$HOME"/Projects/*/ "$HOME"/projects/*/ "$HOME"/src/*/ "$HOME"/code/*/; do [ -d "$d" ] && printf "%s\n" "${d%/}"; done 2>/dev/null']
+        stdout: StdioCollector { onStreamFinished: root.projects = text.split("\n").filter(Boolean) }
+    }
+    function openProject(dir) {
+        // Editor (first one installed) + a terminal in the folder
+        Quickshell.execDetached(["sh", "-c", 'cd "$1" && exec "$2" "code ." "codium ." "zed ." "kate ."', "sh", dir, Theme.lumenRoot + "/bin/lumen-launch"]);
+        Quickshell.execDetached(["kitty", "--directory", dir]);
+    }
 
     // Keep the calculator fed as the query changes
     Connections {
@@ -47,6 +95,7 @@ Singleton {
         }
         function onOpenChanged() {
             if (!Overview.open) return;
+            projectScan.running = true;
             if (Overview.mode === "clipboard") Clipboard.refresh();
             if (Overview.mode === "emoji") Emoji.ensure();
         }
@@ -99,17 +148,58 @@ Singleton {
 
         if (q.startsWith(">")) {
             const cmd = q.slice(1).trim();
-            if (cmd) out.push({ kind: "command", title: cmd, subtitle: "Run command", glyph: "terminal", badge: "Run",
+            if (cmd) out.push({ kind: "command", group: "Commands", title: cmd, subtitle: "Run command", glyph: "terminal", badge: "Run",
                                 run: () => Quickshell.execDetached(["sh", "-c", cmd]) });
             return out;
+        }
+        // Commands with an argument
+        {
+            let m;
+            if ((m = /^(?:vol|volume)\s+(\d{1,3})%?$/i.exec(q))) {
+                const v = Math.min(100, +m[1]);
+                out.push({ kind: "command", group: "Commands", title: "Set volume to " + v + "%", glyph: "volume_up", badge: "Set",
+                           run: () => { if (Audio.sink?.audio) { Audio.sink.audio.muted = false; Audio.setVolume(v / 100); } } });
+            }
+            if ((m = /^(?:bright|brightness)\s+(\d{1,3})%?$/i.exec(q))) {
+                const v = Math.max(1, Math.min(100, +m[1]));
+                out.push({ kind: "command", group: "Commands", title: "Set brightness to " + v + "%", glyph: "brightness_6", badge: "Set", run: () => Brightness.set(v / 100) });
+            }
+            if ((m = /^(?:open\s+)?(?:project|proj)\s*(.*)$/i.exec(q))) {
+                const want = m[1].trim();
+                const hits = root.projects.map(d => ({ d, name: d.split("/").pop() }))
+                    .map(x => ({ x, s: want ? Fuzzy.score(want, x.name) : 1 }))
+                    .filter(y => y.s > 0).sort((a, b) => b.s - a.s).slice(0, 6);
+                for (const h of hits)
+                    out.push({ kind: "project", group: "Projects", title: h.x.name, subtitle: h.x.d.replace(Quickshell.env("HOME"), "~") + " · editor + terminal",
+                               glyph: "folder_code", badge: "Open", run: () => root.openProject(h.x.d) });
+                if (!hits.length) out.push({ kind: "project", group: "Projects", title: "No project matches “" + want + "”", subtitle: "Projects are folders in ~/Projects", glyph: "folder_off", badge: "", run: () => {} });
+            }
+            if ((m = /^(?:kill|quit|close|force quit)\s+(.+)$/i.exec(q))) {
+                const want = m[1].trim(), force = /^force/i.test(q) || /^kill/i.test(q);
+                const wins = Hyprland.toplevels.values.filter(t => Fuzzy.score(want, t.lastIpcObject?.class ?? "") >= 600 || Fuzzy.score(want, t.title ?? "") >= 700);
+                for (const t of wins.slice(0, 4)) {
+                    const cls = t.lastIpcObject?.class ?? "", addr = t.lastIpcObject?.address ?? ("0x" + t.address);
+                    const e = Apps.entryFor(cls);
+                    out.push({ kind: "command", group: "Commands", title: (force ? "Force quit " : "Close ") + (e?.name ?? cls), subtitle: t.title,
+                               icon: e ? Apps.iconFor(e) : "", glyph: force ? "dangerous" : "close", badge: force ? "Kill" : "Close",
+                               destructive: force, run: () => force ? Hypr.killWindow(addr) : Hypr.closeWindow(addr) });
+                }
+                if (/^kill\s/i.test(q) && /^[\w.+-]{2,}$/.test(want))
+                    out.push({ kind: "command", group: "Commands", title: "End every “" + want + "” process", subtitle: "pkill -x " + want + " · press Enter twice",
+                               glyph: "dangerous", badge: "Kill", destructive: true, run: () => Quickshell.execDetached(["pkill", "-x", "-u", Quickshell.env("USER"), "--", want]) });
+            }
+            if ((m = /^(?:ask|ai)\s+(.+)$/i.exec(q)))
+                out.push({ kind: "command", group: "Ask Lumen", title: "Ask Lumen: " + m[1], subtitle: Ai.configured ? "Answers in the AI panel" : "Set up AI first (Settings → AI)",
+                           glyph: "auto_awesome", badge: "Ask", run: () => { Ai.show(); Ai.send(m[1]); } });
+            if (out.length) return out;
         }
         // Timers: "timer 5m", "25 min timer", "t 90s", "stopwatch"
         {
             let m = /^(?:timer|t)\s+(.+)$/i.exec(q) ?? /^(.+?)\s+timer$/i.exec(q);
             const ms = m ? Countdown.parse(m[1]) : 0;
-            if (ms > 0) out.push({ kind: "timer", title: "Start a " + Countdown.fmt(ms) + " timer", subtitle: "Shown in the island · click it to pause",
+            if (ms > 0) out.push({ kind: "timer", group: "Timer", title: "Start a " + Countdown.fmt(ms) + " timer", subtitle: "Shown in the island · click it to pause",
                                   glyph: "timer", badge: "Start", run: () => Countdown.startTimer(ms, "") });
-            if (/^stop ?watch$/i.test(q)) out.push({ kind: "timer", title: "Start a stopwatch", subtitle: "Shown in the island · right-click it to stop",
+            if (/^stop ?watch$/i.test(q)) out.push({ kind: "timer", group: "Timer", title: "Start a stopwatch", subtitle: "Shown in the island · right-click it to stop",
                                   glyph: "avg_pace", badge: "Start", run: () => Countdown.startStopwatch() });
             if (out.length) return out;
         }
@@ -118,45 +208,58 @@ Singleton {
 
         if (!webOnly) {
             if (Calc.result !== "")
-                out.push({ kind: "calc", title: Calc.result, subtitle: Calc.expression, glyph: "calculate", badge: "Copy",
+                out.push({ kind: "calc", group: "Calculator", title: Calc.result, subtitle: Calc.expression, glyph: "calculate", badge: "Copy",
                            run: () => Quickshell.execDetached(["wl-copy", Calc.result.replace(/^≈\s*/, "")]) });
 
-            // Keep only matches in the same league as the best one
+            // Apps, windows and actions are ranked as groups by their best match,
+            // so "mute mic" puts the action above a loosely matching app
+            const groups = [];
             const apps = Apps.search(text);
             const cut = (apps[0]?.score ?? 0) * 0.55;
-            for (const r of apps.filter(a => a.score >= cut).slice(0, 6))
-                out.push({ kind: "app", title: r.entry.name,
+            const appRows = apps.filter(a => a.score >= cut).slice(0, 6).map(r => ({ kind: "app", group: "Applications", title: r.entry.name,
                            subtitle: r.entry.genericName || r.entry.comment || "",
                            icon: Apps.iconFor(r.entry), badge: "App", score: r.score,
-                           run: () => Apps.launch(r.entry) });
+                           run: () => Apps.launch(r.entry) }));
+            if (appRows.length) groups.push({ best: apps[0].score, rows: appRows });
 
             const wins = Hyprland.toplevels.values
                 .map(t => ({ t, s: Math.max(Fuzzy.score(text, t.title), Fuzzy.score(text, t.lastIpcObject?.class ?? "")) }))
                 .filter(x => x.s >= 600)
                 .sort((a, b) => b.s - a.s)
                 .slice(0, 3);
-            for (const w of wins) {
+            const winRows = wins.map(w => {
                 const cls = w.t.lastIpcObject?.class ?? "";
-                const entry = DesktopEntries.heuristicLookup(cls);
-                out.push({ kind: "window", title: w.t.title || cls,
-                           subtitle: `${entry?.name ?? cls} · workspace ${w.t.workspace?.id ?? "?"}`,
-                           icon: entry ? Apps.iconFor(entry) : "", glyph: "select_window", badge: "Window",
-                           run: () => Hypr.focusWindow(w.t.lastIpcObject?.address ?? ("0x" + w.t.address)) });
-            }
+                const entry = Apps.entryFor(cls);
+                return { kind: "window", group: "Windows", title: w.t.title || cls,
+                         subtitle: `${entry?.name ?? cls} · workspace ${w.t.workspace?.id ?? "?"}`,
+                         icon: entry ? Apps.iconFor(entry) : "", glyph: "select_window", badge: "Window",
+                         run: () => Hypr.focusWindow(w.t.lastIpcObject?.address ?? ("0x" + w.t.address)) };
+            });
+            if (winRows.length) groups.push({ best: wins[0].s, rows: winRows });
 
-            const acts = actions
+            const acts = actions.concat(settingsActions)
                 .map(a => ({ a, s: Math.max(Fuzzy.score(text, a.title), 0.9 * Fuzzy.score(text, a.keys)) }))
                 .filter(x => x.s >= 600)
                 .sort((a, b) => b.s - a.s)
-                .slice(0, 4);
-            for (const x of acts)
-                out.push({ kind: "action", title: x.a.title, subtitle: x.a.destructive ? "Press Enter twice to confirm" : "",
-                           glyph: x.a.glyph, badge: "Action", destructive: x.a.destructive ?? false,
-                           run: () => root.exec(x.a.cmd, x.a.delay) });
+                .slice(0, 5);
+            const actRows = acts.map(x => {
+                const st = x.a.state ? x.a.state() : null;
+                return { kind: "action", group: x.a.title.endsWith(" settings") ? "Settings" : "Actions", title: x.a.title,
+                         subtitle: x.a.destructive ? "Press Enter twice to confirm" : st === null ? "" : st ? "On — Enter turns it off" : "Off — Enter turns it on",
+                         glyph: x.a.glyph, badge: x.a.title.endsWith(" settings") ? "Open" : st === null ? "Action" : st ? "On" : "Off", destructive: x.a.destructive ?? false,
+                         run: () => x.a.fn ? x.a.fn() : root.exec(x.a.cmd, x.a.delay) };
+            });
+            // settings rows form their own group after actions
+            const actOnly = actRows.filter(r => r.group === "Actions"), setRows = actRows.filter(r => r.group === "Settings");
+            if (actOnly.length) groups.push({ best: acts.find(x => !x.a.title.endsWith(" settings")).s * 1.05, rows: actOnly });
+            if (setRows.length) groups.push({ best: acts.find(x => x.a.title.endsWith(" settings")).s, rows: setRows });
+
+            groups.sort((a, b) => b.best - a.best);
+            for (const g of groups) out.push(...g.rows);
         }
 
         if (text !== "")
-            out.push({ kind: "web", title: `Search the web for “${text}”`, subtitle: "", glyph: "travel_explore", badge: "Web",
+            out.push({ kind: "web", group: "Web", title: `Search the web for “${text}”`, subtitle: "", glyph: "travel_explore", badge: "Web",
                        run: () => Quickshell.execDetached(["xdg-open", webSearchUrl.replace("%s", encodeURIComponent(text))]) });
         return out;
     }

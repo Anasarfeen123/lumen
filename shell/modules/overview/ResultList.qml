@@ -11,7 +11,7 @@ GlassSurface {
     radius: Theme.radius.lg
     implicitWidth: 600
     implicitHeight: count === 0 ? emptyLabel.implicitHeight + Theme.space.s6 * 2
-                                : Math.min(8, count) * 48 + Theme.space.s2 * 2
+                                : Math.min(list.contentHeight, 470) + Theme.space.s2 * 2    // rows + group labels, up to ~8 rows
     Behavior on implicitHeight { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard } }
 
     readonly property int count: list.count
@@ -59,12 +59,33 @@ GlassSurface {
         currentIndex: 0
         highlightMoveDuration: 0
         boundsBehavior: Flickable.StopAtBounds
-        delegate: ResultRow {
+        delegate: Column {
+            id: cell
+            required property var modelData
+            required property int index
             width: ListView.view.width
-            selected: index === list.currentIndex
-            armed: index === root.armedIndex
-            onActivated: root.activate(index)
-            onHovered: if (list.currentIndex !== index) { list.currentIndex = index; root.armedIndex = -1; }
+            // A small group label ("Applications", "Commands", …) where the kind changes
+            readonly property string group: modelData.group ?? ""
+            readonly property bool firstOfGroup: group !== "" && (index === 0 || (Search.results[index - 1]?.group ?? "") !== group)
+            LText {
+                visible: cell.firstOfGroup && Overview.mode === "search"
+                leftPadding: Theme.space.s3
+                topPadding: cell.index === 0 ? Theme.space.s1 : Theme.space.s3
+                bottomPadding: Theme.space.s1
+                role: "caption"
+                color: Theme.textMuted
+                font.letterSpacing: 0.8
+                text: cell.group.toUpperCase()
+            }
+            ResultRow {
+                modelData: cell.modelData
+                index: cell.index
+                width: parent.width
+                selected: cell.index === list.currentIndex
+                armed: cell.index === root.armedIndex
+                onActivated: root.activate(cell.index)
+                onHovered: if (list.currentIndex !== cell.index) { list.currentIndex = cell.index; root.armedIndex = -1; }
+            }
         }
     }
 
