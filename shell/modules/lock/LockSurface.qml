@@ -288,7 +288,7 @@ Item {
                             width: 72 + (5 - index) * 14
                             height: width
                             radius: width / 2
-                            color: Qt.rgba(glow.tone.r, glow.tone.g, glow.tone.b, 0.035 + index * 0.02 + glow.breath * 0.012)
+                            color: Qt.rgba(glow.tone.r, glow.tone.g, glow.tone.b, (0.035 + index * 0.02 + glow.breath * 0.012) * Theme.glow)
                             Behavior on color { ColorAnimation { duration: 300 } }
                         }
                     }

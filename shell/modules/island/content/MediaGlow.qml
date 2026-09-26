@@ -12,7 +12,7 @@ ClippingRectangle {
     id: root
     property bool active: false
     color: "transparent"
-    opacity: active ? 1 : 0
+    opacity: active ? Theme.glow : 0          // softer in the evening
     visible: opacity > 0
     Behavior on opacity { NumberAnimation { duration: Theme.motion.large } }
 

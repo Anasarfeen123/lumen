@@ -46,6 +46,7 @@ Singleton {
             property string nightLightFrom: "21:00"
             property string nightLightTo: "07:00"
             property bool wallpaperByTime: false
+            property bool adaptiveUi: true       // evening: warmer accent, calmer motion (after local sunset)
             property string musicApp: "auto"      // music scratchpad: "auto" | "ytmusic" | "spotify"
             property var wallpaperSlots: ({ dawn: "", day: "", dusk: "", night: "" })
             // Lock screen widgets (Lumen Settings → Lock screen)

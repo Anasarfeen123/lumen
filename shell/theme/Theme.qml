@@ -60,8 +60,13 @@ Singleton {
     readonly property color text: hex("text", "f0f2f4")
     readonly property color textSecondary: hex("text_secondary", "b3b8be")
     readonly property color textMuted: hex("text_muted", "83888f")
-    readonly property color accent: hex("accent", "52d1e9")
-    readonly property color accentHover: hex("accent_hover", "64e2f9")
+    // Evening (Settings → Appearance → Adapt to the time of day): after sunset
+    // the accent warms a little, motion slows a touch and glows soften.
+    // Set by the shell (SessionSources) from the local sunset time.
+    property bool evening: false
+    readonly property color accent: evening ? Qt.tint(hex("accent", "52d1e9"), Qt.rgba(1, 0.62, 0.32, 0.14)) : hex("accent", "52d1e9")
+    readonly property color accentHover: evening ? Qt.tint(hex("accent_hover", "64e2f9"), Qt.rgba(1, 0.62, 0.32, 0.14)) : hex("accent_hover", "64e2f9")
+    readonly property real glow: evening ? 0.6 : 1          // multiply decorative glows by this
     readonly property color onAccent: hex("on_accent", "0b181b")
     readonly property color success: hex("success", "71d790")
     readonly property color warning: hex("warning", "f1c961")
@@ -123,9 +128,10 @@ Singleton {
     // ── Motion (DESIGN.md §7) ──
     readonly property bool reducedMotion: _motion.reduced ?? false
     readonly property QtObject motion: QtObject {
-        readonly property int micro: root.reducedMotion ? 0 : (root._motion.micro ?? 120)
-        readonly property int normal: root.reducedMotion ? 100 : (root._motion.normal ?? 220)
-        readonly property int large: root.reducedMotion ? 100 : (root._motion.large ?? 320)
+        readonly property real _pace: root.evening ? 1.15 : 1
+        readonly property int micro: root.reducedMotion ? 0 : Math.round((root._motion.micro ?? 120) * _pace)
+        readonly property int normal: root.reducedMotion ? 100 : Math.round((root._motion.normal ?? 220) * _pace)
+        readonly property int large: root.reducedMotion ? 100 : Math.round((root._motion.large ?? 320) * _pace)
         readonly property real exitRatio: root._motion.exit_ratio ?? 0.7
         readonly property real springStrength: root._motion.spring_strength ?? 4.2
         readonly property real springDamping: root._motion.spring_damping ?? 0.34

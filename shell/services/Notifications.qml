@@ -119,7 +119,7 @@ Singleton {
             kind: "notification",
             key: "notif:" + entry.appName,        // same app → updates in place
             priority: critical ? 0 : Island.priority.notification,
-            duration: critical && n.expireTimeout <= 0 ? 86400000 : 4500,
+            duration: critical && n.expireTimeout <= 0 ? 86400000 : (Theme.evening ? 3500 : 4500),   // briefer in the evening
             queueable: true,
             force: true,
             data: {

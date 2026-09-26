@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import qs.services
+import qs.theme
 
 Scope {
     GlobalShortcut { appid: "lumen"; name: "powerMenu"; description: "Power menu"; onPressed: Session.toggleMenu() }
@@ -20,4 +21,6 @@ Scope {
     // night light restores its state; battery saver applies its blur rule.
     // Start these services with the shell (incl. the update checker)
     Component.onCompleted: { NightLight.enabled; Power.saver; Updates.count; Keyboard.caps; Downloads.dir; }
+    // Evening look after local sunset (Theme.evening), if enabled
+    Binding { target: Theme; property: "evening"; value: (Persist.data.adaptiveUi ?? true) && (Sun.phase === "night" || Sun.phase === "dusk") }
 }

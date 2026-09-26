@@ -146,6 +146,12 @@ Page {
             PrefSlider { key: "motion_scale"; lo: 50; hi: 200; current: Number(prefs.motion_scale || 100); icon: "animation" }
         }
         SetRow {
+            icon: "wb_twilight"
+            title: "Adapt to the time of day"
+            description: "After sunset: a warmer accent, calmer motion, softer glows, briefer banners"
+            LSwitch { checked: Persist.data.adaptiveUi ?? true; onToggled: Persist.data.adaptiveUi = !checked }
+        }
+        SetRow {
             icon: "animation"
             title: "Reduce motion"
             description: "Replace movement with quick fades"
