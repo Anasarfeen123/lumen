@@ -9,8 +9,17 @@ set -u
 sig=${HYPRLAND_INSTANCE_SIGNATURE:-}
 [ -n "$sig" ] || { echo "lumen-shell-ipc: not inside a Hyprland session" >&2; exit 1; }
 for pid in $(pgrep -u "$(id -u)" -x qs; pgrep -u "$(id -u)" -x quickshell); do
-    tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | grep -qx "HYPRLAND_INSTANCE_SIGNATURE=$sig" || continue
-    tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -Eq 'lumen/shell/?( |$)' || continue
+    { tr '\0' '\n' < "/proc/$pid/environ"; } 2>/dev/null | grep -qx "HYPRLAND_INSTANCE_SIGNATURE=$sig" || continue
+    # The Lumen shell: started as `qs -p …/lumen/shell`, or — after Quickshell's
+    # crash handler restarted it — a bare `quickshell` whose environment is Lumen's
+    # (and not the Settings app's).
+    env=$({ tr '\0' '\n' < "/proc/$pid/environ"; } 2>/dev/null)
+    cmd=$({ tr '\0' ' ' < "/proc/$pid/cmdline"; } 2>/dev/null)
+    if ! printf '%s' "$cmd" | grep -Eq 'lumen/shell/?( |$)'; then
+        printf '%s' "$cmd" | grep -Eq '^(/usr/bin/)?(qs|quickshell) ?$' || continue
+        printf '%s\n' "$env" | grep -q '^LUMEN_ROOT=' || continue
+        printf '%s\n' "$env" | grep -qx 'LUMEN_SETTINGS_APP=1' && continue
+    fi
     # shellcheck disable=SC2093  # intended: hand over to the first matching shell
     exec qs ipc --pid "$pid" call "$@"
 done

@@ -33,6 +33,10 @@ HoverTarget {
 
     Connections {
         target: TrayState
+        function onMenuRequested(index) {
+            const it = SystemTray.items.values[index];
+            if (it && it.hasMenu && root.window.screen === Quickshell.screens[0]) drawer.menuFor(it);
+        }
         function onToggleRequested(monitor) {
             if (root.visible && monitor === (root.window.screen?.name ?? ""))
                 drawer.shown ? drawer.close() : drawer.open();
@@ -82,20 +86,25 @@ HoverTarget {
         anchor.rect.x: root.mapToItem(root.window.contentItem, root.width, 0).x - contentWidth - margin
         anchor.rect.y: Theme.edgeGap + Theme.barHeight + Theme.space.s2 - margin
         contentWidth: 300
-        contentHeight: body.implicitHeight + Theme.space.s2 * 2
+        contentHeight: (stack.length ? menuPage.implicitHeight : body.implicitHeight) + Theme.space.s2 * 2
 
-        // The app's own menu, drawn by the app, just under the bar
-        function menuFor(item) {
-            close();
-            const p = root.mapToItem(root.window.contentItem, root.width, root.height + Theme.space.s2);
-            item.display(root.window, p.x - 220, p.y);
-        }
+        // An app's menu opens INSIDE the drawer, drawn by Lumen from the app's
+        // menu model (QsMenuOpener). Native platform menus aren't used: they
+        // crash Quickshell 0.2.1 when a tray app quits while its menu exists.
+        property var stack: []             // [{ handle, title }] — submenus push
+        property var menuApp: null
+        function menuFor(item) { menuApp = item; stack = [{ handle: item.menu, title: root.label(item) }]; if (!shown) open(); }
+        function back() { stack = stack.slice(0, -1); }
+        onShownChanged: if (!shown) { stack = []; menuApp = null; }
+        onVisibleChanged: if (!visible) { stack = []; menuApp = null; }
 
         Item {
             anchors.fill: parent
 
+            // ── Apps ──
             Column {
                 id: body
+                visible: drawer.stack.length === 0
                 x: Theme.space.s2; y: Theme.space.s2
                 width: parent.width - Theme.space.s2 * 2
 
@@ -152,7 +161,7 @@ HoverTarget {
                             width: 30; height: 30
                             anchors { right: parent.right; rightMargin: Theme.space.s1; verticalCenter: parent.verticalCenter }
                             onClicked: drawer.menuFor(row.modelData)
-                            LIcon { anchors.centerIn: parent; icon: "more_horiz"; size: 18; color: Theme.textSecondary }
+                            LIcon { anchors.centerIn: parent; icon: "chevron_right"; size: 18; color: Theme.textSecondary }
                         }
                     }
                 }
@@ -165,7 +174,112 @@ HoverTarget {
                     wrapMode: Text.Wrap
                     role: "caption"
                     color: Theme.textMuted
-                    text: "Click to open · right-click for the app's menu"
+                    text: "Click to open · › or right-click for the app's menu"
+                }
+            }
+
+            // ── An app's menu ──
+            Column {
+                id: menuPage
+                visible: drawer.stack.length > 0
+                x: Theme.space.s2; y: Theme.space.s2
+                width: parent.width - Theme.space.s2 * 2
+                readonly property var level: drawer.stack.length ? drawer.stack[drawer.stack.length - 1] : null
+
+                QsMenuOpener { id: opener; menu: menuPage.level?.handle ?? null }
+
+                Item {
+                    width: parent.width; height: 36
+                    HoverTarget {
+                        id: backBtn
+                        width: 30; height: 30
+                        anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                        onClicked: drawer.back()
+                        LIcon { anchors.centerIn: parent; icon: "arrow_back"; size: 18; color: Theme.textSecondary }
+                    }
+                    IconImage {
+                        id: menuIcon
+                        visible: drawer.stack.length === 1
+                        anchors { left: backBtn.right; leftMargin: Theme.space.s1; verticalCenter: parent.verticalCenter }
+                        implicitSize: 18
+                        source: drawer.menuApp?.icon ?? ""
+                    }
+                    LText {
+                        anchors { left: menuIcon.visible ? menuIcon.right : backBtn.right; leftMargin: Theme.space.s2; right: parent.right; verticalCenter: parent.verticalCenter }
+                        elide: Text.ElideRight
+                        role: "bodyStrong"
+                        text: menuPage.level?.title ?? ""
+                    }
+                }
+                Rectangle { width: parent.width; height: 1; color: Theme.border }
+
+                Repeater {
+                    model: opener.children
+                    delegate: Loader {
+                        id: entryLoader
+                        required property var modelData
+                        width: menuPage.width
+                        sourceComponent: modelData.isSeparator ? sepC : entryC
+                        Component {
+                            id: sepC
+                            Item { height: 9; Rectangle { anchors.centerIn: parent; width: parent.width - Theme.space.s4; height: 1; color: Theme.border } }
+                        }
+                        Component {
+                            id: entryC
+                            HoverTarget {
+                                readonly property var e: entryLoader.modelData
+                                height: 34
+                                radius: Theme.radius.sm
+                                enabled: e.enabled
+                                opacity: e.enabled ? 1 : 0.4
+                                onClicked: {
+                                    if (e.hasChildren) { drawer.stack = drawer.stack.concat([{ handle: e, title: e.text.replace(/&(?!&)/g, "") }]); return; }
+                                    e.triggered();
+                                    drawer.close();
+                                }
+                                // Check box / radio state, else the entry's icon
+                                Item {
+                                    id: lead
+                                    width: 20; height: 20
+                                    anchors { left: parent.left; leftMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
+                                    LIcon {
+                                        anchors.centerIn: parent
+                                        visible: e.buttonType !== QsMenuButtonType.None
+                                        icon: e.buttonType === QsMenuButtonType.RadioButton
+                                              ? (e.checkState === Qt.Checked ? "radio_button_checked" : "radio_button_unchecked")
+                                              : (e.checkState === Qt.Checked ? "check_box" : "check_box_outline_blank")
+                                        size: 17
+                                        fill: e.checkState === Qt.Checked ? 1 : 0
+                                        color: e.checkState === Qt.Checked ? Theme.accent : Theme.textMuted
+                                    }
+                                    IconImage {
+                                        anchors.centerIn: parent
+                                        visible: e.buttonType === QsMenuButtonType.None && (e.icon ?? "") !== ""
+                                        implicitSize: 16
+                                        source: e.icon ?? ""
+                                    }
+                                }
+                                LText {
+                                    anchors { left: lead.right; leftMargin: Theme.space.s2; right: chev.left; rightMargin: Theme.space.s1; verticalCenter: parent.verticalCenter }
+                                    elide: Text.ElideRight
+                                    // "&File" mnemonics → "File" ("&&" is a literal &)
+                                    text: e.text.replace(/&&/g, "\u0000").replace(/&/g, "").replace(/\u0000/g, "&")
+                                }
+                                LIcon {
+                                    id: chev
+                                    visible: e.hasChildren
+                                    anchors { right: parent.right; rightMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
+                                    icon: "chevron_right"; size: 16; color: Theme.textMuted
+                                }
+                            }
+                        }
+                    }
+                }
+                LText {
+                    visible: opener.children.values.length === 0
+                    leftPadding: Theme.space.s2; topPadding: Theme.space.s2; bottomPadding: Theme.space.s2
+                    role: "caption"; color: Theme.textMuted
+                    text: "Loading…"
                 }
             }
         }
