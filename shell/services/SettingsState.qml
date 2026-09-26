@@ -21,7 +21,7 @@ Singleton {
         { group: "Personalise", id: "windows",       icon: "select_window",       label: "Windows",             keys: "gaps corners rounding border animation speed focus follows mouse" },
         { group: "Connections", id: "network",       icon: "wifi",                label: "Network",             keys: "wifi wi-fi internet airplane vpn warp cloudflare dns" },
         { group: "Connections", id: "bluetooth",     icon: "bluetooth",           label: "Bluetooth",           keys: "devices headphones pair connect battery" },
-        { group: "Connections", id: "phone",         icon: "smartphone",          label: "Phone",               keys: "phone kde connect android iphone pair find ring send file clipboard sync" },
+        { group: "Connections", id: "phone",         icon: "phonelink",           label: "Lumen Link",          keys: "phone link kde connect android iphone pair find ring send file clipboard sync usb tethering hotspot address bluetooth" },
         { group: "Devices", id: "sound",         icon: "volume_up",           label: "Sound",               keys: "volume output input microphone speaker headphones" },
         { group: "Devices", id: "display",       icon: "brightness_6",        label: "Display",             keys: "brightness night light warmth" },
         { group: "Devices", id: "keyboard",      icon: "keyboard",            label: "Keyboard & Gestures", keys: "shortcuts keybinds cheatsheet touchpad gestures corners" },
@@ -34,6 +34,7 @@ Singleton {
         { group: "System", id: "system",        icon: "monitor_heart",       label: "System",              keys: "system inspector hardware cpu gpu nvidia amd memory ram disk storage battery temperature kernel" },
         { group: "System", id: "updates",       icon: "system_update",       label: "Updates",             keys: "update upgrade dnf flatpak packages security software" },
         { group: "System", id: "advanced",      icon: "tune",                label: "Advanced",            keys: "advanced config files local.lua session.env logs journal verify doctor reset reload rebuild developer debug version" },
+        { group: "System", id: "backup",        icon: "backup",              label: "Backup & recovery",   keys: "backup restore snapshot rsync drive usb external files recovery safe mode reset settings config" },
         { group: "System", id: "about",         icon: "info",                label: "About",               keys: "version system hardware kernel hyprland" }
     ]
     property string search: ""

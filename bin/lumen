@@ -13,6 +13,8 @@
 #   lumen progress <title> <0-100|-1|done|fail> [detail]   show progress in the island
 #   lumen run [--title T] -- <command…>   run it; the island shows it working, then ✓ or ✗
 #   lumen snapshot save|restore|list|delete [name]   a whole setup of windows, saved and restored
+#   lumen recovery [command]        Lumen Recovery: a menu that works from a TTY (safe mode, restore settings…)
+#   lumen backup [now|status|…]     back up your files to a drive or folder (scripts/backup.sh)
 set -eu
 LUMEN_ROOT=${LUMEN_ROOT:-$HOME/.config/lumen}
 STATE=${XDG_STATE_HOME:-$HOME/.local/state}/lumen/state.json
@@ -138,6 +140,12 @@ case ${1:-} in
         esac ;;
     snapshot)
         shift; exec "$LUMEN_ROOT/scripts/snapshot.sh" "$@" ;;
+    recovery)
+        shift; exec "$LUMEN_ROOT/scripts/recovery.sh" "$@" ;;
+    backup)
+        shift
+        if [ "${1:-now}" = now ]; then [ $# -gt 0 ] && shift; set -- run "$@"; fi
+        exec "$LUMEN_ROOT/scripts/backup.sh" "$@" ;;
     run)
         # lumen run -- make -j8   ·   lumen run --title "Building" -- cargo build
         shift; title=""
@@ -156,5 +164,5 @@ case ${1:-} in
         else "$ipc" island progressDone "$id" "${title#Running } failed" false "exit $rc · $took" >/dev/null 2>&1; fi
         exit $rc ;;
     *)
-        sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+        sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

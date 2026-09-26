@@ -18,6 +18,16 @@ export LUMEN_ROOT
 # shellcheck disable=SC1091  # optional, user-provided
 [ -r "$LUMEN_ROOT/session.env" ] && . "$LUMEN_ROOT/session.env"
 
+# ── Safe mode (Lumen Recovery: `lumen recovery`, Settings → Backup & recovery) ──
+# One login without the Lumen shell: Hyprland, a terminal and the recovery menu.
+# The flag is used up here, so the login after that is normal again.
+safe_flag=${XDG_STATE_HOME:-$HOME/.local/state}/lumen/safe-mode
+if [ -e "$safe_flag" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    mv -f -- "$safe_flag" "$safe_flag.used"
+    export LUMEN_SAFE=1
+fi
+# ── end safe mode ──
+
 
 python3 "$LUMEN_ROOT/theme/build.py" >/dev/null
 

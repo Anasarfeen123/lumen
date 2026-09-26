@@ -220,7 +220,17 @@ Scope {
             detail: [sd ? "SD card" : "USB drive", size, (e.ID_FS_TYPE || "").toUpperCase()].filter(x => x).join(" · "),
             actions: [{ icon: "folder_open", label: "Open", cmd: [scripts, "open", e.DEVNAME] },
                       { icon: "eject", label: "Eject", cmd: [scripts, "eject", e.DEVNAME] }]
+                .concat(backupFor(e)).sort((a, b) => (b.lead ? 1 : 0) - (a.lead ? 1 : 0))
         });
+    }
+    // Your backup drive (Settings → Backup & recovery): offer "Back up", and
+    // lead with it when the last backup is over a week old
+    FileView { id: backupConf; path: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/lumen/backup.json"; watchChanges: true; onFileChanged: reload(); printErrors: false }
+    function backupFor(e) {
+        let c; try { c = JSON.parse(backupConf.text()); } catch (err) { return []; }
+        if (!c?.destUuid || c.destUuid !== e.ID_FS_UUID) return [];
+        const due = !c.last?.time || Date.now() / 1000 - c.last.time > 7 * 86400;
+        return [{ icon: "backup", label: due ? "Back up now" : "Back up", lead: due, cmd: [Theme.lumenRoot + "/scripts/backup.sh", "run-on", e.DEVNAME] }];
     }
 
     // One long-running udev listener per subsystem (event-driven, no polling);
@@ -310,6 +320,12 @@ Scope {
         function drive(): void { root.onBlock({ ACTION: "add", ID_FS_USAGE: "filesystem", ID_BUS: "usb", DEVNAME: "/dev/sdz1", ID_FS_LABEL: "BACKUP", ID_FS_TYPE: "exfat", ID_PART_ENTRY_SIZE: "124735488", ID_FS_UUID: "t" + Date.now() }); }
         function display(): void { root.onMonitor({ name: "monitoraddedv2", data: "3,HDMI-A-1,Dell Inc. DELL U2723QE 7X2KHK3 (HDMI-A-1)" }); }
     }
+
+    // ── Lumen Link ──
+    // Referencing the service creates it at startup, so phone events (linked,
+    // battery low, file received) reach the island. Announcing is in Link.qml.
+    readonly property bool linkReady: Link.available
+    // ── end Lumen Link ──
 
     // ── Entry points ──
     GlobalShortcut {

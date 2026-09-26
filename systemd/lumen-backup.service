@@ -1,0 +1,13 @@
+# Lumen file backup (scripts/backup.sh run). Started by lumen-backup.timer,
+# which Settings → Backup & recovery links in only when you turn the daily
+# backup on. If the backup drive isn't plugged in, it quietly does nothing.
+[Unit]
+Description=Lumen file backup
+Documentation=file://%h/.config/lumen/docs/FEATURES.md
+
+[Service]
+Type=oneshot
+Environment=LUMEN_BACKUP_QUIET=1
+ExecStart=%h/.config/lumen/scripts/backup.sh run
+Nice=10
+IOSchedulingClass=idle

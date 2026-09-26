@@ -34,7 +34,7 @@ if [ -z "${LUMEN_NESTED:-}" ]; then
     # Admin password prompts: the shell is the polkit agent (services/Polkit.qml)
     # and starts KDE's itself if it can't register. Without the shell: KDE's.
     agent=/usr/libexec/kf6/polkit-kde-authentication-agent-1
-    if [ ! -f "$LUMEN_ROOT/shell/shell.qml" ] && [ -x "$agent" ] && ! pgrep -u "$(id -u)" -f "$agent" >/dev/null; then
+    if { [ ! -f "$LUMEN_ROOT/shell/shell.qml" ] || [ -n "${LUMEN_SAFE:-}" ]; } && [ -x "$agent" ] && ! pgrep -u "$(id -u)" -f "$agent" >/dev/null; then
         run "$agent"
     fi
 
@@ -56,11 +56,20 @@ hyprctl setcursor "$cur" "$size" >>"$LOG" 2>&1
     && gsettings set org.gnome.desktop.interface cursor-size "$size" 2>>"$LOG"
 
 # Wallpaper: the shell draws it (cross-fades); hyprpaper only if there is no shell
-if [ -f "$LUMEN_ROOT/shell/shell.qml" ]; then
+if [ -f "$LUMEN_ROOT/shell/shell.qml" ] && [ -z "${LUMEN_SAFE:-}" ]; then
     "$LUMEN_ROOT/scripts/wallpaper.sh" init >>"$LOG" 2>&1
 else
     "$LUMEN_ROOT/scripts/wallpaper.sh" init --hyprpaper >>"$LOG" 2>&1
 fi
+
+# ── Lumen Recovery: a daily settings backup, and safe mode ──
+[ -z "${LUMEN_NESTED:-}" ] && run "$LUMEN_ROOT/scripts/recovery.sh" config-backup --auto
+if [ -n "${LUMEN_SAFE:-}" ]; then
+    # Safe mode: no shell. A terminal with the recovery menu; Super+Enter opens more.
+    run kitty --title "Lumen Recovery" sh -c 'echo "Lumen safe mode: the shell is off for this login. Super+Enter: terminal · Ctrl+Alt+Shift+Super+Esc: log out."; echo; exec "$0" recovery' "$LUMEN_ROOT/bin/lumen"
+    exit 0
+fi
+# ── end recovery ──
 
 # Shell (Quickshell) — enabled from Phase 3
 if [ -f "$LUMEN_ROOT/shell/shell.qml" ]; then

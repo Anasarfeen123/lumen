@@ -1,0 +1,12 @@
+# Daily Lumen backup (see lumen-backup.service). Persistent: a day missed while
+# the laptop was off runs at the next boot.
+[Unit]
+Description=Daily Lumen file backup
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=20m
+
+[Install]
+WantedBy=timers.target
