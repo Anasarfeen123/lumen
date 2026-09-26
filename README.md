@@ -2,6 +2,21 @@
 
 A Hyprland desktop built as one product. See **DESIGN.md**; it's the source of truth.
 
+## Install
+
+```sh
+git clone <this repo> ~/Projects/lumen && cd ~/Projects/lumen
+./install.sh --dry-run     # see every step and command first — changes nothing
+./install.sh               # guided: explains each step and asks before doing it
+```
+
+Works on **Fedora** (primary), **Arch** and derivatives (EndeavourOS, CachyOS, Manjaro),
+**Debian / Ubuntu** and derivatives (Mint, Pop!_OS), and **openSUSE**. It needs **Hyprland 0.56+**
+(Lumen's config is Lua); the installer checks and tells you if yours is older. Packages come from your
+distribution's own repositories. On Fedora, Hyprland comes from the COPR the Hyprland project
+documents. Fonts and the cursor are optional file downloads from their official upstreams. Nothing is
+ever piped into a shell. `./uninstall.sh` undoes it (packages stay).
+
 ## Try it (safe: nothing in ~/.config/hypr or your ii setup is touched)
 
 ```sh
