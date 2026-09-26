@@ -79,6 +79,9 @@ PanelWindow {
             { keys: ["3 fingers", "pinch"], desc: "Fullscreen" },
             { keys: ["Scroll", "on the bar"], desc: "Switch workspace" },
             { keys: ["Scroll", "on the island"], desc: "Volume (Shift: brightness)" },
+            { keys: ["Right-click", "workspaces / island"], desc: "Apps in the background (tray)" },
+            { keys: ["Middle-click", "island"], desc: "Play / pause" },
+            { keys: ["Swipe →", "notification"], desc: "Dismiss it" },
         ] });
         return out;
     }

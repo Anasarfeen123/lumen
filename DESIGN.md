@@ -711,6 +711,16 @@ above or below.
 
 ## 26. Sidebar tabs
 
+**Controls tab**, top to bottom:
+- a header with your picture (or initial) in an accent ring, a greeting for the time of day, the date and battery;
+- Wi-Fi and Bluetooth tiles;
+- four even rows of round toggles and actions: Focus, Caffeine, Night light, Mic, Airplane, Power mode,
+  Game mode, Dark, Keys, WARP, Glass (transparency), Lock, Record, Screenshot, Copy text, Pick colour;
+- volume and brightness sliders with live percentages;
+- now playing and system stats;
+- a month calendar with ‹ › to change month and the title to jump back; it resets whenever the sidebar opens.
+Super+A opens Controls, Super+N opens Notifications, and the top-right corner opens Controls.
+
 The sidebar has two tabs, **Controls** and **Notifications**, switched by a sliding pill. The
 Notifications tab shows an unread count. The status pill opens Controls, or Notifications if you click
 its unread dot. Super+N opens Notifications. Ctrl+Tab switches tabs, and the content slides and

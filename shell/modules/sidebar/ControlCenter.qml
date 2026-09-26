@@ -8,6 +8,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Services.UPower
+import Quickshell.Widgets
 import qs.theme
 import qs.components
 import qs.services
@@ -44,30 +45,67 @@ Item {
     function later(cmd) { pendingCmd = cmd; laterTimer.restart(); }
     Timer { id: laterTimer; interval: Theme.motion.large + 60; onTriggered: if (root.pendingCmd) Quickshell.execDetached(root.pendingCmd) }
 
-    // ── Header ─────────────────────────────────────────────────────────────
+    // ── Header: you, the day, the battery ───────────────────────────────────
+    readonly property string userName: Quickshell.env("USER") ?? ""
+    readonly property int hour: clock.date.getHours()
+    readonly property string greeting: hour < 5 ? "Good night" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : hour < 22 ? "Good evening" : "Good night"
+    property int faceVersion: 0
+    onVisibleChanged: if (visible) faceVersion++      // pick up a new picture
+
     Item {
         id: header
         width: parent.width
-        height: 40
+        height: 52
+
+        Item {
+            id: avatar
+            width: 44; height: 44
+            anchors.verticalCenter: parent.verticalCenter
+            Rectangle {
+                anchors.fill: parent; radius: width / 2
+                color: Theme.withAlpha(Theme.accent, 0.85)
+                visible: face.status !== Image.Ready
+                LText { anchors.centerIn: parent; role: "heading"; color: Theme.onAccent; text: root.userName.charAt(0).toUpperCase() }
+            }
+            ClippingRectangle {
+                anchors.fill: parent; radius: width / 2
+                color: "transparent"
+                visible: face.status === Image.Ready
+                Image {
+                    id: face
+                    anchors.fill: parent
+                    source: "file://" + Quickshell.env("HOME") + "/.face?v=" + root.faceVersion
+                    cache: false
+                    sourceSize: Qt.size(88, 88)
+                    fillMode: Image.PreserveAspectCrop
+                }
+            }
+            // Accent ring
+            Rectangle { anchors.fill: parent; anchors.margins: -2; radius: width / 2; color: "transparent"; border.width: 1.5; border.color: Theme.withAlpha(Theme.accent, 0.55) }
+        }
 
         Column {
-            anchors.verticalCenter: parent.verticalCenter
-            LText { role: "title"; text: Qt.formatDate(clock.date, "dddd, d MMMM") }
+            anchors { left: avatar.right; leftMargin: Theme.space.s3; right: headerButtons.left; rightMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
+            spacing: 1
+            LText { width: parent.width; elide: Text.ElideRight; role: "heading"; text: root.greeting + ", " + root.userName }
             LText {
+                width: parent.width
+                elide: Text.ElideRight
                 role: "caption"
                 color: Theme.textMuted
-                visible: text !== ""
                 text: {
-                    if (!Battery.available) return "";
+                    let t = Qt.formatDate(clock.date, "dddd, d MMMM");
+                    if (!Battery.available) return t;
                     const pct = Math.round(Battery.percentage * 100) + "%";
-                    if (Battery.charging) return `${pct} · charging` + (Battery.timeToFull > 0 ? ` · full in ${Battery.formatDuration(Battery.timeToFull)}` : "");
-                    if (Battery.pluggedIn) return `${pct} · plugged in`;
-                    return `${pct} · ${Battery.formatDuration(Battery.timeToEmpty) || "on battery"}` + (Battery.timeToEmpty > 0 ? " left" : "");
+                    if (Battery.charging) return t + ` · ${pct} charging`;
+                    if (Battery.pluggedIn) return t + ` · ${pct}`;
+                    return t + ` · ${pct}` + (Battery.timeToEmpty > 0 ? `, ${Battery.formatDuration(Battery.timeToEmpty)} left` : "");
                 }
             }
         }
 
         Row {
+            id: headerButtons
             anchors { right: parent.right; verticalCenter: parent.verticalCenter }
             spacing: Theme.space.s1
             IconButton {
@@ -92,7 +130,7 @@ Item {
         Column {
             id: main
             width: parent.width
-            spacing: Theme.space.s4
+            spacing: Theme.space.s3
             opacity: root.detail === "" ? 1 : 0
             visible: opacity > 0
             x: root.detail === "" ? 0 : -24
@@ -209,6 +247,19 @@ Item {
                     onToggled: Vpn.toggle()
                 }
                 RoundToggle {
+                    icon: glassOn ? "blur_on" : "blur_off"
+                    label: "Glass"
+                    readonly property bool glassOn: Theme.tokens.transparency ?? true
+                    active: glassOn
+                    onToggled: Quickshell.execDetached([Theme.lumenRoot + "/bin/lumen", "transparency", "toggle"])
+                }
+                RoundToggle {
+                    action: true
+                    icon: "lock"
+                    label: "Lock"
+                    onToggled: { Sidebar.hide(); root.later([Theme.lumenRoot + "/bin/lumen-shell-ipc", "lock", "lock"]); }
+                }
+                RoundToggle {
                     action: true
                     icon: Island.recording ? "stop_circle" : "screen_record"
                     label: Island.recording ? "Stop" : "Record"
@@ -244,11 +295,13 @@ Item {
                     width: parent.width
                     spacing: Theme.space.s2
                     LSlider {
+                        id: volSlider
                         width: parent.width - outputButton.width - parent.spacing
                         icon: Audio.muted ? "volume_off" : Audio.volume < 0.34 ? "volume_mute" : Audio.volume < 0.67 ? "volume_down" : "volume_up"
                         value: Audio.volume
                         dimmed: Audio.muted
                         onMoved: v => Audio.nudge(v - Audio.volume)
+                        Percent { value: Audio.muted ? -1 : Audio.volume }
                     }
                     IconButton {
                         id: outputButton
@@ -262,12 +315,15 @@ Item {
                     icon: "brightness_6"
                     value: Brightness.value
                     onMoved: v => Brightness.set(v)
+                    Percent { value: Brightness.value }
                 }
             }
 
             NowPlayingCard { width: parent.width; visible: Media.present }
 
             SystemStats { width: parent.width }
+
+            MonthCard { width: parent.width; today: clock.date }
         }
 
         Loader {
@@ -281,6 +337,16 @@ Item {
                            : root.detail === "output" ? outputDetail : null
             onLoaded: item.forceActiveFocus()
         }
+    }
+
+    // "42%" at the slider's right end, over the track (muted → "Muted")
+    component Percent: LText {
+        property real value: 0
+        anchors { right: parent.right; rightMargin: Theme.space.s3; verticalCenter: parent.verticalCenter }
+        role: "caption"
+        // Readable once the fill reaches under the label
+        color: value > 0.86 ? Theme.onAccent : Theme.textSecondary
+        text: value < 0 ? "Muted" : Math.round(value * 100) + "%"
     }
 
     Component { id: wifiDetail; WifiDetail { onBack: root.detail = "" } }

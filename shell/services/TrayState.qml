@@ -6,12 +6,17 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import Quickshell.Services.SystemTray
 
 Singleton {
     id: root
     signal toggleRequested(string monitor)
     // Empty monitor → the focused one
-    function toggle(monitor) { root.toggleRequested(monitor || (Hyprland.focusedMonitor?.name ?? "")); }
+    function toggle(monitor) {
+        // Say so rather than do nothing
+        if (SystemTray.items.values.length === 0) { Island.system("apps", "Nothing in the background", "No app is using the tray"); return; }
+        root.toggleRequested(monitor || (Hyprland.focusedMonitor?.name ?? ""));
+    }
     GlobalShortcut { appid: "lumen"; name: "tray"; description: "Apps running in the background"; onPressed: root.toggle("") }
     IpcHandler { target: "tray"; function toggle(): void { root.toggle(""); } }
 }

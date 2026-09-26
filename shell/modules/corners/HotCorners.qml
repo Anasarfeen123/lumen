@@ -18,6 +18,6 @@ Scope {
         screen: root.screen
         corner: "topRight"
         allowed: Persist.data.hotCornerRight
-        onTriggered: Sidebar.toggle()
+        onTriggered: Sidebar.toggle("controls")
     }
 }

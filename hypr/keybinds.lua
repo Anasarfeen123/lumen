@@ -130,7 +130,8 @@ key("SUPER + M", global("lumen:island"), "Expand the island (media) — Esc clos
 
 -- ── Sidebar & notifications (same keys as ii) ──
 group("Control centre")
-key("SUPER + N", global("lumen:sidebar"), "Control centre & notifications")
+key("SUPER + N", global("lumen:sidebar"), "Notifications")
+key("SUPER + A", global("lumen:controlCenter"), "Control centre")
 key("SUPER + ALT + N", global("lumen:dnd"), "Focus (Do Not Disturb)")
 key("SUPER + ALT + SHIFT + N", global("lumen:clearNotifications"), "Clear notifications")
 
