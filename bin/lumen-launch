@@ -1,6 +1,6 @@
 #!/bin/sh
 # lumen-launch — run the first available of several commands.
-#   lumen-launch brave-browser firefox "kitty -e btop"
+#   lumen-launch brave-origin firefox "kitty -e btop"
 # Each argument is one candidate; its first word must be on PATH.
 for candidate in "$@"; do
     prog=${candidate%% *}

@@ -10,7 +10,7 @@ local ipc = bin .. "/lumen-shell-ipc"            -- this session's shell only
 
 local terminal    = "kitty"
 local fileManager = bin .. "/lumen-launch dolphin nautilus 'kitty -e yazi'"
-local browser     = bin .. "/lumen-launch brave-browser firefox chromium"
+local browser     = bin .. "/lumen-launch brave-origin brave-browser firefox chromium"
 local editor      = bin .. "/lumen-launch code codium zed kate"
 local taskManager = bin .. "/lumen-launch plasma-systemmonitor 'kitty -e btop'"
 

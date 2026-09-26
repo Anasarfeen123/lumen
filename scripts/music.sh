@@ -2,13 +2,13 @@
 # music.sh — start your music app for the music scratchpad (Super+Shift+M)
 # when it opens empty. Choice: Settings → Sound → Music app
 #   ytmusic   YouTube Music as a web-app window of your browser (your profile,
-#             so you're signed in) — Brave, Chrome or Chromium
+#             so you're signed in) — Brave Origin, Brave, Chrome or Chromium
 #   spotify   Spotify (Flatpak or native)
 #   auto      Spotify if installed, else YouTube Music, else a local player
 pref=$(jq -r '.musicApp // "auto"' "${XDG_STATE_HOME:-$HOME/.local/state}/lumen/shell.json" 2>/dev/null || echo auto)
 
 ytmusic() {
-    for b in brave-browser brave google-chrome-stable google-chrome chromium-browser chromium; do
+    for b in brave-origin brave-browser brave google-chrome-stable google-chrome chromium-browser chromium; do
         command -v "$b" >/dev/null && exec "$b" --app=https://music.youtube.com
     done
     return 1
