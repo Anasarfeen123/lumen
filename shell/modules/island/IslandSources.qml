@@ -168,9 +168,10 @@ Scope {
         return { icon: "usb", what: "USB device" };
     }
     function usbName(e) {
-        const vendor = (e.ID_VENDOR_FROM_DATABASE || e.ID_VENDOR || "").replace(/_/g, " ")
-                        .replace(/,? (Inc|Corp|Corporation|Ltd|Co|Technology|Technologies)\.?$/i, "");
-        const model = (e.ID_MODEL_FROM_DATABASE || e.ID_MODEL || "").replace(/_/g, " ");
+        let vendor = (e.ID_VENDOR_FROM_DATABASE || e.ID_VENDOR || "").replace(/_/g, " ");
+        for (let k = 0; k < 3; k++)           // "Sonix Technology Co., Ltd." → "Sonix"
+            vendor = vendor.replace(/[,.]?\s+(Inc|Corp|Corporation|Ltd|Co|Company|Technology|Technologies|Electronics|International|Semiconductor|Microelectronics)\.?,?\s*$/i, "").trim();
+        const model = (e.ID_MODEL_FROM_DATABASE || e.ID_MODEL || "").replace(/_/g, " ").replace(/\s+/g, " ").trim();
         if (!model) return vendor || "USB device";
         return model.toLowerCase().startsWith(vendor.toLowerCase()) || !vendor ? model : vendor + " " + model;
     }
@@ -191,7 +192,7 @@ Scope {
             const d = usbSeen[e.DEVPATH];
             if (!d) return;
             const m = Object.assign({}, usbSeen); delete m[e.DEVPATH]; usbSeen = m;
-            Island.system(d.kind.icon === "hard_drive" ? "eject" : "usb_off", d.name, "Removed");
+            Island.system(d.kind.drive ? "eject" : d.kind.icon, d.name, d.kind.drive ? "Removed" : "Disconnected");
             if (Island.ready) Sounds.play("unplug");
         }
     }
@@ -230,16 +231,38 @@ Scope {
         signal event(var e)
         property var ev: ({})
         running: true
-        command: ["udevadm", "monitor", "--udev", "--subsystem-match=" + subsystem, "--property"]
+        // SplitParser drops empty lines, and udev ends each event with one:
+        // turn them into "--" (sed -u: unbuffered, so events arrive at once)
+        command: ["sh", "-c", 'udevadm monitor --udev --subsystem-match="$1" --property | sed -u "s/^$/--/"', "sh", subsystem]
         stdout: SplitParser {
             onRead: line => {
-                if (line === "") { if (w.ev.ACTION) w.event(w.ev); w.ev = {}; return; }
+                if (line === "--") { if (w.ev.ACTION) w.event(w.ev); w.ev = {}; return; }
                 const i = line.indexOf("=");
                 if (i > 0) w.ev[line.slice(0, i)] = line.slice(i + 1);
             }
         }
     }
     UdevWatch { subsystem: "usb/usb_device"; onEvent: e => root.onUsb(e) }
+
+    // Devices already plugged in when the shell starts: remember their names
+    // (so unplugging them is announced too) and mark them as seen, silently.
+    Process {
+        id: usbAtStart
+        running: true
+        command: ["sh", "-c", 'for d in /sys/bus/usb/devices/*; do [ -f "$d/idVendor" ] && udevadm info -q property -p "$d" && echo --; done 2>/dev/null']
+        property var ev: ({})
+        stdout: SplitParser {
+            onRead: line => {
+                const p = usbAtStart;
+                if (line !== "--") { const i = line.indexOf("="); if (i > 0) p.ev[line.slice(0, i)] = line.slice(i + 1); return; }
+                const e = p.ev; p.ev = {};
+                const k = e.DEVPATH ? root.usbKind(e) : null;
+                if (!k) return;
+                const m = Object.assign({}, root.usbSeen); m[e.DEVPATH] = { name: root.usbName(e), kind: k }; root.usbSeen = m;
+                root.firstTime("usb:" + (e.ID_VENDOR_ID ?? "") + ":" + (e.ID_MODEL_ID ?? "") + ":" + (e.ID_SERIAL_SHORT ?? ""));
+            }
+        }
+    }
     UdevWatch { subsystem: "block"; onEvent: e => root.onBlock(e) }
 
     // Displays: Hyprland reports outputs as they come and go
@@ -283,6 +306,7 @@ Scope {
         function usb(): void { root.onUsb({ ACTION: "add", DEVPATH: "/t/1", ID_USB_INTERFACES: ":010100:010200:030000:", ID_VENDOR_FROM_DATABASE: "Sony Corp.", ID_MODEL: "WH-1000XM5", ID_VENDOR_ID: "054c", ID_MODEL_ID: "0" + Date.now() % 1000 }); }
         function kbd(): void { root.onUsb({ ACTION: "add", DEVPATH: "/t/2", ID_USB_INTERFACES: ":030101:030000:", ID_VENDOR_FROM_DATABASE: "Keychron", ID_MODEL: "K2", ID_VENDOR_ID: "3434", ID_MODEL_ID: "0210" }); }
         function unplug(): void { root.onUsb({ ACTION: "remove", DEVPATH: "/t/2" }); }
+        function known(): string { return JSON.stringify(Object.values(root.usbSeen).map(d => d.name + " (" + d.kind.what + ")")); }
         function drive(): void { root.onBlock({ ACTION: "add", ID_FS_USAGE: "filesystem", ID_BUS: "usb", DEVNAME: "/dev/sdz1", ID_FS_LABEL: "BACKUP", ID_FS_TYPE: "exfat", ID_PART_ENTRY_SIZE: "124735488", ID_FS_UUID: "t" + Date.now() }); }
         function display(): void { root.onMonitor({ name: "monitoraddedv2", data: "3,HDMI-A-1,Dell Inc. DELL U2723QE 7X2KHK3 (HDMI-A-1)" }); }
     }
