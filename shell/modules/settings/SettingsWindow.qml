@@ -129,7 +129,7 @@ FloatingWindow {
                 sourceComponent: ({
                     appearance: appearanceC, wallpaper: wallpaperC, bar: barC, display: displayC,
                     sound: soundC, faceid: faceC, power: powerC, keyboard: keyboardC, about: aboutC,
-                    windows: windowsC, notifications: notificationsC, network: networkC, bluetooth: bluetoothC, lock: lockC, ai: aiC, updates: updatesC
+                    windows: windowsC, notifications: notificationsC, network: networkC, bluetooth: bluetoothC, lock: lockC, ai: aiC, updates: updatesC, system: systemC, security: securityC
                 })[shown] ?? appearanceC
 
                 // Slide + fade between pages
@@ -168,4 +168,6 @@ FloatingWindow {
     Component { id: lockC; LockPage {} }
     Component { id: aiC; AiPage {} }
     Component { id: updatesC; UpdatesPage {} }
+    Component { id: systemC; SystemPage {} }
+    Component { id: securityC; SecurityPage {} }
 }

@@ -28,6 +28,8 @@ Singleton {
         { id: "power",         icon: "battery_charging_80", label: "Power",               keys: "battery saver performance idle sleep suspend lock timeout screen off charge limit health" },
         { id: "ai",            icon: "auto_awesome",        label: "AI",                  keys: "assistant ask claude anthropic ollama local model api key chat" },
         { id: "keyboard",      icon: "keyboard",            label: "Keyboard & Gestures", keys: "shortcuts keybinds cheatsheet touchpad gestures corners" },
+        { id: "system",        icon: "monitor_heart",       label: "System",              keys: "system inspector hardware cpu gpu nvidia amd memory ram disk storage battery temperature kernel" },
+        { id: "security",      icon: "shield",              label: "Security",            keys: "security firewall ssh secure boot encryption selinux logins privacy" },
         { id: "updates",       icon: "system_update",       label: "Updates",             keys: "update upgrade dnf flatpak packages security software" },
         { id: "about",         icon: "info",                label: "About",               keys: "version system hardware kernel hyprland" },
     ]

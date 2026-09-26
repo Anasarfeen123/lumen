@@ -16,6 +16,14 @@ Rectangle {
 
     Binding { target: Sysinfo; property: "active"; value: root.visible && Sidebar.open }
 
+    // Click for the full picture (Settings → System)
+    HoverTarget {
+        anchors.fill: parent
+        radius: parent.radius
+        z: -1
+        onClicked: { Sidebar.hide(); SettingsState.launch("system"); }
+    }
+
     component Stat: Item {
         id: st
         property string icon
