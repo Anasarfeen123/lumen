@@ -34,6 +34,8 @@ Singleton {
             property var mutedApps: []            // app names: history only, no banner or sound
             property var clipPins: []             // pinned clipboard items: { kind: "text"|"image", text, file }
             property var weatherPlace: null       // { name, lat, lon } — Open-Meteo, set by you
+            property string aiProvider: "off"     // "off" | "anthropic" | "ollama"
+            property string aiModel: ""           // empty = the provider default
             // Lock screen widgets (Lumen Settings → Lock screen)
             property bool lockMedia: true
             property bool lockBattery: true

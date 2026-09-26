@@ -26,6 +26,7 @@ Singleton {
         { id: "lock",          icon: "lock",                label: "Lock screen",         keys: "widgets password unlock" },
         { id: "faceid",        icon: "face",                label: "Face ID",             keys: "face unlock gaze camera liveness anti photo calibrate strictness" },
         { id: "power",         icon: "battery_charging_80", label: "Power",               keys: "battery saver performance idle sleep suspend lock timeout screen off charge limit health" },
+        { id: "ai",            icon: "auto_awesome",        label: "AI",                  keys: "assistant ask claude anthropic ollama local model api key chat" },
         { id: "keyboard",      icon: "keyboard",            label: "Keyboard & Gestures", keys: "shortcuts keybinds cheatsheet touchpad gestures corners" },
         { id: "about",         icon: "info",                label: "About",               keys: "version system hardware kernel hyprland" },
     ]

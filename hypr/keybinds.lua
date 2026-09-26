@@ -40,6 +40,7 @@ key("SUPER + Space", global("lumen:overview"), "Overview & search")
 key("SUPER + V", global("lumen:clipboard"), "Clipboard history")
 key("SUPER + period", global("lumen:emoji"), "Emoji picker")
 key("SUPER + I", global("lumen:settings"), "Lumen Settings")
+key("SUPER + SHIFT + Space", global("lumen:ai"), "Ask Lumen (AI)")
 
 -- ── Windows ──
 group("Windows")

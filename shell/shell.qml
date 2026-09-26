@@ -23,6 +23,7 @@ import qs.modules.settings
 import qs.modules.polkit
 import qs.modules.switcher
 import qs.modules.planner
+import qs.modules.ai
 
 ShellRoot {
     // A desktop you use must not restart itself because a file changed on
@@ -122,6 +123,14 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: PlannerWindow {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    // Ask Lumen (AI)
+    Variants {
+        model: Quickshell.screens
+        delegate: AiPanel {
             required property var modelData
             screen: modelData
         }
