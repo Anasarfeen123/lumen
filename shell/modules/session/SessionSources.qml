@@ -18,5 +18,6 @@ Scope {
 
     // Keep services that act on their own alive from the start:
     // night light restores its state; battery saver applies its blur rule.
-    Component.onCompleted: { NightLight.enabled; Power.saver; }
+    // Start these services with the shell (incl. the update checker)
+    Component.onCompleted: { NightLight.enabled; Power.saver; Updates.count; }
 }

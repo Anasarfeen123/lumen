@@ -28,6 +28,7 @@ Singleton {
         { id: "power",         icon: "battery_charging_80", label: "Power",               keys: "battery saver performance idle sleep suspend lock timeout screen off charge limit health" },
         { id: "ai",            icon: "auto_awesome",        label: "AI",                  keys: "assistant ask claude anthropic ollama local model api key chat" },
         { id: "keyboard",      icon: "keyboard",            label: "Keyboard & Gestures", keys: "shortcuts keybinds cheatsheet touchpad gestures corners" },
+        { id: "updates",       icon: "system_update",       label: "Updates",             keys: "update upgrade dnf flatpak packages security software" },
         { id: "about",         icon: "info",                label: "About",               keys: "version system hardware kernel hyprland" },
     ]
     property string search: ""
