@@ -14,9 +14,22 @@ Singleton {
     readonly property var players: Mpris.players.values.filter(p => (p.trackTitle ?? "") !== "")
     property var lastPlaying: null
 
-    readonly property var active: players.find(p => p.isPlaying)
+    // A player you picked in the switcher wins until it goes away
+    property var chosen: null
+    readonly property var active: (players.includes(chosen) ? chosen : null)
+                                 ?? players.find(p => p.isPlaying)
                                  ?? (players.includes(lastPlaying) ? lastPlaying : null)
                                  ?? players[0] ?? null
+    function choose(p) { chosen = p; }
+    function playerName(p) { return p?.identity || p?.desktopEntry || "Player"; }
+    readonly property bool shuffleOk: active?.shuffleSupported ?? false
+    readonly property bool loopOk: active?.loopSupported ?? false
+    function toggleShuffle() { if (shuffleOk) active.shuffle = !active.shuffle; }
+    function cycleLoop() {
+        if (!loopOk) return;
+        active.loopState = active.loopState === MprisLoopState.None ? MprisLoopState.Playlist
+                         : active.loopState === MprisLoopState.Playlist ? MprisLoopState.Track : MprisLoopState.None;
+    }
 
     readonly property bool present: active !== null
     readonly property bool playing: active?.isPlaying ?? false
