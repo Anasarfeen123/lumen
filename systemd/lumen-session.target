@@ -1,0 +1,13 @@
+# Lumen's graphical session. Starting it brings up systemd's
+# graphical-session.target, which xdg-desktop-portal (file pickers,
+# screen sharing, dark mode for Flatpaks) requires. lumen-startup starts it
+# once the compositor environment is exported; lumen-session stops it when
+# Hyprland exits. Linked into ~/.config/systemd/user by lumen-startup.
+[Unit]
+Description=Lumen desktop session
+Documentation=file://%h/.config/lumen/DESIGN.md
+BindsTo=graphical-session.target
+Wants=graphical-session-pre.target
+After=graphical-session-pre.target
+RefuseManualStart=no
+StopWhenUnneeded=no

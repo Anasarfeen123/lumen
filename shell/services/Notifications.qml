@@ -98,12 +98,17 @@ Singleton {
 
         if (!n.transient) insertGrouped(entry);
 
-        if (quiet || n.urgency === NotificationUrgency.Low) return;
-        // Muted apps and banners-off still land in history, silently
-        const critical = n.urgency === NotificationUrgency.Critical;
-        if (!critical && (!Persist.data.notifBanners || (Persist.data.mutedApps ?? []).includes(entry.appName))) return;
-        if (dnd && n.urgency !== NotificationUrgency.Critical) return;
+        if (!shouldPopup(entry, quiet)) return;
         popup(n, entry);
+    }
+
+    // Low urgency, island-originated (x-lumen-kind), muted apps, banners off
+    // and Do Not Disturb all stay in history only; Critical always shows.
+    function shouldPopup(entry, quiet) {
+        if (quiet || entry.urgency === NotificationUrgency.Low) return false;
+        if (entry.urgency === NotificationUrgency.Critical) return true;
+        if (!Persist.data.notifBanners || (Persist.data.mutedApps ?? []).includes(entry.appName)) return false;
+        return !dnd;
     }
 
     function popup(n, entry) {
@@ -154,6 +159,91 @@ Singleton {
     function indexOf(nid) {
         for (let i = 0; i < history.count; i++) if (history.get(i).nid === nid) return i;
         return -1;
+    }
+
+    // ── Mirror mode ──
+    // Only one program per D-Bus session can own org.freedesktop.Notifications.
+    // If another desktop running at the same time holds it (e.g. illogical-
+    // impulse on another tty), Lumen watches the bus for Notify calls and shows
+    // them here too: island + history. Mirrored entries have no live actions
+    // (their buttons belong to the owner); clicking focuses the app instead.
+    // The moment the owner quits, Lumen's own server takes over by itself.
+    property bool mirroring: false
+    property int mirrorSeq: 0
+
+    Process {
+        id: ownerCheck
+        // $PPID of this sh is the shell itself
+        command: ["sh", "-c", "busctl --user status org.freedesktop.Notifications 2>/dev/null | sed -n 's/^PID=//p'; echo \"self=$PPID\""]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const owner = (text.match(/^(\d+)$/m) ?? [])[1] ?? "";
+                const self = (text.match(/^self=(\d+)$/m) ?? [])[1] ?? "";
+                root.mirroring = owner !== "" && owner !== self;
+            }
+        }
+    }
+    Timer {
+        running: !root.isClient
+        interval: 10000
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: ownerCheck.running = true
+    }
+    onMirroringChanged: console.info("Notifications:", mirroring ? "another program owns the notification service — mirroring" : "Lumen is the notification server")
+
+    Process {
+        id: mirror
+        running: root.mirroring && !root.isClient
+        command: ["busctl", "--user", "monitor", "--json=short",
+                  "--match", "type='method_call',interface='org.freedesktop.Notifications',member='Notify'"]
+        stdout: SplitParser {
+            onRead: line => {
+                if (!line.startsWith("{")) return;
+                try {
+                    const m = JSON.parse(line);
+                    if (m.member === "Notify") root.receiveMirrored(m.payload?.data ?? []);
+                } catch (e) {}
+            }
+        }
+    }
+
+    function receiveMirrored(d) {
+        const hints = d[6] ?? {};
+        const hint = k => hints[k]?.data;
+        const app = d[0] || "Notification";
+        const img = hint("image-path") || hint("image_path") || d[2] || "";
+        let icon = "";
+        if (img.startsWith("/")) icon = "file://" + img;
+        else if (img.startsWith("file://")) icon = img;
+        else if (img) icon = Apps.iconNamed(img, "dialog-information");
+        else {
+            const e = DesktopEntries.heuristicLookup(hint("desktop-entry") || app);
+            icon = e ? Apps.iconFor(e) : "";
+        }
+        const entry = {
+            nid: -((Date.now() % 1e9) * 100 + (++mirrorSeq % 100)), appName: app, icon, summary: d[3] || "", body: d[4] || "",
+            urgency: hint("urgency") ?? NotificationUrgency.Normal, time: Date.now(),
+            hasActions: false, canReply: false,
+        };
+        if (hint("transient") !== true) insertGrouped(entry);
+        if (!shouldPopup(entry, (hint("x-lumen-kind") ?? "") !== "")) return;
+        const critical = entry.urgency === NotificationUrgency.Critical;
+        Sounds.play("notify", critical);
+        Island.push({
+            kind: "notification",
+            key: "notif:" + app,
+            priority: critical ? 0 : Island.priority.notification,
+            duration: 4500,
+            queueable: true,
+            force: true,
+            data: {
+                nid: entry.nid, appName: app, image: icon, summary: entry.summary,
+                body: plain(entry.body), critical, burst: countRecent(app, 4000), actions: [],
+                activate: () => root.activate(entry.nid),
+                invoke: () => {},
+            }
+        });
     }
 
     // ── actions ──

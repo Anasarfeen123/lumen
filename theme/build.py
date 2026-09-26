@@ -453,6 +453,36 @@ def emit_hypridle(state: dict) -> str:
     return "\n".join(out) + "\n"
 
 
+def emit_qt6ct(t: dict) -> tuple[str, str]:
+    """qt6ct palette + config (used only when qt6ct is installed; lumen-session
+    switches QT_QPA_PLATFORMTHEME for the Lumen session alone)."""
+    c = {k: "#" + v for k, v in t["colors"].items()}
+    dark = t["mode"] != "light"
+    # QPalette roles, in order: WindowText Button Light Midlight Dark Mid Text
+    # BrightText ButtonText Base Window Shadow Highlight HighlightedText Link
+    # LinkVisited AlternateBase NoRole ToolTipBase ToolTipText PlaceholderText Accent
+    def row(text, muted=False):
+        fg = c["text_muted"] if muted else text
+        return ", ".join([fg, c["surface_elevated"], c["surface_hover"], c["surface_elevated"],
+                          "#000000" if dark else c["text_muted"], c["surface"], fg, "#ffffff",
+                          fg, c["surface"], c["bg"], "#000000", c["accent"], c["on_accent"],
+                          c["accent"], c["accent_hover"], c["surface_elevated"], c["bg"],
+                          c["surface_elevated"], c["text"], c["text_muted"], c["accent"]])
+    scheme = "\n".join([f"# {HEADER}", "[ColorScheme]",
+                        f"active_colors={row(c['text'])}",
+                        f"disabled_colors={row(c['text'], muted=True)}",
+                        f"inactive_colors={row(c['text'])}", ""])
+    ui, mono = t["type"]["ui"], t["type"]["mono"]
+    conf = "\n".join([f"# {HEADER}", "[Appearance]",
+                      f"color_scheme_path={OUT / 'qt6ct/colors/lumen.conf'}",
+                      "custom_palette=true", "style=Breeze", "icon_theme=breeze-dark" if dark else "icon_theme=breeze",
+                      "standard_dialogs=default", "",
+                      "[Fonts]",
+                      f'fixed="{mono},10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"',
+                      f'general="{ui},10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"', ""])
+    return scheme, conf
+
+
 def emit_previews(t: dict) -> str:
     """Colour previews for Lumen Settings: every theme (with the active accent)
     and every accent (in the active theme)."""
@@ -504,6 +534,9 @@ def main() -> int:
     write(OUT / "starship.toml", emit_starship(t))
     write(OUT / "previews.json", emit_previews(t))
     write(OUT / "hypr/hypridle.conf", emit_hypridle(load_state()))
+    qt_scheme, qt_conf = emit_qt6ct(t)
+    write(OUT / "qt6ct/colors/lumen.conf", qt_scheme)
+    write(OUT / "qt6ct/qt6ct.conf", qt_conf)
     print(f"lumen: generated theme={t['theme']} accent={t['accent_name']} → {OUT}")
     return 0
 

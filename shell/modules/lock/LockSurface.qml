@@ -279,6 +279,7 @@ Item {
                     id: face
                     anchors.fill: parent
                     source: "file://" + Quickshell.env("HOME") + "/.face"
+                    cache: false
                     sourceSize: Qt.size(144, 144)
                     fillMode: Image.PreserveAspectCrop
                     visible: false

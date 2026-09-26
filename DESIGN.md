@@ -684,5 +684,27 @@ the shell starts KDE's agent, so prompts are never left unanswered. Dev review w
 `ipc call polkit mock | mockFail | mockClose` (LUMEN_DEV only).
 
 **GTK**: adw-gtk3-dark with color-scheme prefer-dark (already the user's global setting).
-**Qt**: KDE's platform theme (Breeze), identical to Plasma. A Lumen-coloured Qt would need `qt6ct`
-(official Fedora `updates` repo). It is not installed and is pending the user's decision.
+**Qt**: KDE's platform theme (Breeze) by default. If `qt6ct` is installed (`sudo dnf install qt6ct`,
+official repo), lumen-session switches the Lumen session to it. `build.py` generates
+`generated/qt6ct/` (a palette from the tokens, Breeze style, UI and mono fonts), and
+`~/.config/qt6ct/qt6ct.conf` is linked to it unless you already have your own file there.
+**Cursor**: GTK apps read it from gsettings, which is user-wide, so Lumen sets it at login and on
+`lumen set cursor`.
+
+## 24. Sharing a login with other desktops
+
+The user's systemd and D-Bus are shared by every session (Lumen on tty3, ii on tty5, KDE).
+- **Portals** need `graphical-session.target`, which only starts through another unit, so
+  `lumen-session.target` (in `systemd/`, linked into `~/.config/systemd/user`) binds it. lumen-startup
+  starts it unless another desktop already holds it. lumen-session stops it when Hyprland exits.
+- **Notifications**: one owner per bus. If another shell owns `org.freedesktop.Notifications`, Lumen
+  mirrors instead: it runs `busctl --user monitor` for Notify calls and shows them in the island and
+  history, without live action buttons. The owner is re-checked every 10 s, and Lumen's own server
+  takes over when the other one quits.
+- **Idle**: see §22 (every step checks that its session is the active one).
+
+## 25. Moving windows
+
+Super+Shift+arrow moves a window within the layout. **Ctrl+Super+Shift+←/→** takes it to the
+previous or next workspace, and you follow it. **Ctrl+Super+Shift+↑/↓** sends it to the monitor
+above or below.

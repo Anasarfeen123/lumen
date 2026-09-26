@@ -17,6 +17,15 @@ if [ -z "${LUMEN_NESTED:-}" ]; then
         WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP \
         HYPRLAND_INSTANCE_SIGNATURE QT_QPA_PLATFORMTHEME KITTY_CONFIG_DIRECTORY STARSHIP_CONFIG >>"$LOG" 2>&1
 
+    # Enter systemd's graphical session (xdg-desktop-portal requires it).
+    # Skipped if another desktop (e.g. Plasma) already holds it: its portals
+    # stay theirs rather than being pointed at this display.
+    unit="$HOME/.config/systemd/user/lumen-session.target"
+    [ -e "$unit" ] || { mkdir -p "${unit%/*}"; ln -s "$LUMEN_ROOT/systemd/lumen-session.target" "$unit"; systemctl --user daemon-reload; }
+    if ! systemctl --user is-active -q graphical-session.target; then
+        systemctl --user start lumen-session.target >>"$LOG" 2>&1
+    fi
+
     # Admin password prompts: the shell is the polkit agent (services/Polkit.qml)
     # and starts KDE's itself if it can't register. Without the shell: KDE's.
     agent=/usr/libexec/kf6/polkit-kde-authentication-agent-1
@@ -37,6 +46,9 @@ fi
 cur=$(jq -r '.cursor.theme // "Bibata-Modern-Classic"' "$LUMEN_ROOT/generated/tokens.json" 2>/dev/null)
 size=$(jq -r '.cursor.size // 24' "$LUMEN_ROOT/generated/tokens.json" 2>/dev/null)
 hyprctl setcursor "$cur" "$size" >>"$LOG" 2>&1
+# GTK apps on Wayland take the cursor from gsettings (user-wide, not per session)
+[ -z "${LUMEN_NESTED:-}" ] && gsettings set org.gnome.desktop.interface cursor-theme "$cur" 2>>"$LOG" \
+    && gsettings set org.gnome.desktop.interface cursor-size "$size" 2>>"$LOG"
 
 # Wallpaper: the shell draws it (cross-fades); hyprpaper only if there is no shell
 if [ -f "$LUMEN_ROOT/shell/shell.qml" ]; then

@@ -92,8 +92,12 @@ case ${1:-} in
             cursor=Bibata-Modern-Classic|cursor=Bibata-Modern-Ice|cursor=Bibata-Modern-Amber|cursor=breeze_cursors|\
             cursor_size=24|cursor_size=28|cursor_size=32)
                 set_state "$2" "$3"; reload
-                hyprctl setcursor "$(jq -r .cursor.theme "$LUMEN_ROOT/generated/tokens.json")" \
-                                  "$(jq -r .cursor.size "$LUMEN_ROOT/generated/tokens.json")" >/dev/null 2>&1 || true ;;
+                cur=$(jq -r .cursor.theme "$LUMEN_ROOT/generated/tokens.json")
+                size=$(jq -r .cursor.size "$LUMEN_ROOT/generated/tokens.json")
+                hyprctl setcursor "$cur" "$size" >/dev/null 2>&1 || true
+                # GTK apps read it from gsettings
+                gsettings set org.gnome.desktop.interface cursor-theme "$cur" 2>/dev/null || true
+                gsettings set org.gnome.desktop.interface cursor-size "$size" 2>/dev/null || true ;;
             idle_lock=2|idle_lock=5|idle_lock=10|idle_lock=15|idle_lock=30|idle_lock=never|\
             idle_sleep=15|idle_sleep=30|idle_sleep=60|idle_sleep=battery|idle_sleep=never)
                 set_state "$2" "$3"; python3 "$LUMEN_ROOT/theme/build.py" >/dev/null; restart_idle ;;

@@ -26,6 +26,18 @@ python3 "$LUMEN_ROOT/theme/build.py" >/dev/null
 export KITTY_CONFIG_DIRECTORY="$LUMEN_ROOT/kitty"
 export STARSHIP_CONFIG="$LUMEN_ROOT/generated/starship.toml"
 
+# Qt apps in Lumen colours — only if qt6ct is installed (it isn't by default:
+# `sudo dnf install qt6ct`). ~/.config/qt6ct is linked to Lumen's generated
+# config unless you already have your own there. Otherwise Qt uses KDE's theme.
+if [ -e /usr/lib64/qt6/plugins/platformthemes/libqt6ct.so ]; then
+    qtconf="$HOME/.config/qt6ct/qt6ct.conf"
+    if [ ! -e "$qtconf" ] || [ -L "$qtconf" ]; then
+        mkdir -p "${qtconf%/*}"
+        ln -sfn "$LUMEN_ROOT/generated/qt6ct/qt6ct.conf" "$qtconf"
+        export QT_QPA_PLATFORMTHEME=qt6ct
+    fi
+fi
+
 # Resolve /dev/dri/cardN by PCI vendor. cardN numbers change between boots,
 # and by-path names contain ':' which AQ_DRM_DEVICES uses as its separator.
 card_for_vendor() {
@@ -51,4 +63,8 @@ if [ -n "$dgpu" ] && [ "${LUMEN_DGPU:-on}" != off ]; then
 fi
 [ -n "$devices" ] && export AQ_DRM_DEVICES="$devices"
 
-exec start-hyprland -- -c "$LUMEN_ROOT/hypr/hyprland.lua"
+# Not exec'd: when Hyprland exits, end the systemd graphical session too, so
+# portals don't linger bound to a display that is gone.
+start-hyprland -- -c "$LUMEN_ROOT/hypr/hyprland.lua" || status=$?
+systemctl --user stop lumen-session.target 2>/dev/null || true
+exit "${status:-0}"

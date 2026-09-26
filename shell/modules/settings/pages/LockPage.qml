@@ -1,5 +1,8 @@
 // Lock screen: widgets, Face ID shortcut, what locks it.
 import QtQuick
+import Quickshell
+import Quickshell.Io
+import Quickshell.Widgets
 import qs.theme
 import qs.components
 import qs.services
@@ -7,7 +10,52 @@ import ".."
 
 Page {
     title: "Lock screen"
-    subtitle: "Super+L locks. It also locks after 5 minutes idle and always before sleep."
+    readonly property string lockAfter: (Theme.tokens.idle ?? {}).lock ?? "5"
+    subtitle: "Super+L locks. " + (lockAfter === "never" ? "It" : "It also locks after " + lockAfter + " minutes idle and")
+              + " always locks before sleep."
+
+    // Profile picture (~/.face): a version counter busts the image cache
+    property int faceVersion: 0
+    readonly property string facePath: Quickshell.env("HOME") + "/.face"
+    Process { id: avatar; onExited: faceVersion++ }
+
+    Group {
+        title: "You"
+        SetRow {
+            title: Quickshell.env("USER")
+            description: "Your picture on the lock screen"
+            leading: Item {
+                width: 44; height: 44
+                Rectangle {
+                    anchors.fill: parent; radius: 22
+                    color: Theme.withAlpha(Theme.accent, 0.85)
+                    visible: pic.status !== Image.Ready
+                    LText { anchors.centerIn: parent; role: "heading"; color: Theme.onAccent
+                            text: (Quickshell.env("USER") ?? "?").charAt(0).toUpperCase() }
+                }
+                ClippingRectangle {
+                    anchors.fill: parent
+                    radius: 22
+                    color: "transparent"
+                    visible: pic.status === Image.Ready
+                    Image {
+                        id: pic
+                        anchors.fill: parent
+                        source: "file://" + facePath + "?v=" + faceVersion
+                        cache: false
+                        sourceSize: Qt.size(88, 88)
+                        fillMode: Image.PreserveAspectCrop
+                    }
+                }
+            }
+            Row {
+                spacing: Theme.space.s2
+                Button { text: "Choose picture…"; onActivated: { avatar.command = [Theme.lumenRoot + "/scripts/avatar.sh", "pick"]; avatar.running = true; } }
+                Button { text: "Remove"; visible: pic.status === Image.Ready
+                         onActivated: { avatar.command = [Theme.lumenRoot + "/scripts/avatar.sh", "remove"]; avatar.running = true; } }
+            }
+        }
+    }
 
     Group {
         title: "Widgets"
