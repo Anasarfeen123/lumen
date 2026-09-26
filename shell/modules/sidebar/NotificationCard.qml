@@ -19,7 +19,36 @@ Item {
     readonly property var actions: (liveNotif?.actions ?? []).filter(a => a.identifier !== "default")
     readonly property bool critical: (entry.urgency ?? 1) === 2
 
-    height: body.height
+    // Leaving: slide out to the right and fade, then the gap closes; only then
+    // is it removed (so the list never jumps)
+    property bool leaving: false
+    function dismissAnimated() {
+        if (leaving) return;
+        body.x = body.x; body.opacity = body.opacity;      // freeze: the animation takes over from here
+        leaving = true;
+        leave.start();
+    }
+    height: leaving ? collapse : body.height
+    property real collapse: body.height
+    clip: leaving
+    SequentialAnimation {
+        id: leave
+        ParallelAnimation {
+            NumberAnimation { target: body; property: "x"; to: root.width; duration: Theme.reducedMotion ? 0 : 220; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveAccelerate }
+            NumberAnimation { target: body; property: "opacity"; to: 0; duration: Theme.reducedMotion ? 0 : 200 }
+        }
+        NumberAnimation { target: root; property: "collapse"; to: 0; duration: Theme.reducedMotion ? 0 : 180; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard }
+        ScriptAction { script: Notifications.dismiss(root.nid) }
+    }
+    // Arriving: rise and fade in
+    // Only genuinely new ones (the list is rebuilt on every change)
+    readonly property bool fresh: Date.now() - (entry.time ?? 0) < 3000
+    Component.onCompleted: if (fresh) arrive.start()
+    ParallelAnimation {
+        id: arrive
+        NumberAnimation { target: root; property: "opacity"; from: 0; to: 1; duration: Theme.reducedMotion ? 0 : Theme.motion.normal }
+        NumberAnimation { target: body; property: "y"; from: 8; to: 0; duration: Theme.reducedMotion ? 0 : Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
+    }
 
     Item {
         id: body
@@ -27,7 +56,7 @@ Item {
         width: parent.width
         height: content.implicitHeight + (root.first ? Theme.space.s1 : Theme.space.s3) + Theme.space.s3
         opacity: 1 - Math.min(0.7, Math.max(0, x) / (width * 0.8))
-        Behavior on x { enabled: !drag.active; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard } }
+        Behavior on x { enabled: !drag.active && !root.leaving; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard } }
 
         Rectangle {        // hover wash
             anchors { fill: parent; leftMargin: 4; rightMargin: 4 }
@@ -56,7 +85,7 @@ Item {
             xAxis.enabled: true; yAxis.enabled: false
             xAxis.minimum: 0
             property real xOffset: Math.max(0, translation.x)
-            onActiveChanged: if (!active && translation.x > body.width * 0.35) Notifications.dismiss(root.nid)
+            onActiveChanged: if (!active && translation.x > body.width * 0.35) root.dismissAnimated()
         }
 
         Column {
@@ -78,7 +107,7 @@ Item {
                         visible: hover.hovered
                         anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                         width: 22; height: 22
-                        onClicked: Notifications.dismiss(root.nid)
+                        onClicked: root.dismissAnimated()
                         LIcon { anchors.centerIn: parent; icon: "close"; size: 14; color: Theme.textSecondary }
                     }
                 }

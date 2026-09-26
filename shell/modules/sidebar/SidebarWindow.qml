@@ -31,6 +31,7 @@ PanelWindow {
 
     mask: Region { item: panel }
 
+
     HyprlandFocusGrab {
         active: win.showing
         windows: [win]
@@ -50,6 +51,11 @@ PanelWindow {
 
         focus: win.showing
         Keys.onEscapePressed: Sidebar.hide()
+
+        // Keyboard focus follows the visible tab (so arrows reach the toggles)
+        function focusPage() { if (!win.showing) return; (Sidebar.tab === "controls" ? controls : notifPage).forceActiveFocus(); }
+        Connections { target: Sidebar; function onTabChanged() { Qt.callLater(panel.focusPage); } }
+        Connections { target: win; function onShowingChanged() { Qt.callLater(panel.focusPage); } }
 
         Keys.onPressed: event => {
             if (event.key === Qt.Key_Tab && (event.modifiers & Qt.ControlModifier)) {
@@ -90,6 +96,7 @@ PanelWindow {
             }
 
             NotificationCenter {
+                id: notifPage
                 x: (1 - pages.t) * pages.width * 0.35 + Theme.space.s4
                 y: 0
                 width: pages.width - Theme.space.s4 * 2

@@ -1,4 +1,6 @@
-// Quiet system readout. Sampling runs only while this is visible.
+// Quiet system readout, one line: CPU · memory · temperature · GPU · disk.
+// A small "dGPU" tag appears while the NVIDIA card is awake. Hover a value for
+// its name. Sampling runs only while this is visible.
 import QtQuick
 import qs.theme
 import qs.components
@@ -6,49 +8,44 @@ import qs.services
 
 Rectangle {
     id: root
-    implicitHeight: col.height + Theme.space.s3 * 2
+    implicitHeight: 40
     radius: Theme.radius.md
-    color: Theme.surfaceElevated
+    color: Theme.withAlpha(Theme.surfaceElevated, 0.85)
     border.width: 1
     border.color: Theme.border
 
     Binding { target: Sysinfo; property: "active"; value: root.visible && Sidebar.open }
 
-    component Stat: Column {
-        property string label
+    component Stat: Item {
+        id: st
+        property string icon
         property string value
+        property string name
         property color tone: Theme.text
-        width: (grid.width - grid.spacing * 3) / 4
-        LText { role: "caption"; color: Theme.textMuted; text: parent.label }
-        LText { role: "bodyStrong"; color: parent.tone; text: parent.value }
+        width: (row.width - row.spacing * 4) / 5
+        height: parent.height
+        Row {
+            anchors.centerIn: parent
+            spacing: 5
+            LIcon { anchors.verticalCenter: parent.verticalCenter; icon: st.icon; size: 15; color: Theme.textMuted }
+            LText { anchors.verticalCenter: parent.verticalCenter; role: "bodyStrong"; color: st.tone; text: hover.hovered ? st.name : st.value }
+        }
+        HoverHandler { id: hover }
     }
 
-    Column {
-        id: col
-        anchors { top: parent.top; left: parent.left; right: parent.right; margins: Theme.space.s3 }
-        spacing: Theme.space.s2
-
-        Row {
-            id: grid
-            width: parent.width
-            spacing: Theme.space.s2
-            Stat { label: "CPU"; value: Math.round(Sysinfo.cpu * 100) + "%" }
-            Stat { label: "Memory"; value: Sysinfo.memUsed.toFixed(1) + " GB" }
-            Stat {
-                label: "Temp"
-                value: Math.round(Sysinfo.cpuTemp) + "°"
-                tone: Sysinfo.cpuTemp >= 90 ? Theme.error : Sysinfo.cpuTemp >= 80 ? Theme.warning : Theme.text
-            }
-            Stat { label: "GPU"; value: Math.round(Sysinfo.igpu * 100) + "%" }
+    Row {
+        id: row
+        anchors { fill: parent; leftMargin: Theme.space.s2; rightMargin: Theme.space.s2 }
+        spacing: 2
+        Stat { icon: "developer_board"; name: "CPU"; value: Math.round(Sysinfo.cpu * 100) + "%" }
+        Stat { icon: "memory_alt"; name: "RAM"; value: Sysinfo.memUsed.toFixed(1) + "G" }
+        Stat {
+            icon: "thermostat"; name: "Temp"
+            value: Math.round(Sysinfo.cpuTemp) + "°"
+            tone: Sysinfo.cpuTemp >= 90 ? Theme.error : Sysinfo.cpuTemp >= 80 ? Theme.warning : Theme.text
         }
-        LText {
-            role: "caption"
-            color: Theme.textMuted
-            text: {
-                const d = Sysinfo.dgpu === "active" ? "NVIDIA active" : Sysinfo.dgpu === "suspended" ? "NVIDIA asleep" : "";
-                const disk = `Disk ${Math.round(Sysinfo.disk * 100)}% used`;
-                return d ? `${d} · ${disk}` : disk;
-            }
-        }
+        Stat { icon: "speed"; name: Sysinfo.dgpu === "active" ? "dGPU on" : "GPU"; value: Math.round(Sysinfo.igpu * 100) + "%"
+               tone: Sysinfo.dgpu === "active" ? Theme.success : Theme.text }
+        Stat { icon: "hard_drive"; name: "Disk"; value: Math.round(Sysinfo.disk * 100) + "%" }
     }
 }

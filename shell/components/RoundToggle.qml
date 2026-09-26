@@ -19,6 +19,11 @@ Item {
     activeFocusOnTab: true
     Keys.onReturnPressed: toggled()
     Keys.onSpacePressed: toggled()
+    // Arrow keys: the containing grid decides where focus goes (if it can)
+    Keys.onPressed: event => {
+        const d = { [Qt.Key_Left]: [-1, 0], [Qt.Key_Right]: [1, 0], [Qt.Key_Up]: [0, -1], [Qt.Key_Down]: [0, 1] }[event.key];
+        if (d && typeof parent.moveFocus === "function") { parent.moveFocus(root, d[0], d[1]); event.accepted = true; }
+    }
 
     Rectangle {
         id: disc
@@ -27,11 +32,23 @@ Item {
         color: root.active && !root.action ? Theme.accent
              : area.containsMouse ? Theme.surfaceHover : Theme.surfaceElevated
         border.width: 1
-        border.color: root.activeFocus ? Theme.accent : (root.active && !root.action ? "transparent" : Theme.border)
+        border.color: root.active && !root.action ? "transparent" : Theme.border
         scale: area.pressed ? 0.92 : 1
         Behavior on color { ColorAnimation { duration: Theme.motion.micro } }
         Behavior on scale { NumberAnimation { duration: Theme.motion.micro; easing.type: Easing.OutBack } }
 
+        // Keyboard focus: a soft accent halo around the disc
+        Rectangle {
+            anchors.centerIn: parent
+            width: parent.width + 8; height: width; radius: width / 2
+            color: "transparent"
+            border.width: 2
+            border.color: Theme.withAlpha(Theme.accent, 0.7)
+            opacity: root.activeFocus ? 1 : 0
+            scale: root.activeFocus ? 1 : 0.9
+            Behavior on opacity { NumberAnimation { duration: Theme.motion.micro } }
+            Behavior on scale { NumberAnimation { duration: Theme.motion.micro; easing.type: Easing.OutBack } }
+        }
         LIcon {
             anchors.centerIn: parent
             icon: root.icon

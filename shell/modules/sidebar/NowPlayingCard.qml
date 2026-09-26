@@ -8,7 +8,7 @@ import qs.modules.island.content
 
 Rectangle {
     id: root
-    implicitHeight: 76
+    implicitHeight: 64
     radius: Theme.radius.md
     color: Theme.surfaceElevated
     border.width: 1
@@ -30,7 +30,7 @@ Rectangle {
         Behavior on opacity { NumberAnimation { duration: Theme.motion.large } }
     }
 
-    Art { id: art; source: Media.artUrl; size: 52; anchors { left: parent.left; leftMargin: Theme.space.s3; verticalCenter: parent.verticalCenter } }
+    Art { id: art; source: Media.artUrl; size: 44; anchors { left: parent.left; leftMargin: Theme.space.s3; verticalCenter: parent.verticalCenter } }
 
     Column {
         anchors { left: art.right; leftMargin: Theme.space.s3; right: controls.left; rightMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }

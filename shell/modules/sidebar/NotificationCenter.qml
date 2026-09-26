@@ -113,6 +113,16 @@ Item {
                     width: stack.width
                     height: card.height + (collapsible && !open ? 10 : 0)
 
+                    // Dismiss the whole app: the card slides away, then goes
+                    SequentialAnimation {
+                        id: groupLeave
+                        ParallelAnimation {
+                            NumberAnimation { target: group; property: "x"; to: group.width; duration: Theme.reducedMotion ? 0 : 240; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveAccelerate }
+                            NumberAnimation { target: group; property: "opacity"; to: 0; duration: Theme.reducedMotion ? 0 : 220 }
+                        }
+                        ScriptAction { script: Notifications.dismissApp(group.modelData.app) }
+                    }
+
                     // Stacked sheets peeking out below a collapsed group
                     Repeater {
                         model: group.collapsible && !group.open ? 2 : 0
@@ -134,6 +144,7 @@ Item {
                         id: card
                         width: parent.width
                         height: col.implicitHeight
+                        Behavior on height { NumberAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
                         radius: Theme.radius.md
                         color: Theme.withAlpha(Theme.surfaceElevated, 0.85)
                         border.width: 1
@@ -153,7 +164,8 @@ Item {
                                     anchors { left: parent.left; leftMargin: Theme.space.s3; verticalCenter: parent.verticalCenter }
                                     width: 20; height: 20; radius: 6
                                     color: "transparent"
-                                    Image { anchors.fill: parent; source: group.items[0].icon; sourceSize: Qt.size(40, 40); fillMode: Image.PreserveAspectFit; asynchronous: true }
+                                    Image { id: gIcon; anchors.fill: parent; source: group.items[0].icon; sourceSize: Qt.size(40, 40); fillMode: Image.PreserveAspectFit; asynchronous: true }
+                                    LIcon { anchors.centerIn: parent; visible: gIcon.status !== Image.Ready; icon: "notifications"; size: 16; fill: 1; color: Theme.textMuted }
                                 }
                                 LText {
                                     id: appLabel
@@ -187,7 +199,7 @@ Item {
                                     }
                                     HoverTarget {
                                         width: 26; height: 26
-                                        onClicked: Notifications.dismissApp(group.modelData.app)
+                                        onClicked: groupLeave.start()
                                         LIcon { anchors.centerIn: parent; icon: "close"; size: 16; color: Theme.textMuted }
                                     }
                                 }

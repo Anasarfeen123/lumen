@@ -19,6 +19,13 @@ Item {
     property string detail: ""          // "" | wifi | bluetooth | output
     implicitHeight: header.height + Theme.space.s4 + body.height
 
+    function focusFirstToggle() { toggles.focusFirst(); }
+    // First arrow / Tab after opening: start at the first toggle
+    Keys.onPressed: event => {
+        if ([Qt.Key_Down, Qt.Key_Up, Qt.Key_Left, Qt.Key_Right, Qt.Key_Tab].includes(event.key) && root.detail === "") {
+            toggles.focusFirst(); event.accepted = true;
+        }
+    }
     Keys.onEscapePressed: event => {
         if (detail !== "") { detail = ""; event.accepted = true; }
         else event.accepted = false;
@@ -145,7 +152,9 @@ Item {
                 readonly property real tileWidth: Bluetooth.available ? (width - spacing) / 2 : width
 
                 QuickTile {
+                    id: wifiTile
                     width: tiles.tileWidth
+                    Keys.onDownPressed: toggles.focusFirst()
                     icon: Network.icon
                     label: "Wi-Fi"
                     sublabel: !Network.wifiEnabled ? "Off" : Network.connected ? Network.ssid : "Not connected"
@@ -155,8 +164,10 @@ Item {
                     onDetailRequested: root.detail = "wifi"
                 }
                 QuickTile {
+                    id: btTile
                     width: tiles.tileWidth
                     visible: Bluetooth.available
+                    Keys.onDownPressed: toggles.focusFirst()
                     icon: Bluetooth.icon
                     label: "Bluetooth"
                     sublabel: !Bluetooth.enabled ? "Off" : Bluetooth.hasConnection ? (Bluetooth.primary?.name ?? "Connected") : "On"
@@ -175,6 +186,16 @@ Item {
                 columns: 4
                 rowSpacing: Theme.space.s2
                 columnSpacing: (width - 4 * 76) / 3
+
+                // Arrow keys between toggles (RoundToggle calls this)
+                function moveFocus(item, dx, dy) {
+                    const vis = children.filter(c => c.visible && c.activeFocusOnTab);
+                    const i = vis.indexOf(item);
+                    const n = i + dx + dy * columns;
+                    if (n >= 0 && n < vis.length) vis[n].forceActiveFocus();
+                    else if (n < 0) wifiTile.forceActiveFocus();
+                }
+                function focusFirst() { const v = children.filter(c => c.visible && c.activeFocusOnTab); if (v.length) v[0].forceActiveFocus(); }
 
                 RoundToggle {
                     icon: Notifications.dnd ? "do_not_disturb_on" : "do_not_disturb_off"

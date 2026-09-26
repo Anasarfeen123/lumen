@@ -17,6 +17,14 @@ Scope {
         function clear(): void { Notifications.clearAll(); }
         function count(): int { return Notifications.count; }
     }
+    // Dev only (LUMEN_DEV): a local notification that never touches the bus
+    IpcHandler {
+        target: "notifyTest"
+        enabled: Quickshell.env("LUMEN_DEV") === "1"
+        function add(app: string, summary: string, body: string): void {
+            Notifications.receiveMirrored([app, 0, "", summary, body, [], { urgency: { data: 1 } }, -1]);
+        }
+    }
     IpcHandler {
         target: "sidebar"
         function toggle(): void { Sidebar.toggle(); }
