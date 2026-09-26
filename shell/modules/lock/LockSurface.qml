@@ -6,7 +6,7 @@
 //     [ now playing ] [ battery ] [ calendar ] [ notifications ]
 //
 //                   ( A )
-//                  Anas
+//                  Alex
 //            [ •••••••         → ]
 //
 // The wallpaper stays sharp and gently dimmed; every card is real frosted

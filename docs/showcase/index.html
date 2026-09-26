@@ -1,0 +1,435 @@
+<title>Lumen for Hyprland</title>
+<meta name="description" content="Lumen — a calm, capable Hyprland desktop built as one product.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,300..800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  /* Lumen's own tokens (theme/tokens.toml, dark theme, sunset accent). Dark by design. */
+  :root {
+    color-scheme: dark;
+    --ink: #0b0e12;
+    --surface: #151a20;
+    --raise: #1d232b;
+    --line: rgba(238, 241, 244, 0.09);
+    --text: #eef1f4;
+    --muted: #9aa1a9;
+    --faint: #6c737b;
+    --accent: #f9a779;
+    --accent-ink: #2a160b;
+    --glow: rgba(249, 167, 121, 0.28);
+    --ui: "Google Sans Flex", "Google Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    --r-lg: 22px;
+    --r-md: 14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition: none !important; animation: none !important; } }
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font: 400 16px/1.6 var(--ui);
+    padding-inline: clamp(16px, 4vw, 48px);
+    padding-block: 0 64px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { text-wrap: balance; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+  p { margin: 0; }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+  .wrap { max-width: 1180px; margin-inline: auto; }
+
+  /* ── The island as navigation ── */
+  .island-nav {
+    position: sticky;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    z-index: 20;
+    display: flex; justify-content: center;
+    pointer-events: none;
+    margin-top: 12px;
+  }
+  .island {
+    pointer-events: auto;
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 8px 16px 8px 10px;
+    border-radius: 999px;
+    background: rgba(12, 15, 19, 0.82);
+    backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    border: 1px solid var(--line);
+    box-shadow: 0 8px 28px rgba(0,0,0,0.45);
+    color: var(--text);
+    font: 600 14px/1 var(--ui);
+    cursor: pointer;
+    transition: padding 280ms cubic-bezier(.2,0,0,1), background 200ms;
+  }
+  .island:hover { background: rgba(22, 27, 33, 0.9); }
+  .island .dot { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 50% 50%, var(--accent) 0 35%, var(--glow) 36% 100%); flex: none; }
+  .island .sec { color: var(--muted); font-weight: 500; }
+  .island-menu {
+    pointer-events: auto;
+    position: absolute; top: calc(100% + 8px);
+    display: grid; gap: 2px;
+    min-width: 240px; padding: 8px;
+    border-radius: var(--r-md);
+    background: rgba(14, 18, 23, 0.94);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--line);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+  }
+  .island-menu a { display: block; padding: 8px 12px; border-radius: 10px; color: var(--text); text-decoration: none; font-weight: 500; }
+  .island-menu a:hover, .island-menu a[aria-current="true"] { background: var(--raise); }
+  .island-menu a[aria-current="true"] { color: var(--accent); }
+
+  /* ── Hero ── */
+  header.hero { padding-block: clamp(40px, 8vw, 96px) 40px; display: grid; gap: 28px; }
+  .eyebrow { color: var(--accent); font: 600 13px/1 var(--ui); letter-spacing: 0.14em; text-transform: uppercase; }
+  .hero h1 { font-size: clamp(56px, 11vw, 132px); line-height: 0.92; font-weight: 700; letter-spacing: -0.035em; font-variation-settings: "opsz" 144; }
+  .hero h1 .pill {
+    display: inline-block; vertical-align: 0.12em;
+    width: 0.62em; height: 0.24em; margin-left: 0.14em;
+    border-radius: 999px; background: var(--text);
+    box-shadow: 0 0 0.35em 0.08em var(--glow), 0 0 1.2em 0.3em rgba(249,167,121,0.14);
+  }
+  .thesis { font-size: clamp(20px, 2.6vw, 28px); line-height: 1.35; color: var(--text); max-width: 30ch; font-weight: 450; }
+  .thesis span { color: var(--muted); }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 14px; }
+  .chip b { color: var(--text); font-weight: 600; }
+  .shot { margin: 0; border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--line); background: var(--surface); box-shadow: 0 30px 80px rgba(0,0,0,0.55); }
+  .shot img { display: block; width: 100%; height: auto; cursor: zoom-in; }
+  .hero .shot { box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 0 0 1px var(--line), 0 0 120px -20px var(--glow); }
+
+  /* ── Sections ── */
+  section { padding-block: clamp(56px, 8vw, 104px) 0; scroll-margin-top: 80px; }
+  .sec-head { display: grid; gap: 14px; max-width: 64ch; margin-bottom: 32px; }
+  .sec-head h2 { font-size: clamp(32px, 4.6vw, 52px); line-height: 1.05; letter-spacing: -0.025em; }
+  .sec-head p { color: var(--muted); font-size: 18px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 20px; }
+  .feature { display: grid; gap: 14px; align-content: start; }
+  .feature h3 { font-size: 20px; }
+  .feature p { color: var(--muted); max-width: 60ch; }
+  .keys { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: var(--faint); font-size: 13px; }
+  kbd {
+    font: 600 12px/1 var(--mono); color: var(--text);
+    padding: 5px 8px; border-radius: 7px;
+    background: var(--raise); border: 1px solid var(--line); border-bottom-width: 2px;
+  }
+  .crop { aspect-ratio: 16 / 10; }
+  .crop img { height: 100%; object-fit: cover; }
+  .crop.right img { object-position: 100% 0; }
+  .crop.left img { object-position: 0 0; }
+  .crop.top img { object-position: 50% 0; }
+
+  /* ── Island states: the signature ── */
+  .islands { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); align-items: start; }
+  .islands ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+  .islands li { display: grid; grid-template-columns: 112px 1fr; gap: 14px; align-items: baseline; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .islands li b { color: var(--text); font-weight: 600; font-size: 15px; }
+  .islands li span { color: var(--muted); font-size: 15px; }
+
+  /* ── Gallery ── */
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 14px; }
+  .gallery button { all: unset; display: grid; gap: 8px; cursor: zoom-in; border-radius: var(--r-md); }
+  .gallery button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .gallery img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface); transition: transform 200ms cubic-bezier(.2,0,0,1), border-color 200ms; }
+  .gallery button:hover img { transform: translateY(-2px); border-color: rgba(249,167,121,0.4); }
+  .gallery span { color: var(--muted); font-size: 14px; }
+
+  /* ── Install ── */
+  .install { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+  .panel { border: 1px solid var(--line); background: var(--surface); border-radius: var(--r-lg); padding: clamp(18px, 3vw, 28px); display: grid; gap: 16px; align-content: start; }
+  .panel h3 { font-size: 18px; }
+  .panel p, .panel li { color: var(--muted); }
+  .panel ul { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+  .code { position: relative; border-radius: var(--r-md); background: #090c0f; border: 1px solid var(--line); overflow-x: auto; }
+  .code pre { margin: 0; padding: 16px 18px; font: 400 14px/1.7 var(--mono); color: var(--text); }
+  .code pre .c { color: var(--faint); }
+  .code button { position: absolute; top: 10px; right: 10px; font: 600 12px/1 var(--ui); color: var(--text); background: var(--raise); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; cursor: pointer; }
+  .code button:hover { border-color: rgba(249,167,121,0.5); }
+  .distros { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  footer { margin-top: 96px; padding-top: 28px; border-top: 1px solid var(--line); color: var(--faint); font-size: 14px; display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; }
+
+  /* ── Lightbox ── */
+  dialog.lb { padding: 0; border: 0; background: transparent; max-width: min(96vw, 1600px); width: 100%; }
+  dialog.lb::backdrop { background: rgba(5, 7, 9, 0.86); backdrop-filter: blur(6px); }
+  dialog.lb figure { margin: 0; display: grid; gap: 12px; }
+  dialog.lb img { width: 100%; height: auto; max-height: 82vh; object-fit: contain; border-radius: var(--r-md); }
+  dialog.lb figcaption { display: flex; justify-content: space-between; gap: 12px; align-items: center; color: var(--muted); font-size: 15px; }
+  dialog.lb .nav { display: flex; gap: 8px; }
+  dialog.lb button { font: 600 13px/1 var(--ui); color: var(--text); background: var(--raise); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; cursor: pointer; }
+</style>
+
+<div class="island-nav">
+  <button class="island" id="island" aria-expanded="false" aria-controls="island-menu">
+    <span class="dot" aria-hidden="true"></span>
+    <span>Lumen</span>
+    <span class="sec" id="island-sec">Overview</span>
+  </button>
+  <nav class="island-menu" id="island-menu" hidden aria-label="Sections"></nav>
+</div>
+
+<div class="wrap">
+  <header class="hero" id="top" data-name="Overview">
+    <div class="eyebrow">A Hyprland desktop, built as one product</div>
+    <h1>Lumen<span class="pill" aria-hidden="true"></span></h1>
+    <p class="thesis">Extremely capable underneath. <span>Extremely simple on the surface.</span></p>
+    <div class="facts">
+      <span class="chip"><b>Hyprland</b> 0.56, Lua config</span>
+      <span class="chip"><b>Quickshell</b> shell, one design system</span>
+      <span class="chip"><b>Fedora</b> first · Arch, Debian/Ubuntu, openSUSE</span>
+      <span class="chip"><b>No</b> telemetry, no <code style="font-family:var(--mono)">curl | sh</code></span>
+    </div>
+    <figure class="shot"><img src="img/01-desktop.jpg" alt="Lumen desktop with btop, fastfetch and Kate tiled under a merged floating bar with the island at its centre" data-cap="The desktop: one floating bar, the island at its heart, blur everywhere" width="1600" height="900"></figure>
+  </header>
+
+  <section id="island" data-name="The island">
+    <div class="sec-head">
+      <div class="eyebrow">The signature</div>
+      <h2>The island is the desktop's voice</h2>
+      <p>One pill at the top of the screen tells you what just happened and what's going on. It grows only as much as the moment needs, then settles back into a clock.</p>
+    </div>
+    <div class="islands">
+      <figure class="shot"><img src="img/10-island-states.jpg" alt="Six island states: clock, now playing expanded, notification, timer, workspace switch, screenshot copied" data-cap="Six of the island's states" width="1592" height="888"></figure>
+      <ul>
+        <li><b>At rest</b><span>Time and date, with a live equalizer when music plays.</span></li>
+        <li><b>Now playing</b><span>Hover to expand: artwork, controls and a glow in the album's own colour.</span></li>
+        <li><b>Arrivals</b><span>Notifications, volume, brightness, Caps Lock, keyboard layout, Wi-Fi and devices.</span></li>
+        <li><b>Live work</b><span>Timers and stopwatches, screen recording, download progress, updates.</span></li>
+        <li><b>Gestures</b><span>Scroll for volume (Shift: brightness), middle-click to play or pause, right-click for background apps.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="sidebars" data-name="Sidebars">
+    <div class="sec-head">
+      <div class="eyebrow">Two sidebars</div>
+      <h2>Your controls on the right, your day on the left</h2>
+      <p>The control centre and notifications share one glass panel with tabs. The planner holds weather, your agenda, to-dos and a scratchpad.</p>
+    </div>
+    <div class="grid-3">
+      <div class="feature">
+        <figure class="shot crop right"><img src="img/04-control-centre.jpg" alt="Control centre with greeting, Wi-Fi and Bluetooth tiles, sixteen toggles, sliders, media, stats and calendar" data-cap="Control centre" width="1600" height="900"></figure>
+        <h3>Control centre</h3>
+        <p>Sixteen toggles in four even rows, sliders with live values, now playing, system stats and a month calendar. Arrow keys move between toggles.</p>
+        <div class="keys"><kbd>Super</kbd><kbd>A</kbd></div>
+      </div>
+      <div class="feature">
+        <figure class="shot crop right"><img src="img/05-notifications.jpg" alt="Notifications grouped by app, with a collapsed Discord stack" data-cap="Notifications, grouped by app" width="1600" height="900"></figure>
+        <h3>Notifications</h3>
+        <p>One card per app. Busy apps collapse into a stack with “Show more”. Swipe to dismiss, Do Not Disturb one tap away.</p>
+        <div class="keys"><kbd>Super</kbd><kbd>N</kbd></div>
+      </div>
+      <div class="feature">
+        <figure class="shot crop left"><img src="img/06-planner.jpg" alt="Planner sidebar with Lisbon weather, agenda, to-dos and notes" data-cap="The planner: weather, agenda, to-dos, notes" width="1600" height="900"></figure>
+        <h3>Planner</h3>
+        <p>Type “fri 7pm Concert” and it's in your agenda, with a reminder in the island ten minutes before. Weather from Open-Meteo, no account.</p>
+        <div class="keys"><kbd>Super</kbd><kbd>Shift</kbd><kbd>A</kbd></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="find" data-name="Finding things">
+    <div class="sec-head">
+      <div class="eyebrow">Tap Super</div>
+      <h2>Everything is one keystroke away</h2>
+      <p>Tap Super alone for search: apps, windows, a calculator, commands and timers (“timer 25m”). Alt+Tab shows live previews in the order you used them.</p>
+    </div>
+    <div class="grid-2">
+      <div class="feature">
+        <figure class="shot"><img src="img/03-overview.jpg" alt="Overview with search field, recent apps and live workspace previews" data-cap="Overview & search" width="1600" height="900"></figure>
+        <h3>Overview</h3>
+        <p>Live workspace previews. Drag a window onto another workspace to move it there.</p>
+        <div class="keys"><kbd>Super</kbd> tap · <kbd>Super</kbd><kbd>Tab</kbd></div>
+      </div>
+      <div class="feature">
+        <figure class="shot"><img src="img/08-switcher.jpg" alt="Alt+Tab switcher with live window previews" data-cap="Alt+Tab switcher" width="1600" height="900"></figure>
+        <h3>Window switcher</h3>
+        <p>Release Alt to switch. <kbd>Q</kbd> closes the selected window, Alt+` cycles one app's windows.</p>
+        <div class="keys"><kbd>Alt</kbd><kbd>Tab</kbd></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="ai" data-name="Ask Lumen">
+    <div class="sec-head">
+      <div class="eyebrow">Built-in assistant</div>
+      <h2>Ask about what's in front of you</h2>
+      <p>Select an error and ask what it means, or let it read your screen. Answers come from a local model through Ollama, or from Claude with your own key. It's off until you choose, and nothing is kept.</p>
+    </div>
+    <div class="feature">
+      <figure class="shot"><img src="img/07-ai.jpg" alt="Ask Lumen panel explaining an EADDRINUSE error from selected text" data-cap="Ask Lumen, explaining a selected error" width="1600" height="900"></figure>
+      <div class="keys"><kbd>Super</kbd><kbd>Shift</kbd><kbd>Space</kbd></div>
+    </div>
+  </section>
+
+  <section id="calm" data-name="Calm by default">
+    <div class="sec-head">
+      <div class="eyebrow">Calm by default</div>
+      <h2>Quiet when you need it, secure when it matters</h2>
+      <p>Focus modes, per-app volume, a lock screen with Face ID, and admin prompts drawn by the desktop itself.</p>
+    </div>
+    <div class="grid-2">
+      <div class="feature">
+        <figure class="shot"><img src="img/09-lock-screen.jpg" alt="Lock screen with large clock, media, battery, calendar and notification widgets" data-cap="Lock screen" width="1600" height="900"></figure>
+        <h3>Lock screen</h3>
+        <p>Widgets for music, battery, calendar and notification counts, never their content. Face ID unlocks the lock screen only; your password always works.</p>
+      </div>
+      <div class="feature">
+        <figure class="shot crop right"><img src="img/16-focus-modes.jpg" alt="Focus modes list: Off, Do Not Disturb, Work, Game, Sleep" data-cap="Focus modes" width="1600" height="900"></figure>
+        <h3>Focus modes</h3>
+        <p>Work lets the apps you allow through. Game turns effects off. Sleep warms the screen. Put Work and Sleep on a schedule.</p>
+      </div>
+      <div class="feature">
+        <figure class="shot crop right"><img src="img/17-sound.jpg" alt="Sound page with output device and per-app volume" data-cap="Output and per-app volume" width="1600" height="900"></figure>
+        <h3>Per-app volume</h3>
+        <p>One slider per app that's playing. Click an app's icon to mute just that app.</p>
+      </div>
+      <div class="feature">
+        <figure class="shot"><img src="img/15-password-prompt.jpg" alt="Administrator access prompt drawn by Lumen" data-cap="Admin password prompt" width="1600" height="900"></figure>
+        <h3>Admin prompts</h3>
+        <p>Lumen is the polkit agent: a clear card that says what's asking and why. Only the password field takes your keyboard.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="settings" data-name="Settings">
+    <div class="sec-head">
+      <div class="eyebrow">Lumen Settings</div>
+      <h2>Sixteen pages, every one searchable</h2>
+      <p>Themes and accents, a wallpaper that can follow the sun, Face ID, idle timings, battery care, AI, and system updates that install only when you say so.</p>
+    </div>
+    <div class="grid-2">
+      <figure class="shot"><img src="img/18-settings-appearance.jpg" alt="Settings Appearance page with themes, accent colours and toggles" data-cap="Settings → Appearance" width="1600" height="900"></figure>
+      <figure class="shot"><img src="img/18-settings-updates.jpg" alt="Settings Updates page listing two available updates" data-cap="Settings → Updates" width="1600" height="900"></figure>
+    </div>
+  </section>
+
+  <section id="gallery" data-name="Gallery">
+    <div class="sec-head">
+      <div class="eyebrow">Everything</div>
+      <h2>The whole tour</h2>
+      <p>Click any screen to see it full size. Arrow keys step through.</p>
+    </div>
+    <div class="gallery" id="gallery"></div>
+  </section>
+
+  <section id="install" data-name="Install">
+    <div class="sec-head">
+      <div class="eyebrow">Get it</div>
+      <h2>A guided install that asks before every step</h2>
+      <p>Preview everything with a dry run first. Packages come from your distribution. Fonts and the cursor are optional downloads from their official projects. Nothing is ever piped into a shell.</p>
+    </div>
+    <div class="install">
+      <div class="panel">
+        <h3>Install</h3>
+        <div class="code"><button type="button" data-copy="install-cmd">Copy</button><pre id="install-cmd"><span class="c"># get the source, then preview, then install</span>
+git clone &lt;your Lumen repository&gt; ~/Projects/lumen
+cd ~/Projects/lumen
+./install.sh --dry-run
+./install.sh</pre></div>
+        <div class="distros">
+          <span class="chip"><b>Fedora</b> 43+</span>
+          <span class="chip"><b>Arch</b> · EndeavourOS · CachyOS</span>
+          <span class="chip"><b>Debian</b> · Ubuntu · Mint</span>
+          <span class="chip"><b>openSUSE</b> Tumbleweed</span>
+        </div>
+        <p>Needs Hyprland 0.56 or newer. The installer checks, and tells you exactly what's missing on your distribution.</p>
+      </div>
+      <div class="panel">
+        <h3>What it won't do</h3>
+        <ul>
+          <li>Touch another Hyprland setup, KDE or your system configuration.</li>
+          <li>Run anything as root except your package manager (and, if you ask, one login-screen entry).</li>
+          <li>Enable Face ID for sudo, logins or admin prompts. It only unlocks the lock screen.</li>
+          <li>Send anything anywhere unless you set it up (weather city, AI provider).</li>
+        </ul>
+        <p><code style="font-family:var(--mono);color:var(--text)">./uninstall.sh</code> undoes it and leaves your packages alone.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Lumen · Hyprland + Quickshell · design tokens in <code style="font-family:var(--mono)">theme/tokens.toml</code></span>
+    <span><kbd>Super</kbd><kbd>/</kbd> shows every shortcut</span>
+  </footer>
+</div>
+
+<dialog class="lb" id="lb" aria-label="Screenshot">
+  <figure>
+    <img id="lb-img" alt="">
+    <figcaption><span id="lb-cap"></span><span class="nav"><button type="button" id="lb-prev" aria-label="Previous">←</button><button type="button" id="lb-next" aria-label="Next">→</button><button type="button" id="lb-close">Close</button></span></figcaption>
+  </figure>
+</dialog>
+
+<script>
+(() => {
+  // ── Gallery (all screens) ──
+  const shots = [
+    ["01-desktop", "Desktop, merged floating bar"], ["02-empty-workspace", "Empty workspace: three floating pills"],
+    ["03-overview", "Overview & search"], ["04-control-centre", "Control centre"], ["05-notifications", "Notifications"],
+    ["06-planner", "Planner"], ["07-ai", "Ask Lumen"], ["08-switcher", "Alt+Tab switcher"], ["09-lock-screen", "Lock screen"],
+    ["10-island-states", "Island states"], ["11-cheatsheet", "Every shortcut (Super+/)"], ["12-power-menu", "Power menu"],
+    ["13-app-menu", "The focused app's menu"], ["14-wallpapers", "Wallpaper picker"], ["15-password-prompt", "Admin prompt"],
+    ["16-focus-modes", "Focus modes"], ["17-sound", "Per-app volume"], ["18-settings-appearance", "Settings: Appearance"],
+    ["18-settings-updates", "Settings: Updates"],
+  ];
+  const gallery = document.getElementById("gallery");
+  shots.forEach(([file, cap], i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = `<img src="img/${file}.jpg" alt="${cap}" loading="lazy" width="1600" height="900"><span>${cap}</span>`;
+    b.addEventListener("click", () => open(i));
+    gallery.appendChild(b);
+  });
+
+  // ── Lightbox: gallery items + any page screenshot ──
+  const lb = document.getElementById("lb"), img = document.getElementById("lb-img"), capEl = document.getElementById("lb-cap");
+  let idx = 0;
+  function show(i) { idx = (i + shots.length) % shots.length; img.src = `img/${shots[idx][0]}.jpg`; img.alt = shots[idx][1]; capEl.textContent = shots[idx][1]; }
+  function open(i) { show(i); if (!lb.open) lb.showModal(); }
+  document.getElementById("lb-prev").onclick = () => show(idx - 1);
+  document.getElementById("lb-next").onclick = () => show(idx + 1);
+  document.getElementById("lb-close").onclick = () => lb.close();
+  lb.addEventListener("click", e => { if (e.target === lb) lb.close(); });
+  lb.addEventListener("keydown", e => { if (e.key === "ArrowLeft") show(idx - 1); if (e.key === "ArrowRight") show(idx + 1); });
+  document.querySelectorAll(".shot img").forEach(el => el.addEventListener("click", () => {
+    const f = el.getAttribute("src").replace(/^img\/|\.jpg$/g, "");
+    open(Math.max(0, shots.findIndex(s => s[0] === f)));
+  }));
+
+  // ── Copy buttons ──
+  document.querySelectorAll("[data-copy]").forEach(btn => btn.addEventListener("click", () => {
+    const pre = document.getElementById(btn.dataset.copy);
+    const text = pre.innerText.split("\n").filter(l => !l.startsWith("#")).join("\n");
+    const done = () => { btn.textContent = "Copied"; setTimeout(() => btn.textContent = "Copy", 1400); };
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done, () => select(pre));
+    else select(pre);
+  }));
+  function select(el) { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+
+  // ── The island nav: shows the section you're in; click for the list ──
+  const island = document.getElementById("island"), menu = document.getElementById("island-menu"), secEl = document.getElementById("island-sec");
+  const sections = [...document.querySelectorAll("[data-name]")];
+  sections.forEach(s => {
+    const a = document.createElement("a");
+    a.href = "#" + s.id; a.textContent = s.dataset.name;
+    a.addEventListener("click", () => { menu.hidden = true; island.setAttribute("aria-expanded", "false"); });
+    menu.appendChild(a);
+  });
+  island.addEventListener("click", () => { menu.hidden = !menu.hidden; island.setAttribute("aria-expanded", String(!menu.hidden)); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !menu.hidden) { menu.hidden = true; island.setAttribute("aria-expanded", "false"); island.focus(); } });
+  document.addEventListener("click", e => { if (!menu.hidden && !island.contains(e.target) && !menu.contains(e.target)) { menu.hidden = true; island.setAttribute("aria-expanded", "false"); } });
+  function current() {
+    let best = sections[0];
+    for (const s of sections) if (s.getBoundingClientRect().top < window.innerHeight * 0.35) best = s;
+    secEl.textContent = best.dataset.name;
+    menu.querySelectorAll("a").forEach(a => a.setAttribute("aria-current", String(a.getAttribute("href") === "#" + best.id)));
+  }
+  addEventListener("scroll", current, { passive: true });
+  current();
+})();
+</script>

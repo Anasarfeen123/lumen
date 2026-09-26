@@ -1,0 +1,6 @@
+*.jpg binary
+*.png binary
+*.ttf binary
+*.sh text eol=lf
+*.qml text eol=lf
+*.lua text eol=lf

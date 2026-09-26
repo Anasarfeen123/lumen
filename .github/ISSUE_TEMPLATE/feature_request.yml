@@ -1,0 +1,11 @@
+name: Idea
+description: Suggest something Lumen could do
+labels: [idea]
+body:
+  - type: textarea
+    id: problem
+    attributes: { label: What are you trying to do?, description: The situation, not the solution. }
+    validations: { required: true }
+  - type: textarea
+    id: idea
+    attributes: { label: How could Lumen help?, description: Sketches and references welcome. }

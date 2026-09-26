@@ -1,0 +1,27 @@
+name: Bug report
+description: Something in Lumen doesn't work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations: { required: true }
+  - type: input
+    id: distro
+    attributes: { label: Distribution and version, placeholder: "Fedora 44" }
+    validations: { required: true }
+  - type: input
+    id: versions
+    attributes: { label: Hyprland and Quickshell versions, placeholder: "Hyprland 0.56.2 · Quickshell 0.2.1" }
+    validations: { required: true }
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: From ~/.cache/lumen-session.log, $XDG_RUNTIME_DIR/lumen-startup.log or `qs log`.
+      render: text
+  - type: textarea
+    id: shots
+    attributes: { label: Screenshots or a clip, description: If it's visual. }
