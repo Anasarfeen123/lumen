@@ -1,4 +1,5 @@
-// Keyboard & gestures: the essentials, plus the full cheatsheet.
+// Keyboard & Gestures — every shortcut, live from Hyprland (services/Keybinds),
+// so this page is always exactly what your keys do. Type to filter.
 import QtQuick
 import qs.theme
 import qs.components
@@ -6,28 +7,89 @@ import qs.services
 import ".."
 
 Page {
+    id: page
     title: "Keyboard & Gestures"
-    subtitle: "Lumen is keyboard-first. These are the ones worth learning first."
+    subtitle: "Every shortcut, read live from Hyprland. Tap Super for search; Super+/ shows this as an overlay."
 
-    Button { primary: true; icon: "keyboard"; text: "Open the full cheatsheet  (Super+/)"; onActivated: SettingsState.shellCall("cheatsheet", "open") }
+    property string filter: ""
+    readonly property var shown: {
+        const q = filter.trim().toLowerCase();
+        const all = Keybinds.sections;
+        if (q === "") return all;
+        return all.map(s => ({ title: s.title, binds: s.binds.filter(b =>
+                    b.desc.toLowerCase().includes(q) || b.keys.join(" ").toLowerCase().includes(q) || s.title.toLowerCase().includes(q)) }))
+                  .filter(s => s.binds.length > 0);
+    }
+    Component.onCompleted: Keybinds.refresh()
 
-    Group {
-        title: "Essentials"
-        SetRow { icon: "search"; title: "Tap Super"; description: "Overview & search — apps, windows, calculator (=), commands (>), web (?)" }
-        SetRow { icon: "tune"; title: "Super+N"; description: "Control centre and notifications" }
-        SetRow { icon: "music_note"; title: "Super+M"; description: "Expand the island — Space play/pause, ← → tracks" }
-        SetRow { icon: "content_paste"; title: "Super+V"; description: "Clipboard history" }
-        SetRow { icon: "screenshot_region"; title: "Super+Shift+S"; description: "Screenshot a region (copied, and saved to Pictures)" }
-        SetRow { icon: "lock"; title: "Super+L"; description: "Lock" }
-        SetRow { icon: "settings"; title: "Super+I"; description: "These settings" }
+    Row {
+        width: parent.width
+        spacing: Theme.space.s3
+
+        // Filter
+        Rectangle {
+            width: parent.width - cheat.width - parent.spacing
+            height: 40
+            radius: height / 2
+            color: Theme.withAlpha(Theme.text, 0.06)
+            border.width: 1
+            border.color: field.activeFocus ? Theme.withAlpha(Theme.accent, 0.6) : Theme.border
+            LIcon { id: searchIcon; anchors { left: parent.left; leftMargin: Theme.space.s3; verticalCenter: parent.verticalCenter }
+                    icon: "search"; size: 18; color: Theme.textMuted }
+            TextInput {
+                id: field
+                anchors { left: searchIcon.right; leftMargin: Theme.space.s2; right: parent.right; rightMargin: Theme.space.s3; verticalCenter: parent.verticalCenter }
+                color: Theme.text
+                font.family: Theme.fontUi
+                font.pixelSize: 14
+                onTextChanged: page.filter = text
+                Keys.onEscapePressed: text = ""
+            }
+            LText { anchors { left: field.left; verticalCenter: parent.verticalCenter }
+                    visible: field.text === ""; color: Theme.textMuted; text: "Filter — e.g. “screenshot”, “Super+Shift”, “workspace”" }
+        }
+        Button { id: cheat; icon: "keyboard"; text: "Overlay  (Super+/)"; onActivated: SettingsState.shellCall("cheatsheet", "open") }
     }
 
-    Group {
-        title: "Gestures"
-        SetRow { icon: "swipe_up"; title: "Four fingers up / down"; description: "Open / close the overview" }
-        SetRow { icon: "swipe"; title: "Four fingers left / right"; description: "Switch workspace" }
-        SetRow { icon: "north_west"; title: "Top-left corner"; description: "Overview & search" }
-        SetRow { icon: "north_east"; title: "Top-right corner"; description: "Control centre" }
-        SetRow { icon: "mouse"; title: "Scroll on the bar / island"; description: "Workspaces / volume (Shift: brightness)" }
+    Repeater {
+        model: page.shown
+        delegate: Group {
+            required property var modelData
+            width: page.width - Theme.space.s8 * 2
+            title: modelData.title
+            Repeater {
+                model: modelData.binds
+                delegate: SetRow {
+                    required property var modelData
+                    minHeight: 42
+                    title: modelData.desc
+                    Row {
+                        spacing: 4
+                        Repeater {
+                            model: modelData.keys
+                            delegate: Rectangle {
+                                required property string modelData
+                                height: 26
+                                width: Math.max(26, capLabel.implicitWidth + 14)
+                                radius: 7
+                                color: Theme.withAlpha(Theme.text, 0.07)
+                                border.width: 1
+                                border.color: Theme.border
+                                // a keycap's bottom edge
+                                Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 1 } height: 2; radius: 1
+                                            color: Theme.withAlpha("black", 0.25) }
+                                LText { id: capLabel; anchors.centerIn: parent; role: "caption"; color: Theme.text; text: modelData }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    LText {
+        visible: page.shown.length === 0
+        color: Theme.textMuted
+        text: Keybinds.sections.length === 0 ? "Reading your shortcuts…" : "Nothing matches “" + page.filter + "”."
     }
 }

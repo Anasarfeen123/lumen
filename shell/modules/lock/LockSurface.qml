@@ -261,6 +261,39 @@ Item {
             Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: 72; height: 72
+
+                // Glow behind the picture: stacked soft discs in the accent. It
+                // breathes slowly while waiting, flares on success, reddens on a
+                // wrong password.
+                Item {
+                    id: glow
+                    anchors.centerIn: parent
+                    width: 72; height: 72
+                    readonly property color tone: Lock.status === "failed" ? Theme.error
+                                                : Lock.status === "success" ? Theme.success : Theme.accent
+                    property real breath: 0
+                    SequentialAnimation on breath {
+                        running: root.visible && !Theme.reducedMotion
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 1; duration: 2600; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 0; duration: 2600; easing.type: Easing.InOutSine }
+                    }
+                    scale: Lock.status === "success" ? 1.35 : 1 + glow.breath * 0.06
+                    Behavior on scale { NumberAnimation { duration: 420; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+                    Repeater {
+                        model: 5
+                        delegate: Rectangle {
+                            required property int index
+                            anchors.centerIn: parent
+                            width: 72 + (5 - index) * 14
+                            height: width
+                            radius: width / 2
+                            color: Qt.rgba(glow.tone.r, glow.tone.g, glow.tone.b, 0.035 + index * 0.02 + glow.breath * 0.012)
+                            Behavior on color { ColorAnimation { duration: 300 } }
+                        }
+                    }
+                }
+
                 Rectangle {
                     anchors.fill: parent
                     radius: 36

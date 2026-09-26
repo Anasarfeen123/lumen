@@ -67,9 +67,10 @@ PanelWindow {
         radius: Theme.radius.lg
         anchors.centerIn: parent
         opacity: win.showing ? 1 : 0
-        scale: win.showing ? 1 : 0.94
-        Behavior on opacity { NumberAnimation { duration: Theme.motion.normal } }
-        Behavior on scale { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+        // Same motion as every Lumen popup (components/LumenPopup.qml)
+        scale: win.showing ? 1 : 0.96
+        Behavior on opacity { NumberAnimation { duration: Theme.reducedMotion ? 0 : (win.showing ? Theme.motion.normal : Theme.motion.micro) } }
+        Behavior on scale { NumberAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
         Rectangle { anchors.fill: parent; radius: parent.radius; color: Theme.withAlpha(Theme.bg, 0.5) }
 
         SequentialAnimation {

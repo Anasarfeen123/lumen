@@ -37,8 +37,8 @@ Item {
     HoverTarget {
         anchors { fill: parent; topMargin: 4; bottomMargin: 4 }
         radius: Theme.radius.sm
-        highlighted: menu.visible
-        onClicked: menu.visible ? menu.close() : menu.open()
+        highlighted: menu.shown
+        onClicked: menu.shown ? menu.close() : menu.open()
 
         Row {
             id: row
@@ -72,7 +72,7 @@ Item {
                 icon: "expand_more"
                 size: 16
                 color: Theme.textMuted
-                rotation: menu.visible ? 180 : 0
+                rotation: menu.shown ? 180 : 0
                 Behavior on rotation { NumberAnimation { duration: Theme.motion.normal } }
             }
         }
@@ -80,39 +80,22 @@ Item {
 
     Connections {
         target: AppMenuState
-        function onToggleRequested() { if (root.active) { menu.visible ? menu.close() : menu.open(); } }
+        function onToggleRequested() { if (root.active) { menu.shown ? menu.close() : menu.open(); } }
     }
 
     // ── The menu ──
-    PopupWindow {
+    LumenPopup {
         id: menu
         anchor.window: root.barWindow
-        anchor.rect.x: root.mapToItem(root.barWindow.contentItem, 0, 0).x
-        anchor.rect.y: Theme.edgeGap + Theme.barHeight + Theme.space.s2
-        implicitWidth: 300
-        implicitHeight: body.implicitHeight + Theme.space.s2 * 2
-        color: "transparent"
-        visible: false
-        // xdg-popup grab: gets pointer + keyboard, closes on a click outside
-        grabFocus: true
+        anchor.rect.x: root.mapToItem(root.barWindow.contentItem, 0, 0).x - margin
+        anchor.rect.y: Theme.edgeGap + Theme.barHeight + Theme.space.s2 - margin
+        contentWidth: 300
+        contentHeight: body.implicitHeight + Theme.space.s2 * 2
 
-        function open() { visible = true; }
-        function close() { visible = false; }
         function act(fn) { fn(); close(); }
 
-
-        GlassSurface {
+        Item {
             anchors.fill: parent
-            level: "panel"
-            radius: Theme.radius.md
-            opacity: menu.visible ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: Theme.motion.micro } }
-
-            focus: true
-            Keys.onEscapePressed: menu.close()
-
-            // Menus hold text: a denser backing than panels, still frosted
-            Rectangle { anchors.fill: parent; radius: parent.radius; color: Theme.withAlpha(Theme.bg, 0.45) }
 
             Column {
                 id: body

@@ -24,8 +24,8 @@ HoverTarget {
     visible: items.length > 0
     width: visible ? peek.width + Theme.space.s2 * 2 : 0
     height: Theme.barHeight - 8
-    highlighted: drawer.visible
-    onClicked: drawer.visible ? drawer.close() : drawer.open()
+    highlighted: drawer.shown
+    onClicked: drawer.shown ? drawer.close() : drawer.open()
     // Last app quit while the drawer was open → close it
     onItemsChanged: if (items.length === 0) drawer.close()
 
@@ -35,7 +35,7 @@ HoverTarget {
         target: TrayState
         function onToggleRequested(monitor) {
             if (root.visible && monitor === (root.window.screen?.name ?? ""))
-                drawer.visible ? drawer.close() : drawer.open();
+                drawer.shown ? drawer.close() : drawer.open();
         }
     }
 
@@ -53,8 +53,8 @@ HoverTarget {
                 MultiEffect {
                     anchors.fill: ic
                     source: ic
-                    saturation: root.containsMouse || drawer.visible ? 0 : -0.85
-                    opacity: root.containsMouse || drawer.visible ? 1 : 0.8
+                    saturation: root.containsMouse || drawer.shown ? 0 : -0.85
+                    opacity: root.containsMouse || drawer.shown ? 1 : 0.8
                     Behavior on saturation { NumberAnimation { duration: Theme.motion.micro } }
                 }
             }
@@ -76,20 +76,14 @@ HoverTarget {
         anchors { right: parent.right; rightMargin: 4; top: parent.top; topMargin: 3 }
     }
 
-    PopupWindow {
+    LumenPopup {
         id: drawer
         anchor.window: root.window
-        anchor.rect.x: root.mapToItem(root.window.contentItem, root.width, 0).x - implicitWidth
-        anchor.rect.y: Theme.edgeGap + Theme.barHeight + Theme.space.s2
-        implicitWidth: 300
-        implicitHeight: body.implicitHeight + Theme.space.s2 * 2
-        color: "transparent"
-        visible: false
-        // xdg-popup grab: gets pointer + keyboard, closes on a click outside
-        grabFocus: true
+        anchor.rect.x: root.mapToItem(root.window.contentItem, root.width, 0).x - contentWidth - margin
+        anchor.rect.y: Theme.edgeGap + Theme.barHeight + Theme.space.s2 - margin
+        contentWidth: 300
+        contentHeight: body.implicitHeight + Theme.space.s2 * 2
 
-        function open() { visible = true; }
-        function close() { visible = false; }
         // The app's own menu, drawn by the app, just under the bar
         function menuFor(item) {
             close();
@@ -97,14 +91,8 @@ HoverTarget {
             item.display(root.window, p.x - 220, p.y);
         }
 
-
-        GlassSurface {
+        Item {
             anchors.fill: parent
-            level: "panel"
-            radius: Theme.radius.md
-            focus: true
-            Keys.onEscapePressed: drawer.close()
-            Rectangle { anchors.fill: parent; radius: parent.radius; color: Theme.withAlpha(Theme.bg, 0.45) }
 
             Column {
                 id: body

@@ -9,11 +9,12 @@ Item {
     property string icon: ""
     property string title: ""
     property string description: ""
-    property Item leading: null        // optional: e.g. an avatar in place of the icon
+    property Item leading: null
+    property int minHeight: 56          // dense lists (e.g. shortcuts) use less        // optional: e.g. an avatar in place of the icon
     default property alias control: slot.data
 
     width: parent ? parent.width : 400
-    implicitHeight: Math.max(56, text.implicitHeight + Theme.space.s4 * 2, slot.childrenRect.height + Theme.space.s3 * 2)
+    implicitHeight: Math.max(minHeight, text.implicitHeight + (minHeight < 56 ? Theme.space.s2 : Theme.space.s4) * 2, slot.childrenRect.height + Theme.space.s3 * 2)
 
     Rectangle {
         visible: root.parent && root.parent.children[0] !== root
