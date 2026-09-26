@@ -13,6 +13,8 @@ FrostPane {
     implicitWidth: 300
     implicitHeight: 48
     radius: height / 2
+    // Darker than the widgets: it holds text, and must read on any wallpaper
+    tint: Theme.withAlpha(Theme.bg, 0.58)
     edge: Lock.status === "failed" ? Theme.error
         : input.activeFocus && input.text !== "" ? Theme.withAlpha(Theme.text, 0.35) : Theme.border
 
@@ -63,7 +65,7 @@ FrostPane {
         anchors.centerIn: parent
         visible: input.text === "" && (Lock.status === "idle" || Lock.status === "failed")
         role: "body"
-        color: Theme.textMuted
+        color: Theme.textSecondary
         text: "Enter password"
     }
 

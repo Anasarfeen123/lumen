@@ -112,8 +112,10 @@ key("SUPER + mouse:275", hl.dsp.focus({ workspace = "r-1" }), "Previous / next w
 key("SUPER + mouse:276", hl.dsp.focus({ workspace = "r+1" }))
 key("SUPER + S", hl.dsp.workspace.toggle_special("scratch"), "Scratchpad")
 key("SUPER + ALT + S", hl.dsp.window.move({ workspace = "special:scratch", follow = false }), "Send window to scratchpad")
-key("SUPER + grave", hl.dsp.workspace.toggle_special("term"), "Drop-down terminal")
-key("SUPER + SHIFT + grave", hl.dsp.workspace.toggle_special("music"), "Music scratchpad")
+key("F12", hl.dsp.workspace.toggle_special("term"), "Drop-down terminal")
+key("SUPER + grave", hl.dsp.workspace.toggle_special("term"))
+key("SUPER + SHIFT + M", hl.dsp.workspace.toggle_special("music"), "Music scratchpad (opens your music app)")
+key("SUPER + SHIFT + grave", hl.dsp.workspace.toggle_special("music"))
 
 -- ── Media & hardware keys (work on the lock screen) ──
 -- These only change state; the shell listens to PipeWire / backlight and
