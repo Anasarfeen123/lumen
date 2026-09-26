@@ -1,12 +1,15 @@
 // Windows: gaps, corners, border, animation speed, focus behaviour.
 // Applied live (theme/build.py → Hyprland + shell).
 import QtQuick
+import Quickshell
+import Quickshell.Io
 import qs.theme
 import qs.components
 import qs.services
 import ".."
 
 Page {
+    id: page
     title: "Windows"
     subtitle: "How windows sit on the desktop and how they move. Changes apply immediately."
 
@@ -69,5 +72,44 @@ Page {
             description: "Windows take focus when the pointer moves over them"
             LSwitch { checked: (prefs.follow_mouse ?? "on") === "on"; onToggled: set("follow_mouse", checked ? "off" : "on") }
         }
+    }
+
+    // ── Workspace snapshots (scripts/snapshot.sh) ──
+    property var snapshots: []
+    Process {
+        id: snapList
+        running: true
+        command: [Theme.lumenRoot + "/scripts/snapshot.sh", "list"]
+        stdout: StdioCollector { onStreamFinished: { try { page.snapshots = JSON.parse(text); } catch (e) {} } }
+    }
+    function snap(cmd, name) {
+        Quickshell.execDetached([Theme.lumenRoot + "/scripts/snapshot.sh", cmd, name]);
+        relist.restart();
+    }
+    Timer { id: relist; interval: 1500; onTriggered: snapList.running = true }
+
+    Group {
+        title: "Snapshots"
+        SetRow {
+            icon: "bookmark_add"
+            title: "Save this setup"
+            description: "Apps and their workspaces, floating windows, terminal folders, Focus mode and wallpaper"
+            LField { width: 220; icon: "edit"; placeholder: "Name, e.g. “Study”"; onAccepted: t => { if (t.trim()) page.snap("save", t.trim()); } }
+        }
+        Repeater {
+            model: page.snapshots
+            delegate: SetRow {
+                required property var modelData
+                icon: "bookmark"
+                title: modelData.name.replace(/_/g, " ")
+                description: modelData.windows + " windows · " + modelData.apps.slice(0, 5).join(", ") + " · saved " + Qt.formatDateTime(new Date(modelData.saved * 1000), "d MMM, " + Theme.timeFormatFull)
+                Row {
+                    spacing: Theme.space.s2
+                    Button { primary: true; text: "Restore"; onActivated: page.snap("restore", modelData.name) }
+                    Button { icon: "delete"; text: ""; onActivated: page.snap("delete", modelData.name) }
+                }
+            }
+        }
+        SetRow { visible: page.snapshots.length === 0; icon: "info"; title: "No snapshots yet"; description: "Also from search: type “save study”, later “restore study” — or `lumen snapshot restore study`" }
     }
 }

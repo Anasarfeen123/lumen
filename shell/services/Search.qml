@@ -75,6 +75,15 @@ Singleton {
     readonly property var settingsActions: SettingsState.pages.map(pg => ({
         title: pg.label + " settings", glyph: pg.icon, keys: "settings preferences " + pg.label + " " + pg.keys, fn: () => SettingsState.launch(pg.id) }))
 
+    // Workspace snapshots ("save radar", "restore radar")
+    property var snapshots: []
+    Process {
+        id: snapScan
+        command: [Theme.lumenRoot + "/scripts/snapshot.sh", "list"]
+        stdout: StdioCollector { onStreamFinished: { try { root.snapshots = JSON.parse(text); } catch (e) { root.snapshots = []; } } }
+    }
+    function snap(cmd, name) { Quickshell.execDetached([Theme.lumenRoot + "/scripts/snapshot.sh", cmd, name]); }
+
     // ~/Projects folders for "open project …"
     property var projects: []
     Process {
@@ -99,6 +108,7 @@ Singleton {
         function onOpenChanged() {
             if (!Overview.open) return;
             projectScan.running = true;
+            snapScan.running = true;
             if (Overview.mode === "clipboard") Clipboard.refresh();
             if (Overview.mode === "emoji") Emoji.ensure();
         }
@@ -193,6 +203,18 @@ Singleton {
                 if (/^kill\s/i.test(q) && /^[\w.+-]{2,}$/.test(want))
                     out.push({ kind: "command", group: "Commands", title: "End every “" + want + "” process", subtitle: "pkill -x " + want + " · press Enter twice",
                                glyph: "dangerous", badge: "Kill", destructive: true, run: () => Quickshell.execDetached(["pkill", "-x", "-u", Quickshell.env("USER"), "--", want]) });
+            }
+            if ((m = /^(?:save|snapshot)\s+(?:workspace\s+|setup\s+)?(.+)$/i.exec(q)))
+                out.push({ kind: "command", group: "Snapshots", title: "Save this setup as “" + m[1].trim() + "”", subtitle: "Apps, workspaces, terminal folders, Focus mode and wallpaper",
+                           glyph: "bookmark_add", badge: "Save", run: () => root.snap("save", m[1].trim()) });
+            if ((m = /^(?:restore|load)\s*(.*)$/i.exec(q))) {
+                const want = m[1].trim();
+                const hits = root.snapshots.map(x => ({ x, s: want ? Fuzzy.score(want, x.name) : 1 })).filter(y => y.s > 0).sort((a, b) => b.s - a.s).slice(0, 6);
+                for (const h of hits)
+                    out.push({ kind: "command", group: "Snapshots", title: "Restore “" + h.x.name + "”", subtitle: h.x.windows + " windows · " + h.x.apps.slice(0, 4).join(", "),
+                               glyph: "bookmark", badge: "Restore", run: () => root.snap("restore", h.x.name) });
+                if (!hits.length) out.push({ kind: "command", group: "Snapshots", title: want ? "No snapshot “" + want + "”" : "No snapshots yet",
+                                              subtitle: "Save one: type “save <name>”", glyph: "bookmark_border", badge: "", run: () => {} });
             }
             if ((m = /^(?:ask|ai)\s+(.+)$/i.exec(q)))
                 out.push({ kind: "command", group: "Ask Lumen", title: "Ask Lumen: " + m[1], subtitle: Ai.configured ? "Answers in the AI panel" : "Set up AI first (Settings → AI)",

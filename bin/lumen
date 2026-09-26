@@ -11,6 +11,7 @@
 #   lumen check                     contrast report for the active theme
 #   lumen progress <title> <0-100|-1|done|fail> [detail]   show progress in the island
 #   lumen run [--title T] -- <command…>   run it; the island shows it working, then ✓ or ✗
+#   lumen snapshot save|restore|list|delete [name]   a whole setup of windows, saved and restored
 set -eu
 LUMEN_ROOT=${LUMEN_ROOT:-$HOME/.config/lumen}
 STATE=${XDG_STATE_HOME:-$HOME/.local/state}/lumen/state.json
@@ -132,6 +133,8 @@ case ${1:-} in
             -1|[0-9]|[0-9][0-9]|100) exec "$LUMEN_ROOT/bin/lumen-shell-ipc" island progress "$id" "$title" "$v" "$detail" ;;
             *) echo "lumen progress: value must be 0-100, -1, done or fail" >&2; exit 2 ;;
         esac ;;
+    snapshot)
+        shift; exec "$LUMEN_ROOT/scripts/snapshot.sh" "$@" ;;
     run)
         # lumen run -- make -j8   ·   lumen run --title "Building" -- cargo build
         shift; title=""
