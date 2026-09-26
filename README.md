@@ -12,7 +12,7 @@ Extremely capable underneath. Extremely simple on the surface.
 [![Fedora · Arch · Debian/Ubuntu · openSUSE](https://img.shields.io/badge/distros-Fedora%20·%20Arch%20·%20Debian%2FUbuntu%20·%20openSUSE-9aa1a9?style=flat-square)](docs/INSTALL.md)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-eef1f4?style=flat-square)](LICENSE)
 
-[Install](#install) · [Tour](#a-quick-tour) · [Shortcuts](docs/SHORTCUTS.md) · [Documentation](#documentation) · [Showcase page](docs/showcase/index.html)
+[Install](#install) · [Tour](#a-quick-tour) · [Shortcuts](docs/SHORTCUTS.md) · [Documentation](#documentation) · [Showcase page](https://anasarfeen123.github.io/lumen/showcase/)
 
 <br>
 
@@ -84,7 +84,7 @@ Focus modes (Work, Game, Sleep) on a schedule. Night light that follows the suns
 | <img src="docs/showcase/img/18-settings-appearance.jpg" alt="Settings"><br>Settings | <img src="docs/showcase/img/14-wallpapers.jpg" alt="Wallpapers"><br>Wallpapers | <img src="docs/showcase/img/11-cheatsheet.jpg" alt="Cheatsheet"><br>Every shortcut (<kbd>Super</kbd>+<kbd>/</kbd>) |
 | <img src="docs/showcase/img/16-focus-modes.jpg" alt="Focus"><br>Focus modes | <img src="docs/showcase/img/15-password-prompt.jpg" alt="Admin prompt"><br>Admin prompt | <img src="docs/showcase/img/18-settings-updates.jpg" alt="Updates"><br>Updates |
 
-More in the [feature guide](docs/FEATURES.md) and the [showcase page](docs/showcase/index.html).
+More in the [feature guide](docs/FEATURES.md) and the [showcase page](https://anasarfeen123.github.io/lumen/showcase/).
 
 ## Install
 
