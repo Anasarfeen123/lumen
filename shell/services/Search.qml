@@ -236,7 +236,9 @@ Singleton {
 
         if (!webOnly) {
             if (Calc.result !== "")
-                out.push({ kind: "calc", group: "Calculator", title: Calc.result, subtitle: Calc.expression, glyph: "calculate", badge: "Copy",
+                out.push({ kind: "calc", group: Calc.money ? "Money" : "Calculator", title: Calc.result,
+                           subtitle: [Calc.words(Calc.result), Calc.expression.replace(/\s+to INR$/, "")].filter(x => x).join(" · "),
+                           glyph: Calc.money ? "currency_rupee" : "calculate", badge: "Copy",
                            run: () => Quickshell.execDetached(["wl-copy", Calc.result.replace(/^≈\s*/, "")]) });
 
             // Apps, windows and actions are ranked as groups by their best match,
