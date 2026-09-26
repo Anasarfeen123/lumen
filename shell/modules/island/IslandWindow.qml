@@ -100,7 +100,7 @@ PanelWindow {
         return ({
             idle: idleC, idlePeek: peekC, osd: osdC, workspace: wsC, system: sysC,
             screenshot: shotC, recording: recC, mediaCompact: mediaCompactC,
-            mediaExpanded: mediaExpandedC, notification: notifC, critical: critC, timer: timerC, progress: progressC, context: contextC, device: deviceC, timeline: timelineC
+            mediaExpanded: mediaExpandedC, notification: notifC, critical: critC, timer: timerC, progress: progressC, context: contextC, device: deviceC, timeline: timelineC, message: messageC
         })[v] ?? idleC;
     }
 
@@ -119,13 +119,14 @@ PanelWindow {
     Component { id: progressC; Progress { info: win.shownData } }
     Component { id: contextC; ContextView {} }
     Component { id: deviceC; Device { info: win.shownData } }
+    Component { id: messageC; Message { info: win.shownData } }
     Component { id: timelineC; Timeline {} }
 
     // ── The body ──
     GlassSurface {
         id: body
 
-        readonly property bool bodyExpanded: ["mediaExpanded", "notification", "critical", "screenshot", "context", "device", "timeline"].includes(win.shown)
+        readonly property bool bodyExpanded: ["mediaExpanded", "notification", "critical", "screenshot", "context", "device", "timeline", "message"].includes(win.shown)
         readonly property int padX: bodyExpanded ? Theme.space.s4 : Theme.space.s4
         readonly property int padY: bodyExpanded ? Theme.space.s4 : 0
         readonly property real targetW: bodyExpanded
@@ -176,20 +177,16 @@ PanelWindow {
             acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
             onClicked: m => win.activate(m.button)
-            // Scroll = the Now timeline (scrub the last hour), except over the
-            // expanded player, where it's the volume. Modifier keys can't be
-            // used here: the island never has keyboard focus, so Wayland
-            // doesn't tell it about Shift/Ctrl. Volume also scrolls on the
-            // status pill. Touchpads send small deltas: they add up to one
-            // step per notch's worth (120).
+            // Scroll = the Now timeline (scrub the last hour), always — one
+            // gesture, one meaning. Volume scrolls on the status pill (and the
+            // volume keys). Modifier keys can't be used here: the island never
+            // has keyboard focus, so Wayland doesn't tell it about Shift/Ctrl.
+            // Touchpads send small deltas: they add up to one step per notch's
+            // worth (120).
             property real acc: 0
             onWheel: w => {
                 const sideways = Math.abs(w.angleDelta.x) > Math.abs(w.angleDelta.y);
                 const d = sideways ? w.angleDelta.x : w.angleDelta.y;
-                if (win.shown === "mediaExpanded" && !Island.timelineOpen && !sideways) {
-                    Audio.nudge(d > 0 ? 0.05 : -0.05);
-                    return;
-                }
                 if (!win.isFocused) return;
                 acc += d;
                 if (Math.abs(acc) < 120) return;

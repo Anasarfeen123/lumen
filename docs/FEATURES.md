@@ -21,7 +21,7 @@ Everything below is in the shipped desktop. Keys are the defaults; [SHORTCUTS.md
   - **Displays** get a card with a clean name ("Dell U2723QE") and **Arrange**.
   - Everything else, and every disconnect, is a quiet one-line pill with the device's real name and icon.
 - **Context:** hover the resting island while you work. In an editor or terminal it shows the project, its git branch and changes, and live CPU, GPU and memory; in a game, frame-relevant stats. During a presentation it holds notifications and keeps the screen awake.
-- **Island gestures:** scroll for volume (with Shift for brightness), middle-click to play or pause, right-click for background apps.
+- **Island gestures:** scroll to scrub the **Now timeline** (the last hour: notifications, devices, screenshots, and what's coming up; ←/→ step, Esc closes), middle-click to play or pause, right-click for background apps. Volume scrolls on the status icons.
 - **App menu:** the focused app's name sits next to the workspaces. Click it (or press <kbd>Super</kbd>+<kbd>Alt</kbd>+<kbd>Enter</kbd>) for window actions: float, maximise, fullscreen, pin, move to a workspace, screenshot, close, force quit.
 - **Tray drawer:** apps running in the background (Discord, Steam, WARP…) collapse into one button. Their menus are drawn by Lumen inside the drawer.
 
