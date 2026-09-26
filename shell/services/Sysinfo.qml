@@ -23,6 +23,7 @@ Singleton {
 
     property var _prev: null
     property bool islandActive: false   // the island's context card also wants samples
+    property bool ribbonActive: false   // the merged Ribbon shows a chip when the system is straining
     // NVIDIA details, only while the dGPU is already awake (nvidia-smi would wake it)
     property real dgpuUtil: -1          // 0–1, -1 unknown
     property real dgpuTemp: -1
@@ -46,13 +47,16 @@ Singleton {
     }
 
     Timer {
-        interval: 2000
+        // 2 s while someone is looking at the numbers; 6 s when only the Ribbon
+        // is watching for a busy system (and no NVIDIA query then)
+        readonly property bool detailed: root.active || root.islandActive
+        interval: detailed ? 2000 : 6000
         repeat: true
         triggeredOnStart: true
-        running: root.active || root.islandActive
+        running: detailed || root.ribbonActive
         onTriggered: {
             if (!sampler.running) sampler.running = true;
-            if (root.dgpu === "active" && !nv.running) nv.running = true;
+            if (detailed && root.dgpu === "active" && !nv.running) nv.running = true;
         }
     }
 

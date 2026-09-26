@@ -46,6 +46,9 @@ PanelWindow {
         Region { item: status }
         Region { item: appMenu }
         Region { item: merged.visible ? merged : null }
+        Region { item: chips }
+        Region { item: strip }
+        Region { item: vitals }
     }
 
     // The merged bar is the island stretching out.
@@ -143,6 +146,8 @@ PanelWindow {
     Workspaces {
         id: workspaces
         screen: bar.screen
+        peek: peek
+        barWindow: bar
         // Dissolves into the bar the moment the bar's edge reaches its middle
         flat: merged.visible && merged.x <= x + width / 2
         x: Theme.edgeGap
@@ -157,6 +162,43 @@ PanelWindow {
         shown: bar.merged
         x: workspaces.x + workspaces.width + Theme.space.s1
         y: Theme.edgeGap
+    }
+
+    readonly property bool ribbonOpen: bar.merged && merged.span > merged.fullWidth * 0.9
+
+    // Peek: live previews under the strip and the workspace dots
+    Peek { id: peek; barWindow: bar }
+
+    // This workspace's windows, after the app menu
+    WindowStrip {
+        id: strip
+        monitor: bar.monitor
+        peek: peek
+        barWindow: bar
+        shown: bar.ribbonOpen
+        x: appMenu.x + appMenu.width + Theme.space.s1
+        y: Theme.edgeGap
+    }
+
+    // The Ribbon's shoulders: calm, contextual chips either side of the island
+    RibbonChips {
+        id: chips
+        x: 0
+        y: Theme.edgeGap
+        width: bar.width
+        height: Theme.barHeight
+        shown: bar.ribbonOpen
+        leftLimit: strip.visible ? strip.x + strip.width : appMenu.x + appMenu.width
+        rightLimit: vitals.visible ? vitals.x : status.x
+    }
+
+    // CPU line + memory, beside the status pill
+    Vitals {
+        id: vitals
+        shown: bar.ribbonOpen
+        anchors.right: status.left
+        anchors.rightMargin: Theme.space.s1
+        y: Theme.edgeGap + (Theme.barHeight - height) / 2
     }
 
     StatusPill {

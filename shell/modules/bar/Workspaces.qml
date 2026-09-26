@@ -12,6 +12,8 @@ import qs.services
 GlassSurface {
     id: root
     required property var screen
+    property var peek: null             // hover an occupied dot → Peek its windows
+    property var barWindow: null
 
     readonly property HyprlandMonitor monitor: Hyprland.monitorFor(screen)
     readonly property int activeId: monitor?.activeWorkspace?.id ?? 1
@@ -106,6 +108,14 @@ GlassSurface {
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 // Right-click: the tray drawer (background apps)
                 onClicked: m => m.button === Qt.RightButton ? TrayState.toggle(root.screen?.name ?? "") : Hypr.workspace(wsId)
+                onContainsMouseChanged: {
+                    if (!root.peek) return;
+                    const ws = root.workspaces.find(w => w.id === wsId);
+                    const list = ws?.toplevels?.values ?? [];
+                    if (containsMouse && list.length && !isActive)
+                        root.peek.peek(list, "Workspace " + wsId, mapToItem(root.barWindow.contentItem, width / 2, 0).x);
+                    else root.peek.leave();
+                }
 
                 Rectangle {
                     anchors.centerIn: parent
