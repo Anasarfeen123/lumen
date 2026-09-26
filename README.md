@@ -10,7 +10,7 @@ Extremely capable underneath. Extremely simple on the surface.
 [![Hyprland 0.56+](https://img.shields.io/badge/Hyprland-0.56%2B-58E1FF?style=flat-square)](https://hyprland.org)
 [![Quickshell](https://img.shields.io/badge/shell-Quickshell-f9a779?style=flat-square)](https://quickshell.org)
 [![Fedora · Arch · Debian/Ubuntu · openSUSE](https://img.shields.io/badge/distros-Fedora%20·%20Arch%20·%20Debian%2FUbuntu%20·%20openSUSE-9aa1a9?style=flat-square)](docs/INSTALL.md)
-[![License: MIT](https://img.shields.io/badge/license-MIT-eef1f4?style=flat-square)](LICENSE)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-eef1f4?style=flat-square)](LICENSE)
 
 [Install](#install) · [Tour](#a-quick-tour) · [Shortcuts](docs/SHORTCUTS.md) · [Documentation](#documentation) · [Showcase page](docs/showcase/index.html)
 
@@ -142,4 +142,4 @@ Built on [Hyprland](https://hyprland.org) and [Quickshell](https://quickshell.or
 
 ## License
 
-[MIT](LICENSE).
+Lumen is free software under the [GNU General Public License v3.0](LICENSE): you may use, study, share and modify it; shared modifications stay under the same license.
