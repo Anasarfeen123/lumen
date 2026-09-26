@@ -21,6 +21,7 @@ Singleton {
         { id: "notifications", icon: "notifications",       label: "Notifications",       keys: "focus do not disturb dnd banners mute apps sound history" },
         { id: "network",       icon: "wifi",                label: "Network",             keys: "wifi wi-fi internet airplane vpn warp cloudflare dns" },
         { id: "bluetooth",     icon: "bluetooth",           label: "Bluetooth",           keys: "devices headphones pair connect battery" },
+        { id: "phone",         icon: "smartphone",          label: "Phone",               keys: "phone kde connect android iphone pair find ring send file clipboard sync" },
         { id: "sound",         icon: "volume_up",           label: "Sound",               keys: "volume output input microphone speaker headphones" },
         { id: "display",       icon: "brightness_6",        label: "Display",             keys: "brightness night light warmth" },
         { id: "lock",          icon: "lock",                label: "Lock screen",         keys: "widgets password unlock" },

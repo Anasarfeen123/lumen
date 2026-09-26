@@ -348,6 +348,8 @@ Item {
                 }
             }
 
+            PhoneCard { width: parent.width }
+
             NowPlayingCard { width: parent.width; visible: Media.present }
 
             SystemStats { width: parent.width }
