@@ -119,10 +119,9 @@ Singleton {
     // Copied on the phone → "Copied from <phone>" in the island. There's no
     // "received" signal, so a clipboard change counts as the phone's when
     // kdeconnectd's link received data a moment before (link.sh from-phone).
-    Process {
-        running: root.announces && root.connected && root.clipSync === "on" && !root.mock
-        command: ["wl-paste", "--watch", "echo", "changed"]
-        stdout: SplitParser { onRead: clipCheck.restart() }
+    Connections {
+        target: Clipboard
+        function onChanged() { if (root.announces && root.connected && root.clipSync === "on" && !root.mock) clipCheck.restart(); }
     }
     // After Lumen's own "Copied" pill (same key), so this one replaces it
     Timer { id: clipCheck; interval: 450; onTriggered: if (!fromPhone.running) fromPhone.running = true }

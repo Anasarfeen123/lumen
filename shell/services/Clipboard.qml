@@ -152,10 +152,12 @@ Singleton {
     // ── "Copied" in the island ──
     // Only the size or kind is shown, never the content; nothing at all when a
     // password manager marks the copy secret (x-kde-passwordManagerHint).
+    // One watcher for the whole shell: others (Lumen Link) listen to `changed`
+    signal changed()
     Process {
         running: Persist.automates
         command: ["wl-paste", "--watch", "echo", "changed"]
-        stdout: SplitParser { onRead: copiedCheck.restart() }
+        stdout: SplitParser { onRead: { copiedCheck.restart(); root.changed(); } }
     }
     Timer { id: copiedCheck; interval: 120; onTriggered: { copiedInfo.running = false; copiedInfo.running = true; } }
     Process {
