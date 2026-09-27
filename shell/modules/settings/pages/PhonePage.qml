@@ -131,6 +131,24 @@ Page {
         }
 
         // 3 · Bluetooth
+        // The phone's Bluetooth network (tethering) — works on any Wi-Fi, internet stays on Wi-Fi
+        SetRow {
+            icon: "settings_ethernet"
+            title: "Bluetooth network" + (Link.pan?.active ? " · connected" : "")
+            description: !Link.pan?.profile
+                ? "Best on hostel/campus Wi-Fi: pair the phone over Bluetooth, turn on Bluetooth tethering on the phone, and connect to its network once (Bluetooth settings). Lumen takes it from there."
+                : !Link.pan.safe
+                ? "“" + Link.pan.name + "” could become your internet connection. Keep the internet on Wi-Fi first."
+                : Link.pan.active
+                ? "“" + Link.pan.name + "” is up. KDE Connect talks over it; the internet stays on Wi-Fi."
+                : "“" + Link.pan.name + "” · " + (Link.panAuto ? "Lumen connects it whenever the phone is near and not linked. Needs Bluetooth tethering on the phone." : "Automatic linking is off.")
+            Row {
+                spacing: Theme.space.s2
+                Button { visible: !!Link.pan?.profile && !Link.pan.safe; primary: true; text: "Keep internet on Wi-Fi"; onActivated: Link.makePanSafe() }
+                Button { visible: !!Link.pan?.profile && Link.pan.safe && !Link.pan.active; text: Link.panBusy ? "Connecting…" : "Connect now"; onActivated: { Link.panFails = 0; Link.panUp(true); } }
+                LSwitch { visible: !!Link.pan?.profile && Link.pan.safe; checked: Link.panAuto; onToggled: Persist.data.linkBluetoothAuto = !checked }
+            }
+        }
         SetRow {
             icon: "bluetooth"
             title: "Over Bluetooth (beta)"

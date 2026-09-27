@@ -28,6 +28,7 @@ Singleton {
             // Bar & island (Lumen Settings → Bar & Island)
             property bool islandDate: true
             property bool islandWorkspace: true
+            property bool linkBluetoothAuto: true     // Lumen Link: bring the phone's Bluetooth network up by itself
             property string islandScroll: "timeline"   // scroll on the island: "timeline" | "volume"
             property bool hotCornerLeft: true
             property bool hotCornerRight: true

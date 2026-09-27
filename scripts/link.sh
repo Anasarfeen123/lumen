@@ -13,6 +13,10 @@
 #   link.sh backend lan|bluetooth on|off   KDE Connect's own link backends
 #   link.sh refresh                         look for devices again
 #   link.sh clip-sync <id> on|off|status   KDE Connect's clipboard plugin for that phone (shares both ways)
+#   link.sh pan status                      JSON: the phone's Bluetooth network profile (NetworkManager PANU)
+#   link.sh pan up                          bring it up (Bluetooth connect first); refuses unless it can never
+#                                           become the default route, so the internet stays on Wi-Fi
+#   link.sh pan safe                        set ipv4/ipv6.never-default on that profile (asks NetworkManager)
 #   link.sh from-phone                      exit 0 if KDE Connect received data in the last 2.5 s
 #                                           (tells a clipboard change that came from the phone apart)
 # Everything goes through kdeconnect-cli / the daemon's D-Bus; no network
@@ -36,6 +40,22 @@ tether_iface() {
         case $drv in rndis_host|cdc_ncm|cdc_ether|ipheth) [ "$(cat "$n/operstate" 2>/dev/null)" != down ] && { basename "$n"; return 0; } ;; esac
     done
     return 1
+}
+
+# The phone's Bluetooth network (a NetworkManager "bluetooth" profile of type
+# panu): a private link to the phone on networks that keep devices apart,
+# while the internet stays on Wi-Fi (the profile must never be the default route).
+pan_profile() { nmcli -t -f UUID,TYPE connection show 2>/dev/null | awk -F: '$2 == "bluetooth" { print $1; exit }'; }
+pan_status() {
+    uuid=$(pan_profile)
+    [ -n "$uuid" ] || { echo '{"profile":""}'; return 0; }
+    f=$(nmcli -g connection.id,bluetooth.bdaddr,bluetooth.type,ipv4.never-default,ipv6.never-default,GENERAL.STATE,GENERAL.DEVICES connection show "$uuid" 2>/dev/null)
+    name=$(printf '%s\n' "$f" | sed -n 1p); mac=$(printf '%s\n' "$f" | sed -n 2p | tr -d '\\')
+    kind=$(printf '%s\n' "$f" | sed -n 3p); v4=$(printf '%s\n' "$f" | sed -n 4p); v6=$(printf '%s\n' "$f" | sed -n 5p)
+    state=$(printf '%s\n' "$f" | sed -n 6p); dev=$(printf '%s\n' "$f" | sed -n 7p)
+    jq -cn --arg u "$uuid" --arg n "$name" --arg m "$mac" --arg k "$kind" --arg s "$state" --arg d "$dev" \
+        --argjson safe "$( [ "$v4" = yes ] && { [ "$v6" = yes ] || [ -z "$v6" ]; } && echo true || echo false)" \
+        '{profile: $u, name: $n, bdaddr: $m, type: $k, active: ($s == "activated"), device: $d, safe: $safe}'
 }
 
 parse_events() {
@@ -66,6 +86,8 @@ status)
     all=$(kdeconnect-cli -l --id-name-only 2>/dev/null)
     up=$(kdeconnect-cli -a --id-only 2>/dev/null)
     tether=$(tether_iface || true)
+    pandev=$(pan_status | jq -r 'select(.active) | .device')
+    [ -n "$pandev" ] && [ "$pandev" = "$tether" ] && tether=""
     backends=$(kdeconnect-cli -b 2>/dev/null | awk -F'|' '{printf "%s\"%s\":%s", (NR>1?",":""), $2, ($3=="enabled"?"true":"false")}')
     cust=$(custom | tr ' ' '\n' | grep -v '^$' | jq -R . | jq -sc .)
     printf '%s\n' "$all" | while IFS= read -r line; do
@@ -80,6 +102,7 @@ status)
         sig=$(prop "$id" /connectivity_report org.kde.kdeconnect.device.connectivity_report cellularNetworkStrength)
         via=wifi
         case $prov in *Bluetooth*) via=bluetooth ;; *) [ -n "$tether" ] && via=usb ;; esac
+        [ -n "$pandev" ] && [ "$via" != bluetooth ] && via=bluetooth   # over the phone's Bluetooth network
         [ "$reach" = true ] || via=""
         case $bat in ''|*[!0-9-]*) bat=-1 ;; esac
         case $sig in ''|*[!0-9-]*) sig=-1 ;; esac
@@ -106,6 +129,8 @@ doctor)
     fi
     warp=false; ip link show CloudflareWARP >/dev/null 2>&1 && warp=true
     tether=$(tether_iface || true)
+    pandev=$(pan_status | jq -r 'select(.active) | .device')
+    [ -n "$pandev" ] && [ "$pandev" = "$tether" ] && tether=""
     bt=$(kdeconnect-cli -b 2>/dev/null | awk -F'|' '$2=="bluetooth" {print $3}')
     found=$(kdeconnect-cli -l --id-only 2>/dev/null | grep -c .)
     reach=$(kdeconnect-cli -a --id-only 2>/dev/null | grep -c .)
@@ -173,6 +198,33 @@ backend)
         lan:on|bluetooth:on) exec kdeconnect-cli --enable-backend "$2" ;;
         lan:off|bluetooth:off) exec kdeconnect-cli --disable-backend "$2" ;;
         *) echo "link.sh backend lan|bluetooth on|off" >&2; exit 2 ;;
+    esac ;;
+pan)
+    case ${2:-status} in
+    status) pan_status ;;
+    safe)
+        uuid=$(pan_profile); [ -n "$uuid" ] || exit 1
+        nmcli connection modify "$uuid" ipv4.never-default yes ipv6.never-default yes && echo ok ;;
+    up)
+        st=$(pan_status)
+        uuid=$(printf '%s' "$st" | jq -r .profile)
+        [ -n "$uuid" ] || { echo '{"ok":false,"reason":"no-profile"}'; exit 1; }
+        [ "$(printf '%s' "$st" | jq -r .safe)" = true ] || { echo '{"ok":false,"reason":"unsafe"}'; exit 1; }
+        [ "$(printf '%s' "$st" | jq -r .active)" = true ] && { kdeconnect-cli --refresh >/dev/null 2>&1; echo '{"ok":true,"reason":"already"}'; exit 0; }
+        mac=$(printf '%s' "$st" | jq -r .bdaddr)
+        if ! bluetoothctl info "$mac" 2>/dev/null | grep -q "Connected: yes"; then
+            timeout 12 bluetoothctl connect "$mac" >/dev/null 2>&1 || { echo '{"ok":false,"reason":"away"}'; exit 1; }
+        fi
+        if out=$(timeout 25 nmcli connection up "$uuid" 2>&1); then
+            kdeconnect-cli --refresh >/dev/null 2>&1
+            echo '{"ok":true,"reason":"up"}'
+        else
+            # Usually: the phone's Bluetooth tethering is off
+            printf '%s' "$out" | grep -qiE "NAP|not available|refused|no such|Bluetooth" \
+                && echo '{"ok":false,"reason":"tethering"}' || echo '{"ok":false,"reason":"failed"}'
+            exit 1
+        fi ;;
+    *) echo "usage: link.sh pan status|up|safe" >&2; exit 2 ;;
     esac ;;
 refresh)
     exec kdeconnect-cli --refresh ;;

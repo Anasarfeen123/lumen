@@ -197,10 +197,78 @@ Singleton {
         function ring(): void { root.ring(); }
         function clipboard(): void { root.sendClipboard(); }
         function screenshot(): void { root.screenshotToPhone(); }
+        function bluetooth(): void { root.panFails = 0; root.panUp(true); }
         function state(): string { return JSON.stringify({ available: root.available, connected: root.connected, phone: root.phone, backends: root.backends, custom: root.custom, tether: root.tether }); }
     }
 
     // ── dev mock (LUMEN_DEV): a phone without a phone ──
+    // ── Bluetooth network (automatic) ──
+    // On networks that keep devices apart (hostel/campus Wi-Fi), the phone's
+    // Bluetooth tethering gives KDE Connect a private link while the internet
+    // stays on Wi-Fi. Lumen brings that link up by itself: when the phone isn't
+    // reachable, every minute (every 5 when tethering is off on the phone), and
+    // as soon as the phone's Bluetooth connects. Only a profile that can never
+    // become the default route is used (link.sh pan up refuses otherwise).
+    property var pan: null                   // link.sh pan status
+    readonly property bool panAuto: Persist.data.linkBluetoothAuto ?? true
+    property int panFails: 0
+    property bool panHinted: false
+    property bool panBusy: false
+    function refreshPan() { if (!panStat.running) panStat.running = true; }
+    function panUp(manual) {
+        if (panBusy || !pan?.profile || mock) return;
+        panBusy = true;
+        panProc.manual = manual === true;
+        panProc.running = true;
+    }
+    function makePanSafe() { Quickshell.execDetached(["sh", "-c", '"$0" pan safe', script]); panSafeCheck.restart(); }
+    Timer { id: panSafeCheck; interval: 2500; onTriggered: root.refreshPan() }
+    Process {
+        id: panStat
+        running: true
+        command: [root.script, "pan", "status"]
+        stdout: StdioCollector { onStreamFinished: { try { root.pan = JSON.parse(text); } catch (e) {} } }
+    }
+    Process {
+        id: panProc
+        property bool manual: false
+        command: [root.script, "pan", "up"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.panBusy = false;
+                let r; try { r = JSON.parse(text); } catch (e) { return; }
+                root.refreshPan();
+                if (r.ok) {
+                    root.panFails = 0;
+                    refreshSoon.restart();
+                    if (r.reason === "up") Island.system("bluetooth_connected", "Linked over Bluetooth", (root.pan?.name ?? "Your phone") + " · internet stays on Wi-Fi");
+                    return;
+                }
+                root.panFails++;
+                if (r.reason === "tethering" && (panProc.manual || !root.panHinted)) {
+                    root.panHinted = true;
+                    Island.system("bluetooth", "Turn on Bluetooth tethering", "On your phone: Hotspot & tethering → Bluetooth tethering");
+                } else if (panProc.manual && r.reason === "away") Island.system("bluetooth_disabled", "Phone not in range", "Bluetooth couldn't reach it");
+                else if (panProc.manual && r.reason === "unsafe") Island.system("warning", "Bluetooth network could take over the internet", "Settings → Lumen Link → Keep internet on Wi-Fi");
+            }
+        }
+    }
+    Timer {
+        interval: root.panFails >= 3 ? 300000 : 60000
+        repeat: true
+        triggeredOnStart: true
+        running: Persist.automates && root.panAuto && root.available && !root.connected && !!root.pan?.profile && root.pan.safe && !root.mock
+        onTriggered: root.panUp(false)
+    }
+    // The phone's Bluetooth just connected (it came into range): link now
+    Connections {
+        target: Bluetooth
+        function onConnectedDevicesChanged() {
+            if (!root.panAuto || root.connected || !root.pan?.bdaddr) return;
+            if (Bluetooth.connectedDevices.some(d => (d.address ?? "").toUpperCase() === root.pan.bdaddr.toUpperCase())) { root.panFails = 0; root.panUp(false); }
+        }
+    }
+
     property bool mock: false
     IpcHandler {
         target: "linkTest"

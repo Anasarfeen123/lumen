@@ -21,7 +21,7 @@ Singleton {
         { group: "Personalise", id: "windows",       icon: "select_window",       label: "Windows",             keys: "gaps corners rounding border animation speed focus follows mouse" },
         { group: "Connections", id: "network",       icon: "wifi",                label: "Network",             keys: "wifi wi-fi internet airplane vpn warp cloudflare dns" },
         { group: "Connections", id: "bluetooth",     icon: "bluetooth",           label: "Bluetooth",           keys: "devices headphones pair connect battery" },
-        { group: "Connections", id: "phone",         icon: "phonelink",           label: "Lumen Link",          keys: "phone link kde connect android iphone pair find ring send file clipboard sync usb tethering hotspot address bluetooth" },,
+        { group: "Connections", id: "phone",         icon: "phonelink",           label: "Lumen Link",          keys: "phone link kde connect android iphone pair find ring send file clipboard sync usb tethering hotspot address bluetooth" },
         { group: "Connections", id: "whatsapp",      icon: "forum",               label: "WhatsApp",            keys: "whatsapp messages chat reply inbox whatsie contacts focus mute previews calls" },
         { group: "Devices", id: "sound",         icon: "volume_up",           label: "Sound",               keys: "volume output input microphone speaker headphones music lyrics" },
         { group: "Devices", id: "display",       icon: "brightness_6",        label: "Display",             keys: "brightness night light warmth" },
