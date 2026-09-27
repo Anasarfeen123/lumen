@@ -404,6 +404,9 @@
     ["12-power-menu", "Power menu"], ["13-app-menu", "App menu"], ["14-wallpapers", "Wallpaper picker"], ["15-password-prompt", "Admin password prompt"],
     ["16-focus-modes", "Focus modes"], ["17-sound", "Sound and per-app volume"], ["18-settings-appearance", "Settings: Appearance"], ["18-settings-updates", "Settings: Updates"],
     ["19-halo", "Lumen Halo: answer with runnable commands"], ["20-device-card", "A new display, announced by the island"], ["21-control-wifi", "Wi-Fi: connected, saved and nearby"], ["22-settings-advanced", "Settings: Advanced health check"], ["23-dolphin", "Dolphin in Lumen colours"],
+    ["24-ribbon", "The Ribbon: window strip, chips and vitals"], ["25-peek", "Peek: live preview with CPU and memory"], ["26-drop-zone", "Drop Zone"], ["27-lumen-link", "Lumen Link: connect on any network"],
+    ["28-backup", "Backup & recovery"], ["29-halo-whatsapp", "Halo drafts a WhatsApp message"], ["30-halo-rename", "Halo renames files (you apply)"], ["31-lyrics", "Synced lyrics in the island"],
+    ["32-whatsapp-island", "WhatsApp in the island"], ["33-whatsapp-reply", "Quick reply (Super+Shift+W)"], ["34-now-timeline", "The Now timeline"], ["35-screen-time", "Your week: screen time"],
   ];
   const gg = $("#gallery-grid");
   gg.innerHTML = shots.map(([f, c], i) => `<button data-i="${i}" aria-label="Enlarge: ${esc(c)}"><img src="img/${f}.jpg" alt="${esc(c)}" loading="lazy" decoding="async"><span>${esc(c)}</span></button>`).join("");
@@ -442,4 +445,21 @@
     try { await navigator.clipboard.writeText(cmds); $("#copyBtn").textContent = "Copied"; } catch { $("#copyBtn").textContent = "Select to copy"; }
     setTimeout(() => $("#copyBtn").textContent = "Copy", 1600);
   });
+})();
+
+// Lyrics demo: three original lines that glide upward (not a real song)
+(() => {
+  const box = document.querySelector(".lyr");
+  if (!box || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const lines = ["Streetlights hum a quiet tune", "We chase the glow across the room", "And fold the night into the moon",
+                 "The city blinks, we lose the time", "Your laugh arrives a beat behind", "And every sign says stay a while"];
+  let i = 1;
+  setInterval(() => {
+    i = (i + 1) % lines.length;
+    const spans = box.querySelectorAll("span");
+    box.animate([{ transform: "translateY(0)" }, { transform: "translateY(-6px)", opacity: .6 }, { transform: "translateY(0)", opacity: 1 }], { duration: 520, easing: "cubic-bezier(0.05,0.7,0.1,1)" });
+    spans[0].textContent = lines[(i + lines.length - 1) % lines.length];
+    spans[1].textContent = lines[i];
+    spans[2].textContent = lines[(i + 1) % lines.length];
+  }, 2600);
 })();

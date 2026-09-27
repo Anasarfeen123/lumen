@@ -539,3 +539,19 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 18px; justify-content: space
 
 /* The theme lab re-tints only its own card */
 #labCard { --tint: color-mix(in oklab, var(--accent) 16%, transparent); --tint2: color-mix(in oklab, var(--accent) 32%, transparent); --glow: color-mix(in oklab, var(--accent) 36%, transparent); }
+
+/* ── The island, deeper (small live recreations) ── */
+.lyr { display: grid; gap: 6px; padding: 16px 18px; border-radius: 18px; background: var(--glass); border: 1px solid var(--line); overflow: hidden; height: 104px; }
+.lyr span { color: var(--muted); font-size: 14px; transition: all .6s var(--spring, ease); }
+.lyr .now { color: var(--text); font-size: 17px; font-weight: 600; }
+.tline { position: relative; height: 72px; border-radius: 18px; background: var(--glass); border: 1px solid var(--line); }
+.tline::before { content: ""; position: absolute; left: 6%; right: 6%; top: 26px; height: 2px; background: var(--line2); border-radius: 2px; }
+.tline i { position: absolute; top: 20px; width: 2px; height: 14px; background: var(--text2); border-radius: 2px; }
+.tline b { position: absolute; top: 16px; left: 44%; width: 10px; height: 22px; margin-left: -4px; border-radius: 6px; background: var(--accent); box-shadow: 0 0 18px var(--glow); animation: scrub 6s ease-in-out infinite; }
+.tline span { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font-size: 12px; color: var(--text2); }
+@keyframes scrub { 0%,100% { left: 44%; } 25% { left: 27%; } 50% { left: 63%; } 75% { left: 81%; } }
+.onair { display: inline-flex; align-items: center; gap: 8px; justify-self: start; padding: 8px 14px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line2); font-size: 13px; }
+.onair i { width: 8px; height: 8px; border-radius: 50%; background: var(--err); box-shadow: 0 0 10px var(--err); animation: breathe 1.6s ease-in-out infinite; }
+.onair .ms { font-size: 16px; color: var(--text2); }
+.onair.bat .ms { color: var(--warn); }
+@media (prefers-reduced-motion: reduce) { .tline b, .onair i { animation: none; } }

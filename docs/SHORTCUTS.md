@@ -18,6 +18,7 @@
 | <kbd>Super</kbd> + <kbd>.</kbd> | Emoji picker |
 | <kbd>Super</kbd> + <kbd>I</kbd> | Lumen Settings |
 | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd> | Lumen Halo (AI) |
+| <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>W</kbd> | Messages: reply, find a chat (WhatsApp) |
 
 ## Windows
 
@@ -28,7 +29,7 @@
 | <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>Space</kbd> | Float / tile |
 | <kbd>Super</kbd> + <kbd>F</kbd> | Fullscreen |
 | <kbd>Super</kbd> + <kbd>D</kbd> | Maximise (keeps bar and gaps) |
-| <kbd>Super</kbd> + <kbd>P</kbd> | Keep on all workspaces |
+| <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>P</kbd> | Keep on all workspaces |
 | <kbd>Super</kbd> + <kbd>U</kbd> | Pseudo-tile |
 | <kbd>Super</kbd> + <kbd>J</kbd> | Flip split |
 | <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>Enter</kbd> | Menu of the focused app |
@@ -76,6 +77,19 @@
 | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>N</kbd> | Next track |
 | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> | Previous track |
 | <kbd>Super</kbd> + <kbd>M</kbd> | Expand the island (media) — Esc closes |
+
+## Laptop keys
+
+| Keys | Action |
+|---|---|
+| <kbd>XF86RFKill</kbd> | Airplane mode |
+| <kbd>XF86TouchpadToggle</kbd> | Touchpad on / off |
+| <kbd>XF86KbdBrightnessUp</kbd> | Keyboard light up |
+| <kbd>XF86KbdBrightnessDown</kbd> | Keyboard light down |
+| <kbd>Super</kbd> + <kbd>P</kbd> | Displays: extend · mirror · external only · laptop only |
+| <kbd>XF86Calculator</kbd> | Calculator (the overview, ready for maths) |
+| <kbd>XF86Launch3</kbd> | Power mode: balanced → performance → saver |
+| <kbd>XF86PowerOff</kbd> | Power menu |
 
 ## Control centre
 

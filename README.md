@@ -76,6 +76,15 @@ Focus modes (Work, Game, Sleep) on a schedule. Night light that follows the suns
 </tr>
 </table>
 
+### And lately
+- **The Ribbon:** with windows open the island stretches into one bar: your windows, now playing, weather, your next event, a call on air, battery time left, and **Peek** (hover for live previews with CPU and memory).
+- **WhatsApp**, through your own WhatsApp Web session: messages in the island and Ribbon, quick reply (<kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd>), "Send to WhatsApp", and Halo drafts ("tell Arya I'll send the build tonight"). Lumen never sends; you press Enter.
+- **Drop Zone:** drag files to the right edge to send, compress, open with, move or ask Halo.
+- **Lumen Link:** your phone over KDE Connect even on hostel/campus Wi-Fi (Bluetooth network set up automatically, internet stays on Wi-Fi), clipboard from your phone.
+- **The island, deeper:** synced lyrics, a scrubbable Now timeline of the last hour, Meeting mode, battery forecast.
+- **Backups & recovery:** hard-link snapshots to a USB drive; `lumen recovery` from a TTY.
+- **Everyday:** every laptop key with feedback, money in ₹ (`$100`, `2 lakh / 12`), screen time and focus in the planner, Halo summarising PDFs and renaming files (you apply).
+
 ## A quick tour
 
 | | | |
@@ -84,6 +93,7 @@ Focus modes (Work, Game, Sleep) on a schedule. Night light that follows the suns
 | <img src="docs/showcase/img/18-settings-appearance.jpg" alt="Settings"><br>Settings | <img src="docs/showcase/img/14-wallpapers.jpg" alt="Wallpapers"><br>Wallpapers | <img src="docs/showcase/img/11-cheatsheet.jpg" alt="Cheatsheet"><br>Every shortcut (<kbd>Super</kbd>+<kbd>/</kbd>) |
 | <img src="docs/showcase/img/16-focus-modes.jpg" alt="Focus"><br>Focus modes | <img src="docs/showcase/img/15-password-prompt.jpg" alt="Admin prompt"><br>Admin prompt | <img src="docs/showcase/img/18-settings-updates.jpg" alt="Updates"><br>Updates |
 | <img src="docs/showcase/img/20-device-card.jpg" alt="A display announced by the island"><br>Device alerts | <img src="docs/showcase/img/21-control-wifi.jpg" alt="Wi-Fi list"><br>Wi-Fi & Bluetooth | <img src="docs/showcase/img/23-dolphin.jpg" alt="Dolphin in Lumen colours"><br>Your apps match |
+| <img src="docs/showcase/img/32-whatsapp-island.jpg" alt="WhatsApp in the island"><br>WhatsApp | <img src="docs/showcase/img/26-drop-zone.jpg" alt="Drop Zone"><br>Drop Zone | <img src="docs/showcase/img/29-halo-whatsapp.jpg" alt="Halo drafting a WhatsApp message"><br>Halo + WhatsApp |
 
 More in the [feature guide](docs/FEATURES.md) and the [showcase page](https://anasarfeen123.github.io/lumen/showcase/).
 
@@ -122,7 +132,7 @@ Inside any Wayland desktop, `bin/lumen-session` runs Lumen in a window, so nothi
 | <kbd>Super</kbd>+<kbd>L</kbd> · <kbd>Super</kbd>+<kbd>I</kbd> | Lock · Settings |
 | <kbd>Super</kbd>+<kbd>/</kbd> | Every shortcut |
 
-All 79 shortcuts and the gestures: **[docs/SHORTCUTS.md](docs/SHORTCUTS.md)**.
+All 88 shortcuts and the gestures: **[docs/SHORTCUTS.md](docs/SHORTCUTS.md)**.
 
 ## Documentation
 
