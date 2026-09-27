@@ -67,6 +67,10 @@ Page {
                  LSwitch { checked: Persist.data.lockCalendar; onToggled: Persist.data.lockCalendar = !checked } }
         SetRow { icon: "notifications"; title: "Notifications"; description: "A count and app names only — never their content"
                  LSwitch { checked: Persist.data.lockNotifications; onToggled: Persist.data.lockNotifications = !checked } }
+        SetRow { icon: "smartphone"; title: "Phone"; description: "Your phone's battery and whether it's linked (Lumen Link)"
+                 LSwitch { checked: Persist.data.lockPhone; onToggled: Persist.data.lockPhone = !checked } }
+        SetRow { icon: "forum"; title: "Messages"; description: "How many unread chats — counts only, never names or messages"
+                 LSwitch { checked: Persist.data.lockMessages; onToggled: Persist.data.lockMessages = !checked } }
     }
 
     Group {

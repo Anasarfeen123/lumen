@@ -28,4 +28,13 @@ Scope {
     }
 
     GlobalShortcut { appid: "lumen"; name: "lock"; description: "Lock the screen"; onPressed: Lock.lock() }
+
+    // Dev only (LUMEN_DEV — set by lumen-session for nested test sessions,
+    // never in a real login): unlock without a password, to review the lock
+    // screen in a test session.
+    IpcHandler {
+        target: "lockTest"
+        enabled: Quickshell.env("LUMEN_DEV") === "1" && !!Quickshell.env("LUMEN_NESTED")
+        function unlock(): void { if (Lock.locked) Lock.succeed(); }
+    }
 }

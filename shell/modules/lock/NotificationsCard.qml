@@ -15,7 +15,10 @@ FrostPane {
         const seen = [], out = [];
         for (let i = 0; i < Notifications.model.count && out.length < 3; i++) {
             const e = Notifications.model.get(i);
-            if (!seen.includes(e.appName)) { seen.push(e.appName); out.push({ name: e.appName, icon: e.icon }); }
+            // Messaging entries are "WhatsApp · <chat>": show the app only,
+            // never who the chat is with
+            const name = (e.appName ?? "").split(" · ")[0];
+            if (!seen.includes(name)) { seen.push(name); out.push({ name, icon: e.chatKey ? "" : e.icon }); }
         }
         return out;
     }
