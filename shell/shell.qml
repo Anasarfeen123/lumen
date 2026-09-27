@@ -29,6 +29,11 @@ import qs.modules.inbox
 import qs.modules.welcome
 
 ShellRoot {
+    id: root
+    // Dev only (LUMEN_DEV): which screen each bar delegate took, so a second
+    // monitor showing two bars (or none) can be counted rather than squinted at
+    property var barRegistry: []
+
     // A desktop you use must not restart itself because a file changed on
     // disk (least of all while locked). Live reload is for development only
     // (LUMEN_DEV=1, set by lumen-session in nested test mode); otherwise
@@ -78,6 +83,11 @@ ShellRoot {
         delegate: Bar {
             required property var modelData
             screen: modelData
+            // kept, because modelData is not reliable once the delegate is going
+            readonly property string regName: modelData?.name ?? "?"
+            Component.onCompleted: root.barRegistry = root.barRegistry.concat([regName])
+            // a screen unplugged must stop being counted, or this grows forever
+            Component.onDestruction: root.barRegistry = root.barRegistry.filter(n => n !== regName)
         }
     }
     Variants {
@@ -183,6 +193,19 @@ ShellRoot {
         delegate: OverviewWindow {
             required property var modelData
             screen: modelData
+        }
+    }
+
+    // Dev only (LUMEN_DEV): what the shell thinks the screens are, and how many
+    // bars it built. A second screen is where duplicated or missing bars show
+    // up, and that is not visible from the outside.
+    IpcHandler {
+        target: "screenTest"
+        enabled: Quickshell.env("LUMEN_DEV") === "1"
+        function state(): string {
+            const names = [];
+            for (const s of Quickshell.screens) names.push(s.name);
+            return JSON.stringify({ screens: names, bars: root.barRegistry });
         }
     }
 }

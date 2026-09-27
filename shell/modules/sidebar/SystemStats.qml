@@ -14,7 +14,14 @@ Rectangle {
     border.width: 1
     border.color: Theme.border
 
-    Binding { target: Sysinfo; property: "active"; value: root.visible && Sidebar.open }
+    // A request per screen (a Binding here would fight the sidebars on other screens)
+    readonly property bool wantsSamples: root.visible && Sidebar.open
+    readonly property string sysKey: "stats:" + Math.random().toString(36).slice(2)
+    onWantsSamplesChanged: Sysinfo.request(sysKey, wantsSamples ? "detail" : "")
+    // as RibbonChips does: a sidebar already open when this is built never
+    // changes wantsSamples, so the change handler above would never fire
+    Component.onCompleted: Sysinfo.request(sysKey, wantsSamples ? "detail" : "")
+    Component.onDestruction: Sysinfo.request(sysKey, "")
 
     // Click for the full picture (Settings → System)
     HoverTarget {

@@ -44,8 +44,9 @@ PanelWindow {
 
     // Dev only (LUMEN_DEV): peek a workspace's windows without a pointer
     IpcHandler {
-        target: "peekTest"
-        enabled: Quickshell.env("LUMEN_DEV") === "1" && pop.barWindow.screen?.name === Hyprland.focusedMonitor?.name
+        // one per screen, so targets never collide: peekTest-<output>
+        target: "peekTest-" + (pop.barWindow.screen?.name ?? "")
+        enabled: Quickshell.env("LUMEN_DEV") === "1"
         function workspace(id: int): void {
             const ws = Hyprland.workspaces.values.find(w => w.id === id);
             pop.peek(ws?.toplevels?.values ?? [], "Workspace " + id, 420);

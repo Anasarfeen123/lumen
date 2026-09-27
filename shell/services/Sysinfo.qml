@@ -24,6 +24,18 @@ Singleton {
     property var _prev: null
     property bool islandActive: false   // the island's context card also wants samples
     property bool ribbonActive: false   // the merged Ribbon shows a chip when the system is straining
+    // Per-screen views ask here instead of binding the flags above: with two
+    // screens, two Bindings on one property overwrite each other (an unmerged
+    // bar would switch sampling off for the merged one). Sampling runs while
+    // any request stands.   request(who, "detail" | "ribbon" | "")
+    property var requests: ({})
+    function request(who, level) {
+        const r = Object.assign({}, requests);
+        if (level) r[who] = level; else delete r[who];
+        requests = r;
+    }
+    readonly property bool wantsDetail: active || islandActive || Object.values(requests).includes("detail")
+    readonly property bool wantsRibbon: ribbonActive || Object.values(requests).includes("ribbon")
     // NVIDIA details, only while the dGPU is already awake (nvidia-smi would wake it)
     property real dgpuUtil: -1          // 0–1, -1 unknown
     property real dgpuTemp: -1
@@ -49,11 +61,11 @@ Singleton {
     Timer {
         // 2 s while someone is looking at the numbers; 6 s when only the Ribbon
         // is watching for a busy system (and no NVIDIA query then)
-        readonly property bool detailed: root.active || root.islandActive
+        readonly property bool detailed: root.wantsDetail
         interval: detailed ? 2000 : 6000
         repeat: true
         triggeredOnStart: true
-        running: detailed || root.ribbonActive
+        running: detailed || root.wantsRibbon
         onTriggered: {
             if (!sampler.running) sampler.running = true;
             if (detailed && root.dgpu === "active" && !nv.running) nv.running = true;
@@ -87,5 +99,23 @@ Singleton {
                 root.disk = Number(kv.disk_used_pct ?? 0) / 100;
             }
         }
+    }
+
+    // Dev only (LUMEN_DEV): who is asking for samples, and what the totals
+    // come out as. The multi-screen fix is invisible from the outside — with
+    // two screens the bug was one sidebar closing switching sampling off for
+    // the other — so it needs a way to be looked at.
+    IpcHandler {
+        target: "sysinfoTest"
+        enabled: Quickshell.env("LUMEN_DEV") === "1"
+        function state(): string {
+            return JSON.stringify({
+                requests: root.requests,
+                wantsDetail: root.wantsDetail,
+                wantsRibbon: root.wantsRibbon,
+                sampling: root.wantsDetail || root.wantsRibbon,
+            });
+        }
+        function clear(): void { root.requests = ({}); }
     }
 }

@@ -148,10 +148,10 @@ Singleton {
     IpcHandler {
         target: "dropzoneTest"
         enabled: Quickshell.env("LUMEN_DEV") === "1"
-        function hover(path: string): void { root.testHold = true; root.dragEntered(path.split("|").map(p => "file://" + p)); }
+        function hover(path: string): void { root.testHold = true; root.where = Hyprland.focusedMonitor?.name ?? ""; root.dragEntered(path.split("|").map(p => "file://" + p)); }
         function release(): void { root.testHold = false; root.dragDone(); }
         function drop(path: string): void { root.shelf = root.shelf.concat(path.split("|")); root.show(); }
         function act(action: string, arg: string): void { root.run(action, root.subject, arg); }
-        function state(): string { return JSON.stringify({ open: root.open, dragging: root.dragging, hovering: root.hovering, shelf: root.shelf, phone: root.phone, apps: root.apps.map(a => a.id) }); }
+        function state(): string { return JSON.stringify({ focus: Hyprland.focusedMonitor?.name ?? "", where: root.where, open: root.open, dragging: root.dragging, hovering: root.hovering, shelf: root.shelf, phone: root.phone, apps: root.apps.map(a => a.id) }); }
     }
 }

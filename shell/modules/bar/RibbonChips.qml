@@ -26,7 +26,11 @@ Item {
     Behavior on islandHalf { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
 
     // Sysinfo samples while the Ribbon wants to know about a busy system
-    Binding { target: Sysinfo; property: "ribbonActive"; value: root.shown }
+    // (a request per screen, not a Binding: bars on other screens would override it)
+    readonly property string sysKey: "ribbon:" + Math.random().toString(36).slice(2)
+    onShownChanged: Sysinfo.request(sysKey, shown ? "ribbon" : "")
+    Component.onCompleted: Sysinfo.request(sysKey, shown ? "ribbon" : "")
+    Component.onDestruction: Sysinfo.request(sysKey, "")
 
     SystemClock { id: clock; precision: SystemClock.Minutes }
     readonly property var nextEvent: {
