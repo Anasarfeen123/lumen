@@ -1,5 +1,11 @@
-// Halo: where Lumen Halo (Super+Shift+Space) gets its answers, and the
-// local models it can use (download, remove, choose).
+// Halo: where Lumen Halo (Super+Shift+Space) gets its answers.
+//
+// One list of providers, because "which AI" stopped being one question:
+// this computer, six clouds, and any OpenAI-compatible server you run
+// yourself. Each cloud needs its own key; the keys live beside each other
+// in ~/.local/state/lumen/ai/<provider>.key, mode 600, and are never shown
+// again once saved. Model lists are fetched from the provider when you ask
+// for them, never in the background and never on a timer.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -14,24 +20,100 @@ Page {
     subtitle: "Lumen Halo (Super+Shift+Space) explains what you've selected, reads your screen, checks your system, writes commands and commit messages. It's off until you pick where answers come from."
     Component.onCompleted: Ai.refreshStatus()
 
+    readonly property var info: Ai.providerInfo(Ai.provider) ?? ({})
+    // remembered so the Halo switch can put back whatever you had before
+    property string lastProvider: "ollama"
+
+    function choose(id) {
+        lastProvider = id;
+        Persist.data.aiProvider = id;
+        // "auto" is Ollama's own word for "pick the best installed model"
+        Persist.data.aiModel = id === "ollama" ? "auto" : "";
+        Ai.refreshStatus();
+    }
+    function ofGroup(g) { return Ai.providers.filter(p => p.group === g); }
+
+    // ── Halo on or off ──
     Group {
-        title: "Provider"
+        title: "Lumen Halo"
         SetRow {
-            icon: "smart_toy"
-            title: "Answers from"
-            description: Ai.provider === "ollama" ? "Local models — nothing leaves this computer"
-                       : Ai.provider === "anthropic" ? "Claude, with your own Anthropic API key"
-                       : "Off — Lumen never contacts a model"
-            Segmented {
-                width: 330
-                options: [{ id: "off", label: "Off" }, { id: "ollama", label: "This computer" }, { id: "anthropic", label: "Claude" }]
-                current: Ai.provider
-                onPicked: id => { Persist.data.aiProvider = id; Persist.data.aiModel = id === "ollama" ? "auto" : ""; Ai.refreshStatus(); }
+            icon: "auto_awesome"
+            title: Ai.provider === "off" ? "Off" : "Answers from " + page.info.label
+            description: Ai.provider === "off"
+                ? "Lumen never contacts a model. The shortcut does nothing."
+                : (Ai.configured
+                    ? "Ready. " + (Ai.local ? "Answers never leave this machine." : "Your key is stored on this computer only; usage is billed to you.")
+                    : "Not set up yet — " + (page.info.group === "local" ? "start Ollama and install a model below"
+                        : page.info.group === "custom" ? "add your server's address below" : "add your API key below"))
+            LSwitch {
+                checked: Ai.provider !== "off"
+                onToggled: {
+                    if (checked) page.choose(page.lastProvider);
+                    else { Persist.data.aiProvider = "off"; Ai.refreshStatus(); }
+                }
             }
         }
     }
 
-    // ── Claude ──
+    // ── Which provider ──
+    Group {
+        title: "On this computer"
+        Repeater {
+            model: page.ofGroup("local")
+            delegate: SetRow {
+                required property var modelData
+                icon: "memory"
+                title: modelData.label + (Ai.provider === modelData.id ? "  ·  in use" : "")
+                description: modelData.note
+                Button {
+                    text: Ai.provider === modelData.id ? "In use" : (Ai.isConfigured(modelData.id) ? "Use" : "Set up")
+                    primary: Ai.provider === modelData.id
+                    enabled: Ai.provider !== modelData.id
+                    onActivated: page.choose(modelData.id)
+                }
+            }
+        }
+    }
+    Group {
+        title: "Cloud models"
+        Repeater {
+            model: page.ofGroup("cloud")
+            delegate: SetRow {
+                required property var modelData
+                icon: "cloud"
+                title: modelData.label + (Ai.provider === modelData.id ? "  ·  in use" : "")
+                description: modelData.note + (Ai.isConfigured(modelData.id) ? " · key saved" : " · key at " + modelData.site)
+                Button {
+                    text: Ai.provider === modelData.id ? "In use" : (Ai.isConfigured(modelData.id) ? "Use" : "Set up")
+                    primary: Ai.provider === modelData.id
+                    enabled: Ai.provider !== modelData.id
+                    onActivated: page.choose(modelData.id)
+                }
+            }
+        }
+    }
+    Group {
+        title: "Your own server"
+        Repeater {
+            model: page.ofGroup("custom")
+            delegate: SetRow {
+                required property var modelData
+                icon: "dns"
+                title: modelData.label + (Ai.provider === modelData.id ? "  ·  in use" : "")
+                description: modelData.note + (Ai.isConfigured(modelData.id) ? " · " + Ai.status.custom.url : "")
+                Button {
+                    text: Ai.provider === modelData.id ? "In use" : (Ai.isConfigured(modelData.id) ? "Use" : "Set up")
+                    primary: Ai.provider === modelData.id
+                    enabled: Ai.provider !== modelData.id
+                    onActivated: page.choose(modelData.id)
+                }
+            }
+        }
+    }
+
+    // ── The key for the chosen cloud provider ──
+    // One field for whichever provider is selected, rather than a block per
+    // provider: you only ever need the key of the one you are using.
     property string keyMsg: ""
     Process {
         id: keyProc
@@ -40,46 +122,140 @@ Page {
         stderr: StdioCollector { onStreamFinished: if (text.trim()) page.keyMsg = text.trim() }
         onExited: Ai.refreshStatus()
     }
+    property bool cloudChosen: Ai.provider !== "off" && page.info.group === "cloud"
+    property bool hasKey: Ai.isConfigured(Ai.provider)
     Group {
-        title: "Claude (Anthropic)"
-        visible: Ai.provider === "anthropic"
+        title: page.info.label ? page.info.label + " key" : "API key"
+        visible: page.cloudChosen
         SetRow {
             icon: "key"
-            title: Ai.status.anthropic ? "API key saved" : "API key"
-            description: Ai.status.anthropic ? "Stored only on this computer (mode 600), never shown again."
-                       : "Create one at console.anthropic.com → API keys. Usage is billed to your account."
+            title: page.hasKey ? "API key saved" : "API key"
+            description: page.hasKey
+                ? "Stored only on this computer (mode 600), never shown again."
+                : "Create one at " + (page.info.site || "the provider's site") + ". Usage is billed to your account."
             Row {
                 spacing: Theme.space.s2
                 LField {
                     id: keyField
-                    visible: !Ai.status.anthropic
+                    visible: !page.hasKey
                     width: 260
                     icon: "key"
-                    placeholder: "sk-ant-…"
+                    placeholder: (page.info.key || "key") + "…"
                     input.echoMode: TextInput.Password
-                    onAccepted: t => { keyProc.command = [Theme.lumenRoot + "/scripts/ai.sh", "set-key", "anthropic"]; keyProc.running = true; keyProc.write(t + "\n"); keyProc.stdinEnabled = false; }
+                    onAccepted: t => {
+                        keyProc.command = [Theme.lumenRoot + "/scripts/ai.sh", "set-key", Ai.provider];
+                        keyProc.running = true; keyProc.write(t + "\n"); keyProc.stdinEnabled = false;
+                    }
                 }
                 Button {
-                    text: Ai.status.anthropic ? "Remove key" : "Save"
+                    text: page.hasKey ? "Remove key" : "Save"
                     onActivated: {
-                        if (Ai.status.anthropic) { keyProc.command = [Theme.lumenRoot + "/scripts/ai.sh", "forget-key", "anthropic"]; keyProc.running = true; }
+                        if (page.hasKey) { keyProc.command = [Theme.lumenRoot + "/scripts/ai.sh", "forget-key", Ai.provider]; keyProc.running = true; }
                         else keyField.accepted(keyField.text);
                     }
                 }
             }
         }
+        SetRow { visible: page.keyMsg !== ""; icon: "info"; title: page.keyMsg }
+    }
+
+    // ── Your own server: address and default model ──
+    Process {
+        id: customProc
+        stdout: StdioCollector { onStreamFinished: Ai.refreshStatus() }
+        stderr: StdioCollector { onStreamFinished: if (text.trim()) page.keyMsg = text.trim() }
+        onExited: Ai.refreshStatus()
+    }
+    Group {
+        title: "Your server"
+        visible: Ai.provider === "custom"
+        SetRow {
+            icon: "link"
+            title: "Address"
+            description: "Where your server answers. Anything that speaks the OpenAI chat format works."
+            Row {
+                spacing: Theme.space.s2
+                LField {
+                    id: urlField
+                    width: 250
+                    icon: "link"
+                    placeholder: "http://127.0.0.1:1234/v1"
+                    text: Ai.status.custom?.url ?? ""
+                    // not a secret: keep it on screen so you can see what you saved
+                    clearOnAccept: false
+                    onAccepted: t => {
+                        customProc.command = ["sh", "-c", '"$1" set-custom "$2" "$3"', "sh",
+                                              Theme.lumenRoot + "/scripts/ai.sh", t.trim(), (Ai.status.custom?.model ?? "")];
+                        customProc.running = true;
+                    }
+                }
+                Button { text: "Save"; onActivated: urlField.accepted(urlField.text) }
+            }
+        }
+        SetRow {
+            icon: "deployed_code"
+            title: "Default model"
+            description: "Used until you pick one from the list below."
+            LField {
+                id: customModelField
+                width: 250
+                icon: "deployed_code"
+                placeholder: "model name"
+                text: Ai.status.custom?.model ?? ""
+                clearOnAccept: false
+                onAccepted: t => {
+                    customProc.command = ["sh", "-c", '"$1" set-custom "$2" "$3"', "sh",
+                                          Theme.lumenRoot + "/scripts/ai.sh", (Ai.status.custom?.url ?? ""), t.trim()];
+                    customProc.running = true;
+                }
+            }
+        }
+    }
+
+    // ── Which model ──
+    // Ollama picks its own below (it knows what is installed). For anything
+    // else the list comes from the provider, fetched only when asked.
+    readonly property var modelList: Ai.modelLists[Ai.provider] ?? []
+    readonly property bool cloudChosenModels: Ai.provider !== "off" && Ai.provider !== "ollama"
+    Group {
+        title: "Model"
+        visible: page.cloudChosenModels
         SetRow {
             icon: "tune"
             title: "Model"
-            description: Ai.model === "claude-haiku-4-5-20251001" ? "Fastest and cheapest" : Ai.model === "claude-opus-5-5" ? "Most capable, slower" : "Balanced — a good default"
-            Segmented {
-                width: 330
-                options: [{ id: "claude-haiku-4-5-20251001", label: "Haiku 4.5" }, { id: "claude-sonnet-5", label: "Sonnet 5" }, { id: "claude-opus-5-5", label: "Opus 5.5" }]
-                current: Ai.model
-                onPicked: id => Persist.data.aiModel = id
+            description: (page.modelList.length ? (page.modelList.length + " available from " + page.info.label)
+                                               : "Halo will use " + (Ai.model || "the provider's default"))
+                        + (Ai.model ? " · now: " + Ai.model : "")
+            Row {
+                spacing: Theme.space.s2
+                Button {
+                    text: Ai._fetching[Ai.provider] ? "Fetching…" : (page.modelList.length ? "Refresh" : "Fetch models")
+                    enabled: !Ai._fetching[Ai.provider]
+                    onActivated: Ai.fetchModels(Ai.provider)
+                }
             }
         }
-        SetRow { visible: page.keyMsg !== ""; icon: "info"; title: page.keyMsg }
+        Repeater {
+            model: page.modelList
+            delegate: SetRow {
+                required property var modelData
+                minHeight: 44
+                icon: "memory"
+                title: modelData + (Ai.model === modelData ? "  ·  in use" : "")
+                Button {
+                    text: Ai.model === modelData ? "In use" : "Use"
+                    primary: Ai.model === modelData
+                    enabled: Ai.model !== modelData
+                    onActivated: Persist.data.aiModel = modelData
+                }
+            }
+        }
+        SetRow {
+            visible: page.modelList.length === 0
+            icon: "info"
+            title: "No model list fetched"
+            description: "Fetching asks the provider what it has, which needs your key. Until then Halo uses " + (Ai.model || "its default") + "."
+        }
     }
 
     // ── Ollama ──
@@ -194,5 +370,10 @@ Page {
         title: "Privacy"
         SetRow { icon: "shield"; title: "Only when you ask"; description: "Nothing is sent until you press Enter. Selected text and screenshots are attached only when their chips are on." }
         SetRow { icon: "history_toggle_off"; title: "No history kept"; description: "Conversations live in memory and vanish when you clear them or log out." }
+        SetRow {
+            icon: "lock"
+            title: "Your keys stay here"
+            description: "Each key is written to ~/.local/state/lumen/ai/<provider>.key with mode 600 and handed to curl on stdin — never on a command line, never in a log."
+        }
     }
 }

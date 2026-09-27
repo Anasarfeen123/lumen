@@ -17,9 +17,16 @@ import Quickshell.Widgets
 import qs.theme
 import qs.components
 import qs.services
+import "markdown.js" as Md
 
 PanelWindow {
     id: win
+    // Colours for answers (solid: Qt rich text ignores alpha in CSS colours)
+    readonly property var mdColors: ({
+        accent: Theme.accent.toString(), muted: Theme.textMuted.toString(), mono: Theme.fontMono,
+        codeBg: Qt.tint(Theme.surfaceElevated, Theme.withAlpha(Theme.text, 0.10)).toString(),
+        blockBg: Qt.tint(Theme.surface, Theme.withAlpha(Theme.bg, 0.55)).toString()
+    })
 
     readonly property HyprlandMonitor monitor: Hyprland.monitorFor(screen)
     readonly property bool isFocused: Quickshell.screens.length <= 1
@@ -78,16 +85,32 @@ PanelWindow {
         QtObject {
             id: spin
             property real angle: 0
-            NumberAnimation on angle { from: 0; to: 360; duration: 3600; loops: Animation.Infinite; running: win.visible && Ai.busy && !Theme.reducedMotion }
+            NumberAnimation on angle { from: 0; to: 360; duration: 4800; loops: Animation.Infinite; running: win.showing && Ai.busy && !Theme.reducedMotion }
         }
-        // Glow
-        Sweep {
-            anchors.margins: -10
-            opacity: 0.55
+        // Glow: an accent frame blurred ONCE (its source never changes), that
+        // only breathes through its opacity — compositing, not re-blurring.
+        // (A blurred copy of the turning gradient re-rendered the blur every
+        // frame and cost a large share of a core on the iGPU.)
+        Rectangle {
+            id: glow
+            anchors.fill: parent
+            anchors.margins: -6
+            radius: win.panelRadius + 8
+            color: "transparent"
+            border.width: 7
+            border.color: Theme.accent
             layer.enabled: true
-            layer.effect: MultiEffect { blurEnabled: true; blur: 1.0; blurMax: 40 }
+            layer.effect: MultiEffect { blurEnabled: true; blur: 1.0; blurMax: 32 }
+            opacity: Ai.busy ? 0.42 : 0.18
+            SequentialAnimation on opacity {
+                running: win.visible && Ai.busy && !Theme.reducedMotion
+                loops: Animation.Infinite
+                alwaysRunToEnd: true
+                NumberAnimation { to: 0.55; duration: 1400; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.3; duration: 1400; easing.type: Easing.InOutSine }
+            }
         }
-        // Rim
+        // Rim: a thin turning light (no blur)
         Sweep {}
     }
 
@@ -245,7 +268,8 @@ PanelWindow {
                 model: Ai.messages
                 boundsBehavior: Flickable.StopAtBounds
                 onCountChanged: Qt.callLater(positionViewAtEnd)
-                onContentHeightChanged: if (Ai.busy) positionViewAtEnd()
+                // Follow the answer as it grows (once per batch, not per token)
+                Connections { target: Ai; function onStreamTextChanged() { if (!transcript.moving) transcript.positionViewAtEnd(); } }
                 QQC.ScrollBar.vertical: QQC.ScrollBar { policy: transcript.contentHeight > transcript.height ? QQC.ScrollBar.AsNeeded : QQC.ScrollBar.AlwaysOff }
                 delegate: Item {
                     id: msg
@@ -253,7 +277,10 @@ PanelWindow {
                     required property int index
                     readonly property bool mine: modelData.role === "user"
                     readonly property bool last: index === Ai.messages.length - 1
-                    readonly property var blocks: mine ? [] : Ai.codeBlocks(modelData.text)
+                    // The answer being written: cheap plain text from Ai.streamText,
+                    // Markdown once it's done (re-parsing Markdown per token was the lag)
+                    readonly property bool live: last && !mine && Ai.busy
+                    readonly property var blocks: mine || live ? [] : Ai.codeBlocks(modelData.text)
                     width: transcript.width
                     height: mine ? userBubble.height : answerCol.height
 
@@ -317,10 +344,11 @@ PanelWindow {
                         Rectangle {
                             visible: !msg.modelData.renames && msg.modelData.kind !== "wa"
                             width: parent.width
-                            height: visible ? answer.implicitHeight + Theme.space.s3 * 2 : 0
                             radius: Theme.radius.md
                             color: Theme.withAlpha(Theme.surfaceElevated, 0.7)
                             border.width: 1; border.color: Theme.border
+                            readonly property Item shown: msg.live ? liveAnswer : answer
+                            height: visible ? Math.max(40, shown.implicitHeight + Theme.space.s3 * 2) : 0
                             TextEdit {
                                 id: answer
                                 x: Theme.space.s3; y: Theme.space.s3
@@ -328,35 +356,41 @@ PanelWindow {
                                 readOnly: true
                                 selectByMouse: true
                                 wrapMode: Text.Wrap
-                                textFormat: TextEdit.MarkdownText
-                                text: msg.modelData.text
+                                textFormat: TextEdit.RichText
+                                text: msg.live ? "" : Md.toHtml(msg.modelData.text, win.mdColors)
+                                onLinkActivated: link => Qt.openUrlExternally(link)
                                 color: Theme.text
                                 selectionColor: Theme.withAlpha(Theme.accent, 0.4)
                                 font.family: Theme.fontUi
                                 font.pixelSize: 14
-                                visible: text !== ""
+                                visible: !msg.live && text !== ""
+                            }
+                            // While it's being written: plain text and a soft cursor
+                            Text {
+                                id: liveAnswer
+                                visible: msg.live && Ai.streamText !== ""
+                                x: Theme.space.s3; y: Theme.space.s3
+                                width: parent.width - Theme.space.s3 * 2
+                                wrapMode: Text.Wrap
+                                textFormat: Text.RichText
+                                text: msg.live ? Md.toHtml(Ai.streamText, win.mdColors) + '<span style="color:' + win.mdColors.accent + ';">▍</span>' : ""
+                                color: Theme.text
+                                font.family: Theme.fontUi
+                                font.pixelSize: 14
                             }
                             // Before the first words: what Halo is doing
                             Row {
-                                visible: msg.modelData.text === ""
+                                visible: msg.live ? Ai.streamText === "" : msg.modelData.text === ""
                                 x: Theme.space.s3; anchors.verticalCenter: parent.verticalCenter
                                 spacing: Theme.space.s2
-                                Repeater {
-                                    model: 3
-                                    Rectangle {
-                                        required property int index
-                                        width: 6; height: 6; radius: 3; color: Theme.accent
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        SequentialAnimation on opacity {
-                                            loops: Animation.Infinite; running: msg.modelData.text === ""
-                                            PauseAnimation { duration: index * 160 }
-                                            NumberAnimation { from: 0.25; to: 1; duration: 380 }
-                                            NumberAnimation { from: 1; to: 0.25; duration: 380 }
-                                            PauseAnimation { duration: (2 - index) * 160 }
-                                        }
-                                    }
+                                HaloMark { size: 14; active: true; anchors.verticalCenter: parent.verticalCenter }
+                                LText {
+                                    role: "caption"; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter
+                                    text: Ai.phase === "reading" ? "Reading what you attached…"
+                                        : Ai.phase === "looking" ? "Looking at your screen…"
+                                        : Ai.slow ? (Ai.local ? "Still working — the first answer loads the model (images take longer on this computer)…" : "Still waiting for " + Ai.providerLabel + "…")
+                                        : Ai.local && !Ai.modelLoaded ? "Loading " + Ai.model + "…" : "Thinking…"
                                 }
-                                LText { role: "caption"; color: Theme.textMuted; text: Ai.local && !Ai.modelLoaded ? "Loading " + Ai.model + "…" : "Thinking…" }
                             }
                         }
                         // /rename: check the new names, then apply (and undo)
@@ -413,12 +447,12 @@ PanelWindow {
                         }
                         // Code blocks: copy or run
                         Repeater {
-                            model: Ai.busy && msg.last || msg.modelData.renames ? [] : msg.blocks
+                            model: msg.live || msg.modelData.renames ? [] : msg.blocks
                             delegate: CodeActions { required property var modelData; width: answerCol.width; block: modelData }
                         }
                         // Answer actions
                         Row {
-                            visible: msg.modelData.text !== "" && !(Ai.busy && msg.last)
+                            visible: msg.modelData.text !== "" && !msg.live
                             spacing: 4
                             ActionPill { icon: copied.running ? "check" : "content_copy"; text: copied.running ? "Copied" : "Copy"; onClicked: { Ai.copy(msg.modelData.text); copied.restart(); } Timer { id: copied; interval: 1400 } }
                             ActionPill { icon: "keyboard_return"; text: "Insert"; onClicked: Ai.insert(msg.blocks.length === 1 && msg.modelData.text.trim().startsWith("```") ? msg.blocks[0].code : msg.modelData.text) }

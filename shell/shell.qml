@@ -30,8 +30,10 @@ import qs.modules.welcome
 
 ShellRoot {
     id: root
-    // Dev only (LUMEN_DEV): which screen each bar delegate took, so a second
-    // monitor showing two bars (or none) can be counted rather than squinted at
+    // Which screen each bar delegate took, so a second monitor showing two
+    // bars (or none) can be counted rather than squinted at. Read only by the
+    // dev screenTest handler; the bookkeeping itself is a few strings, so it
+    // is left in rather than wrapped in a LUMEN_DEV check.
     property var barRegistry: []
 
     // A desktop you use must not restart itself because a file changed on

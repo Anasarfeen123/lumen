@@ -3,7 +3,9 @@ pragma Singleton
 // Ask about what you selected, what's on screen, your system or your project.
 // Off until you choose a provider in Settings → Halo:
 //   ollama     local models, nothing leaves the machine
-//   anthropic  Claude via your own API key (stored 600, outside the repo)
+//   anthropic, openai, gemini, openrouter, groq, mistral
+//              cloud models via your own API key (stored 600, outside the repo)
+//   custom     any OpenAI-compatible server (LM Studio, llama.cpp, vLLM, Jan…)
 // Conversations live in memory only. scripts/ai.sh does all model I/O;
 // scripts/halo-context.sh reads context, only for the chips you turn on.
 //
@@ -29,7 +31,59 @@ Singleton {
 
     property string devProvider: ""          // LUMEN_DEV only: "mock"
     readonly property string provider: devProvider || (Persist.data.aiProvider ?? "off")
-    readonly property var defaults: ({ anthropic: "claude-sonnet-5", ollama: status.ollamaModels?.[0] ?? "gemma3:4b", mock: "demo" })
+    // Every provider Halo can use. key: the key's usual start (for the hint);
+    // model: a sensible default until you pick one from the provider's list.
+    readonly property var providers: [
+        { id: "ollama",     label: "This computer", group: "local",  key: "",        model: "",                        site: "ollama.com",                   note: "Local models through Ollama. Nothing leaves this computer." },
+        { id: "anthropic",  label: "Claude",        group: "cloud",  key: "sk-ant-", model: "claude-sonnet-5",         site: "console.anthropic.com",        note: "Anthropic's Claude." },
+        { id: "openai",     label: "OpenAI",        group: "cloud",  key: "sk-",     model: "gpt-4o-mini",             site: "platform.openai.com",          note: "ChatGPT's models (GPT)." },
+        { id: "gemini",     label: "Gemini",        group: "cloud",  key: "AIza",    model: "gemini-2.5-flash",        site: "aistudio.google.com",          note: "Google's Gemini (free tier available)." },
+        { id: "openrouter", label: "OpenRouter",    group: "cloud",  key: "sk-or-",  model: "openrouter/auto",         site: "openrouter.ai",                note: "One key for hundreds of models from many companies." },
+        { id: "groq",       label: "Groq",          group: "cloud",  key: "gsk_",    model: "llama-3.3-70b-versatile", site: "console.groq.com",             note: "Open models, answered very fast." },
+        { id: "mistral",    label: "Mistral",       group: "cloud",  key: "",        model: "mistral-small-latest",    site: "console.mistral.ai",           note: "Mistral AI's models." },
+        { id: "custom",     label: "Your server",   group: "custom", key: "",        model: "",                        site: "",                             note: "Any OpenAI-compatible server: LM Studio, llama.cpp, vLLM, LocalAI, Jan…" },
+    ]
+    function providerInfo(id) { return providers.find(p => p.id === id) ?? null; }
+    readonly property var defaults: {
+        const d = { ollama: status.ollamaModels?.[0] ?? "gemma3:4b", mock: "demo", mocklong: "demo", custom: status.custom?.model ?? "" };
+        for (const p of providers) if (p.model) d[p.id] = p.model;
+        return d;
+    }
+    // Is a provider ready to answer?
+    function isConfigured(id) {
+        if (id === "mock" || id === "mocklong") return true;
+        if (id === "ollama") return status.ollama && (status.ollamaModels ?? []).length > 0;
+        if (id === "custom") return !!status.custom?.url;
+        return !!(status.keys ?? {})[id];
+    }
+    // Model lists, fetched from each provider when you look (never in the background)
+    property var modelLists: ({})
+    property var _fetching: ({})
+    function fetchModels(id) {
+        if (id === "ollama" || _fetching[id]) return;
+        const f = Object.assign({}, _fetching); f[id] = true; _fetching = f;
+        const proc = modelsComp.createObject(root, { pid: id });
+        proc.running = true;
+    }
+    Component {
+        id: modelsComp
+        Process {
+            id: mp
+            property string pid: ""
+            command: [Theme.lumenRoot + "/scripts/ai.sh", "models", pid]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    let list = [];
+                    try { list = JSON.parse(text); } catch (e) {}
+                    // Only chat models are useful here
+                    list = list.filter(m => !/embed|whisper|tts|dall-e|image|audio|moderation|rerank|transcri|realtime|search/i.test(m));
+                    const l = Object.assign({}, root.modelLists); l[mp.pid] = list; root.modelLists = l;
+                    const f = Object.assign({}, root._fetching); delete f[mp.pid]; root._fetching = f;
+                    mp.destroy();
+                }
+            }
+        }
+    }
     // Local models: "auto" (the default) answers with the smallest text model
     // you have — it fits in video memory, so it's fast — and switches to a
     // model that reads images only when a screenshot is attached.
@@ -44,15 +98,21 @@ Singleton {
         return (m || defaults[provider]) ?? "";
     }
     function modelFor(withImage) { return withImage && auto && visionModel ? visionModel : model; }
-    readonly property bool local: provider === "ollama" || provider === "mock"
-    readonly property bool configured: provider === "mock" ? true
-                                     : provider === "anthropic" ? status.anthropic
-                                     : provider === "ollama" ? (status.ollama && (status.ollamaModels ?? []).length > 0) : false
-    // Can the current model read screenshots?
-    readonly property bool vision: provider !== "ollama" || (auto ? visionModel !== "" : ((status.ollamaInfo ?? []).find(i => i.name === model)?.vision ?? false))
+    readonly property bool local: provider === "ollama" || provider === "mock" || provider === "mocklong"
+                                  || (provider === "custom" && /^https?:\/\/(127\.|localhost|\[::1\])/.test(status.custom?.url ?? ""))
+    readonly property string providerLabel: provider === "ollama" ? "this computer" : (providerInfo(provider)?.label ?? provider)
+    readonly property bool configured: isConfigured(provider)
+    // Can the current model read screenshots? (Cloud: the big providers' main
+    // models do; Groq and Mistral only some — guessed from the name.)
+    readonly property bool vision: {
+        if (provider === "ollama") return auto ? visionModel !== "" : ((status.ollamaInfo ?? []).find(i => i.name === model)?.vision ?? false);
+        if (provider === "groq") return /vision|llama-4|scout|maverick/i.test(model);
+        if (provider === "mistral") return /pixtral|medium|large|small-(2503|2506|latest)/i.test(model);
+        return true;
+    }
     readonly property bool modelLoaded: provider !== "ollama" || (status.loaded ?? []).includes(model)
 
-    property var status: ({ anthropic: false, ollama: false, ollamaModels: [], ollamaInfo: [], loaded: [] })
+    property var status: ({ anthropic: false, keys: {}, custom: {}, ollama: false, ollamaModels: [], ollamaInfo: [], loaded: [] })
     function refreshStatus() { statusProc.running = true; }
     Process {
         id: statusProc
@@ -157,7 +217,21 @@ Singleton {
     // ── conversation ──
     property var messages: []           // { role, text, image?, prompt?, chips? }
     property bool busy: false
-    property string phase: ""           // "" | "reading" (context) | "looking" (screenshot) | "thinking"
+    property string phase: ""           // "" | "reading" (context) | "looking" (screenshot) | "thinking" | "writing"
+    // The answer being written lives here, not in `messages`: replacing the
+    // messages array on every token rebuilt every bubble and re-parsed all the
+    // Markdown (a full CPU core while streaming). Tokens are batched every 90 ms;
+    // the finished answer is stored in `messages` once.
+    property string streamText: ""
+    property string _pendingTokens: ""
+    property real askStarted: 0         // when the question went to the model
+    property bool slow: false           // no words after 15 s: say what's happening
+    Timer {
+        id: flush
+        interval: 90
+        onTriggered: { root.streamText += root._pendingTokens; root._pendingTokens = ""; }
+    }
+    Timer { id: slowTimer; interval: 15000; onTriggered: if (root.busy && root.streamText === "" && root._pendingTokens === "") root.slow = true }
     property string error: ""
     property real speed: 0              // tokens/s of the last local answer
     property var history: []            // what you typed, for ↑
@@ -168,7 +242,7 @@ Singleton {
         + "For commands, prefer Fedora (dnf) and say clearly before anything destructive."
 
     function clear() { stop(); messages = []; error = ""; speed = 0; }
-    function stop() { if (ask.running) ask.running = false; ctxProc.running = false; busy = false; phase = ""; }
+    function stop() { if (ask.running) ask.running = false; ctxProc.running = false; busy = false; phase = ""; slow = false; }
 
     // ── WhatsApp (services/Inbox.qml) ──
     // "tell Arya I'll send the build tonight" · "/wa Arya: on my way"
@@ -317,6 +391,9 @@ Singleton {
         messages = messages.concat([user, { role: "assistant", text: "" }]);
         phase = "thinking";
         speed = 0;
+        streamText = ""; _pendingTokens = ""; slow = false;
+        askStarted = Date.now();
+        slowTimer.restart();
         const req = { provider, model: modelFor(!!image), system,
                       messages: messages.slice(0, -1).filter(m => m.kind !== "wa").map(m => Object.assign({ role: m.role, text: m.text }, m.image ? { image: m.image } : {})) };
         reqFile.setText(JSON.stringify(req));
@@ -344,15 +421,23 @@ Singleton {
                 if (d.e) { root.error = d.e; return; }
                 if (d.s) { root.speed = d.s.ms > 0 ? Math.round(d.s.n / (d.s.ms / 1000)) : 0; return; }
                 if (d.t) {
-                    const m = root.messages.slice();
-                    const last = Object.assign({}, m[m.length - 1]);
-                    last.text += d.t;
-                    m[m.length - 1] = last;
-                    root.messages = m;
+                    root._pendingTokens += d.t;
+                    if (root.phase !== "writing") { root.phase = "writing"; root.slow = false; }
+                    if (!flush.running) flush.start();
                 }
             }
         }
         onExited: {
+            flush.stop();
+            const answer = root.streamText + root._pendingTokens;
+            root.streamText = ""; root._pendingTokens = "";
+            root.slow = false; slowTimer.stop();
+            // Store the finished answer once
+            if (answer !== "" && root.messages.length && root.messages[root.messages.length - 1].role === "assistant") {
+                const mm = root.messages.slice();
+                mm[mm.length - 1] = Object.assign({}, mm[mm.length - 1], { text: answer });
+                root.messages = mm;
+            }
             root.busy = false;
             root.phase = "";
             root.refreshStatus();
@@ -366,7 +451,7 @@ Singleton {
 
     // Thinking in the background: the island shows it, then says when it's done
     readonly property bool islandBusy: busy && !open
-    onIslandBusyChanged: if (islandBusy) Island.progress("halo", "auto_awesome", "Halo is thinking", -1, local ? "On this computer" : "Claude")
+    onIslandBusyChanged: if (islandBusy) Island.progress("halo", "auto_awesome", "Halo is thinking", -1, local ? "On this computer" : providerLabel)
     function announceDone() {
         Island.push({ kind: "system", key: "progress:halo", priority: Island.priority.system, duration: 3500, queueable: true, force: true,
                       data: { icon: "auto_awesome", title: "Halo answered", detail: "Super+Shift+Space to read it", tone: "normal" } });
@@ -466,6 +551,9 @@ Singleton {
         target: "aiTest"
         enabled: Quickshell.env("LUMEN_DEV") === "1"
         function mock(): void { root.devProvider = "mock"; }
+        function mockLong(): void { root.devProvider = "mocklong"; }
+        function busy(): bool { return root.busy; }
+        function clear(): void { root.clear(); }
         function dump(): string { return JSON.stringify(root.messages.map(m => ({ role: m.role, text: m.text.slice(0, 400), renames: m.renames, state: m.renameState, results: m.renameResults }))); }
         function picker(): void { root.clear(); root.show(); root.pickerOpen = true; root.loadDownloads(); }
         function apply(): void { for (let i = root.messages.length - 1; i >= 0; i--) if (root.messages[i].renames) { root.applyRenames(i); return; } }
