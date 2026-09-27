@@ -89,6 +89,7 @@ Singleton {
         { id: "commit",    icon: "commit",           label: "Commit message", hint: "From your project's diff",              ctx: ["project"], prompt: a => "Write a git commit message for this diff: a short imperative subject (max 72 chars), a blank line, then a few bullet points on what changed and why." + (a ? " Context: " + a : "") + " Reply with only the message." },
         { id: "review",    icon: "rate_review",      label: "Review code",   hint: "Bugs and risks in your changes",          ctx: ["project"], prompt: a => "Review this diff for bugs, risky changes and missing edge cases. Be specific (file and line), most serious first." + (a ? " Focus: " + a : "") },
         { id: "clip",      icon: "content_paste",    label: "Clipboard",     hint: "Ask about what you copied",               ctx: ["clipboard"], prompt: a => a || "What is this, and what can I do with it?" },
+        { id: "wa",        icon: "chat",             label: "WhatsApp",      hint: "/wa <name>: <message> — you confirm, WhatsApp sends", prompt: a => a },
         { id: "define",    icon: "menu_book",        label: "Define",        hint: "/define <word>",                          prompt: a => "Define \"" + a + "\" briefly: meaning, one example sentence, and synonyms." },
         { id: "pdf",       icon: "picture_as_pdf",   label: "Summarize a PDF", hint: "Pick a PDF (Downloads, Drop Zone)",    files: true, prompt: a => "Summarize this document: what it is, the key points as bullets, and anything I need to act on." + (a ? " Focus on: " + a : "") },
         { id: "file",      icon: "description",      label: "Ask about a file", hint: "/file <question> about files you pick", files: true, prompt: a => a || "What is in these files? Summarize each briefly and tell me anything important." },
@@ -169,16 +170,65 @@ Singleton {
     function clear() { stop(); messages = []; error = ""; speed = 0; }
     function stop() { if (ask.running) ask.running = false; ctxProc.running = false; busy = false; phase = ""; }
 
+    // ── WhatsApp (services/Inbox.qml) ──
+    // "tell Arya I'll send the build tonight" · "/wa Arya: on my way"
+    // Never sends: it becomes a card with Cancel / Send, and Send opens
+    // WhatsApp with the text pre-filled so you press Enter there.
+    function whatsappDraft(raw) {
+        const m = raw.match(/^(?:\/wa\s+|(?:tell|message|text|whatsapp|wa)\s+)([\s\S]+)$/i);
+        if (!m || !WhatsApp.enabled) return false;
+        let rest = m[1].trim(), name = "", text = "";
+        const colon = rest.match(/^([^:,]{1,40})[:,]\s*([\s\S]+)$/);
+        if (colon) { name = colon[1]; text = colon[2]; }
+        else {
+            // The longest chat or contact name the sentence starts with, else the first word
+            const known = Inbox.conversations.map(c => c.title).concat((WhatsApp.cfg.contacts ?? []).map(c => c.name))
+                                .filter(n => n).sort((a, b) => b.length - a.length);
+            name = known.find(n => rest.toLowerCase().startsWith(n.toLowerCase() + " ")) ?? rest.split(/\s+/)[0];
+            text = rest.slice(name.length).trim().replace(/^(that|to say|saying)\s+/i, "");
+        }
+        if (!text) return false;
+        const r = Inbox.draftFromHalo(name.trim(), text);
+        error = "";
+        messages = messages.concat([{ role: "user", text: raw, shown: raw },
+                                    r.ok ? { role: "assistant", kind: "wa", text: "", draft: r.draft, needsNumber: r.needsNumber, state: "ask" }
+                                         : { role: "assistant", text: "Couldn't prepare that WhatsApp message: " + (r.reason ?? "unknown chat") + "." }]);
+        return true;
+    }
+    function waDecide(index, send) {
+        const m = messages.slice(), msg = Object.assign({}, m[index]);
+        if (msg.kind !== "wa" || msg.state !== "ask") return;
+        msg.state = send ? "sent" : "cancelled";
+        m[index] = msg;
+        messages = m;
+        if (send) { Inbox.send(msg.draft); open = false; }
+    }
+    // "what did Arya say …" → this session's WhatsApp previews as context (only if allowed)
+    function whatsappContext(raw) {
+        const m = raw.match(/what (?:did|has) ([\w .'-]+?) (?:say|said|send|sent|write)/i);
+        if (m && WhatsApp.enabled) {
+            const r = Inbox.recentFor(m[1]);
+            if (r.ok) return "WhatsApp (" + r.source + ") — " + r.title + ":\n```\n" + r.messages.map(x => (x.sender ? x.sender + ": " : "") + x.text).join("\n") + "\n```\n\nSay that this comes from WhatsApp notifications seen this session.\n\n";
+            return "(WhatsApp: " + r.reason + ". Tell the user this.)\n\n";
+        }
+        if (/whatsapp/i.test(raw) && /(catch ?up|while i was away|unread|missed)/i.test(raw) && WhatsApp.enabled) {
+            const t = Inbox.unreadSummaryText();
+            return t ? "Unread WhatsApp (notifications seen this session):\n" + t + "\n\n" : "(WhatsApp: Halo message context is off in Settings → WhatsApp. Tell the user.)\n\n";
+        }
+        return "";
+    }
+
     // Build the prompt: skill → context blocks → screenshot → ask
     property var pending: null          // { text, chips, ctx: [kinds], ctxText, screen }
     function send(raw) {
         raw = raw.trim();
         if (!raw || busy) return;
+        if (whatsappDraft(raw)) return;
         if (!configured) { error = provider === "off" ? "Choose where answers come from — Settings → Halo." : "Halo isn't ready yet — Settings → Halo."; return; }
         error = "";
         history = history.filter(h => h !== raw).concat([raw]).slice(-30);
         const sk = skillFor(raw);
-        let prompt = sk ? sk.skill.prompt(sk.arg) : raw;
+        let prompt = whatsappContext(raw) + (sk ? sk.skill.prompt(sk.arg) : raw);
         const ctx = [];
         if (useClipboard) ctx.push("clipboard");
         if (useWindow) ctx.push("window");
@@ -268,7 +318,7 @@ Singleton {
         phase = "thinking";
         speed = 0;
         const req = { provider, model: modelFor(!!image), system,
-                      messages: messages.slice(0, -1).map(m => Object.assign({ role: m.role, text: m.text }, m.image ? { image: m.image } : {})) };
+                      messages: messages.slice(0, -1).filter(m => m.kind !== "wa").map(m => Object.assign({ role: m.role, text: m.text }, m.image ? { image: m.image } : {})) };
         reqFile.setText(JSON.stringify(req));
         ask.command = [Theme.lumenRoot + "/scripts/ai.sh", "ask", reqFile.path];
         ask.running = true;

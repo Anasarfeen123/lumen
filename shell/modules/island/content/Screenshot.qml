@@ -58,6 +58,7 @@ Item {
                 Act { icon: "edit"; label: "Annotate"; onClicked: root.run(["swappy", "-f", root.info.path, "-o", root.info.path]) }
                 Act { icon: "document_scanner"; label: "Copy text"
                       onClicked: root.run(["sh", "-c", 'tesseract "$1" - -l eng --psm 6 2>/dev/null | wl-copy && "$2" island event content_copy "Text copied" "from the screenshot"', "sh", root.info.path, Theme.lumenRoot + "/bin/lumen-shell-ipc"]) }
+                Act { visible: WhatsApp.enabled && WhatsApp.available; icon: "forum"; label: ""; onClicked: { Island.dismiss(); Inbox.share("", [root.info.path]); } }
                 Act { icon: "folder_open"; label: ""; onClicked: root.run(["xdg-open", root.info.path.replace(/\/[^/]+$/, "")]) }
                 Act { icon: "delete"; label: ""; onClicked: root.run(["rm", "-f", "--", root.info.path]) }
             }

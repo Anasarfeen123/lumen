@@ -79,7 +79,7 @@ Item {
         }
 
         HoverHandler { id: hover }
-        TapHandler { onTapped: Notifications.activate(root.nid) }
+        TapHandler { onTapped: (root.entry.chatKey ?? "") !== "" ? Inbox.open(root.entry.chatKey) : Notifications.activate(root.nid) }
         DragHandler {
             id: drag
             xAxis.enabled: true; yAxis.enabled: false
@@ -139,6 +139,36 @@ Item {
                         Rectangle { anchors.fill: parent; radius: height / 2; color: Theme.withAlpha(Theme.accent, 0.14); border.width: 1; border.color: Theme.withAlpha(Theme.accent, 0.35); z: -1 }
                         onClicked: Notifications.invoke(root.nid, modelData.identifier)
                         LText { id: al; anchors.centerIn: parent; role: "caption"; color: Theme.accent; text: modelData.text }
+                    }
+                }
+            }
+
+            // Messages (Lumen Inbox): reply through the Messages panel; Dismiss
+            // only clears it in Lumen (WhatsApp keeps its own unread state)
+            Flow {
+                width: parent.width
+                visible: (root.entry.chatKey ?? "") !== ""
+                spacing: Theme.space.s2
+                topPadding: Theme.space.s1
+                Repeater {
+                    model: [{ id: "reply", icon: "reply", text: "Reply", primary: true },
+                            { id: "dismiss", icon: "done", text: "Dismiss" },
+                            { id: "mute", icon: "notifications_off", text: "Mute chat" }]
+                    delegate: HoverTarget {
+                        required property var modelData
+                        width: cr.implicitWidth + Theme.space.s4 * 2; height: 28
+                        Rectangle { anchors.fill: parent; radius: height / 2; z: -1
+                                    color: modelData.primary ? Theme.withAlpha(Theme.accent, 0.14) : Theme.withAlpha(Theme.text, 0.05)
+                                    border.width: 1; border.color: modelData.primary ? Theme.withAlpha(Theme.accent, 0.35) : Theme.border }
+                        onClicked: {
+                            const key = root.entry.chatKey;
+                            if (modelData.id === "reply") { Sidebar.hide(); Inbox.showPanel(key); }
+                            else if (modelData.id === "dismiss") { Inbox.dismiss(key); root.dismissAnimated(); }
+                            else { Inbox.mute(key, true); Inbox.dismiss(key); root.dismissAnimated(); }
+                        }
+                        Row { id: cr; anchors.centerIn: parent; spacing: 4
+                              LIcon { icon: modelData.icon; size: 13; color: modelData.primary ? Theme.accent : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                              LText { role: "caption"; color: modelData.primary ? Theme.accent : Theme.text; text: modelData.text; anchors.verticalCenter: parent.verticalCenter } }
                     }
                 }
             }

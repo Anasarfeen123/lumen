@@ -27,7 +27,7 @@ Item {
             const e = m.get(i);
             if (!by[e.appName]) { by[e.appName] = []; order.push(e.appName); }
             by[e.appName].push({ nid: e.nid, appName: e.appName, icon: e.icon, summary: e.summary, body: e.body,
-                                 urgency: e.urgency, time: e.time, canReply: e.canReply });
+                                 urgency: e.urgency, time: e.time, canReply: e.canReply, chatKey: e.chatKey ?? "" });
         }
         groups = order.map(app => ({ app, items: by[app] }));
     }

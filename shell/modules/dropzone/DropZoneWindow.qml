@@ -181,6 +181,14 @@ PanelWindow {
                 }
                 DropTarget {
                     width: parent.width
+                    visible: WhatsApp.enabled && WhatsApp.available
+                    icon: "forum"; label: "Send to WhatsApp"; sub: "Pick a chat, then paste it there"
+                    usable: DropZone.subject.length > 0
+                    onActivated: p => { const paths = (p && p.length) ? p : DropZone.subject; DropZone.hide(); Inbox.share("", paths); }
+                    onContainsDragChanged: win.track(containsDrag)
+                }
+                DropTarget {
+                    width: parent.width
                     icon: "content_copy"; label: "Copy"; sub: "Paste it into a folder or a chat"
                     usable: DropZone.subject.length > 0
                     onActivated: p => DropZone.run("copy", p)

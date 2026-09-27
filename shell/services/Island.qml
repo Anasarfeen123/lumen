@@ -76,7 +76,7 @@ Singleton {
             : mediaPresent ? "mediaExpanded" : "idlePeek";
         return kind;
     }
-    readonly property bool expanded: ["mediaExpanded", "notification", "critical", "screenshot", "context", "device", "timeline"].includes(variant)
+    readonly property bool expanded: ["mediaExpanded", "notification", "critical", "screenshot", "context", "device", "timeline", "message"].includes(variant)
 
     Timer {
         interval: 2000

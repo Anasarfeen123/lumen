@@ -315,7 +315,7 @@ PanelWindow {
                         width: parent.width
                         spacing: Theme.space.s2
                         Rectangle {
-                            visible: !msg.modelData.renames
+                            visible: !msg.modelData.renames && msg.modelData.kind !== "wa"
                             width: parent.width
                             height: visible ? answer.implicitHeight + Theme.space.s3 * 2 : 0
                             radius: Theme.radius.md
@@ -361,6 +361,56 @@ PanelWindow {
                         }
                         // /rename: check the new names, then apply (and undo)
                         RenamePlan { visible: !!msg.modelData.renames; width: answerCol.width; msgIndex: msg.index; msgData: msg.modelData }
+                        // WhatsApp: a draft you confirm; Send opens WhatsApp pre-filled, you press Enter there
+                        Rectangle {
+                            id: waCard
+                            visible: msg.modelData.kind === "wa"
+                            readonly property var d: msg.modelData.draft ?? ({})
+                            readonly property string st: msg.modelData.state ?? "ask"
+                            width: answerCol.width
+                            height: visible ? waCol.implicitHeight + Theme.space.s4 * 2 : 0
+                            radius: Theme.radius.md
+                            color: Theme.withAlpha(Theme.surfaceElevated, 0.7)
+                            border.width: 1; border.color: st === "ask" ? Theme.withAlpha(Theme.accent, 0.4) : Theme.border
+                            Column {
+                                id: waCol
+                                x: Theme.space.s4; y: Theme.space.s4
+                                width: parent.width - Theme.space.s4 * 2
+                                spacing: Theme.space.s2
+                                Row {
+                                    spacing: Theme.space.s2
+                                    LIcon { icon: "chat"; size: 18; fill: 1; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                                    LText { role: "bodyStrong"; anchors.verticalCenter: parent.verticalCenter
+                                            text: waCard.st === "sent" ? "Opened in WhatsApp — press Enter there to send"
+                                                : waCard.st === "cancelled" ? "Not sent" : "Send WhatsApp message?" }
+                                }
+                                LText { role: "caption"; color: Theme.textMuted; text: "To: " + (waCard.d.title ?? "") }
+                                Rectangle {
+                                    width: parent.width; height: waText.implicitHeight + Theme.space.s3 * 2
+                                    radius: Theme.radius.sm; color: Theme.withAlpha(Theme.accent, 0.1)
+                                    LText { id: waText; x: Theme.space.s3; y: Theme.space.s3; width: parent.width - Theme.space.s3 * 2
+                                            wrapMode: Text.Wrap; text: "“" + (waCard.d.text ?? "") + "”" }
+                                }
+                                LText {
+                                    visible: waCard.st === "ask" && (msg.modelData.needsNumber ?? false)
+                                    width: parent.width; wrapMode: Text.Wrap; role: "caption"; color: Theme.textMuted
+                                    text: "No number saved for this chat, so WhatsApp's own chat picker opens with the text ready (add numbers in Settings → WhatsApp)."
+                                }
+                                Row {
+                                    visible: waCard.st === "ask"
+                                    spacing: Theme.space.s2
+                                    ActionPill { icon: "close"; text: "Cancel"; onClicked: Ai.waDecide(msg.index, false) }
+                                    HoverTarget {
+                                        width: sendLbl.implicitWidth + 36; height: 28
+                                        onClicked: Ai.waDecide(msg.index, true)
+                                        Rectangle { anchors.fill: parent; radius: height / 2; color: Theme.accent; z: -1 }
+                                        Row { anchors.centerIn: parent; spacing: 5
+                                              LIcon { icon: "send"; size: 14; fill: 1; color: Theme.onAccent; anchors.verticalCenter: parent.verticalCenter }
+                                              LText { id: sendLbl; role: "bodyStrong"; color: Theme.onAccent; text: "Send"; anchors.verticalCenter: parent.verticalCenter } }
+                                    }
+                                }
+                            }
+                        }
                         // Code blocks: copy or run
                         Repeater {
                             model: Ai.busy && msg.last || msg.modelData.renames ? [] : msg.blocks

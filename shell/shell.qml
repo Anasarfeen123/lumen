@@ -25,6 +25,7 @@ import qs.modules.switcher
 import qs.modules.planner
 import qs.modules.ai
 import qs.modules.dropzone
+import qs.modules.inbox
 
 ShellRoot {
     // A desktop you use must not restart itself because a file changed on
@@ -132,6 +133,14 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: DropZoneWindow {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    // Messages (Lumen Inbox): quick reply, Super+Shift+W
+    Variants {
+        model: Quickshell.screens
+        delegate: InboxPanel {
             required property var modelData
             screen: modelData
         }

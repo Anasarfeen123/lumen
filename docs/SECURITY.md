@@ -34,6 +34,8 @@ Nothing goes online until you set it up:
 | Weather | After you type a city | The city name, once, to Open-Meteo's geocoder; then its coordinates, every 30 minutes |
 | Lumen Halo, Claude | Only when you press Enter | Your question, plus the selection or screenshot, but only if you turned those chips on |
 | Lumen Halo, Ollama | Only when you press Enter | Nothing leaves your computer |
+| WhatsApp | Never by Lumen | Lumen only reads notifications WhatsApp Web already shows and opens chats with text filled in; you send. Message text stays in memory, never on disk |
+| Lyrics | Only while the expanded player is open (Settings → Sound) | The song's artist, title, album and length, to lrclib.net |
 | Halo model downloads | Only when you press Download in Settings → Halo | The model name, to Ollama's registry (the same one `ollama pull` uses) |
 | Updates | Every 6 hours in a real session | Your package manager's normal metadata check |
 

@@ -41,6 +41,7 @@ key("SUPER + V", global("lumen:clipboard"), "Clipboard history")
 key("SUPER + period", global("lumen:emoji"), "Emoji picker")
 key("SUPER + I", global("lumen:settings"), "Lumen Settings")
 key("SUPER + SHIFT + Space", global("lumen:ai"), "Lumen Halo (AI)")
+key("SUPER + SHIFT + W", global("lumen:inbox"), "Messages: reply, find a chat (WhatsApp)")
 
 -- ── Windows ──
 group("Windows")

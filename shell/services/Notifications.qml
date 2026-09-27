@@ -85,6 +85,7 @@ Singleton {
             time: Date.now(),
             hasActions: n.actions.some(a => a.identifier !== "default"),
             canReply: n.hasInlineReply,
+            chatKey: "", privateMsg: false,
         };
 
         const l = Object.assign({}, live);
@@ -96,10 +97,31 @@ Singleton {
         const existing = indexOf(n.id);
         if (existing >= 0) history.remove(existing);
 
+        // Messaging apps (WhatsApp…) belong to Lumen Inbox: grouped per chat,
+        // its own banner, and never written to disk
+        if (claimByInbox(entry, n.desktopEntry ?? "", n.image ? (n.image.startsWith("/") ? "file://" + n.image : n.image) : "", n.id)) { if (!n.transient) insertGrouped(entry); return; }
+
         if (!n.transient) insertGrouped(entry);
 
         if (!shouldPopup(entry, quiet)) return;
         popup(n, entry);
+    }
+
+    // Lumen Inbox takes messaging notifications: the entry becomes
+    // "WhatsApp · <chat>" (one group per chat), its text follows the preview
+    // setting, and it's marked private so history never saves it.
+    function claimByInbox(entry, desktopEntry, image, nid) {
+        const r = Inbox.intake(entry.appName, entry.summary, entry.body, desktopEntry, image, nid);
+        if (!r) return false;
+        entry.appName = r.appName;
+        entry.summary = r.summary;
+        entry.body = r.body;
+        entry.chatKey = r.key;
+        entry.privateMsg = true;
+        // The sender's photo, else the WhatsApp client's own icon
+        const client = DesktopEntries.byId("com.ktechpit.whatsie") ?? DesktopEntries.heuristicLookup("whatsapp");
+        entry.icon = image || (client ? Apps.iconFor(client) : entry.icon);
+        return true;
     }
 
     // Low urgency, island-originated (x-lumen-kind), muted apps, banners off
@@ -224,8 +246,10 @@ Singleton {
         const entry = {
             nid: -((Date.now() % 1e9) * 100 + (++mirrorSeq % 100)), appName: app, icon, summary: d[3] || "", body: d[4] || "",
             urgency: hint("urgency") ?? NotificationUrgency.Normal, time: Date.now(),
-            hasActions: false, canReply: false,
+            hasActions: false, canReply: false, chatKey: "", privateMsg: false,
         };
+        const photo = hint("image-path") || hint("image_path") || "";
+        if (claimByInbox(entry, hint("desktop-entry") ?? "", photo.startsWith("/") ? "file://" + photo : photo, entry.nid)) { if (hint("transient") !== true) insertGrouped(entry); return; }
         if (hint("transient") !== true) insertGrouped(entry);
         if (!shouldPopup(entry, (hint("x-lumen-kind") ?? "") !== "")) return;
         const critical = entry.urgency === NotificationUrgency.Critical;
@@ -284,6 +308,12 @@ Singleton {
         saveTimer.restart();
     }
 
+    // Screen locked: message previews (Lumen Inbox) leave memory too
+    function redactPrivate() {
+        for (let i = 0; i < history.count; i++)
+            if (history.get(i).privateMsg) history.setProperty(i, "body", "New message");
+    }
+
     function dismissApp(app) {
         for (let i = history.count - 1; i >= 0; i--) if (history.get(i).appName === app) dismiss(history.get(i).nid);
     }
@@ -327,6 +357,7 @@ Singleton {
             const items = [];
             for (let i = 0; i < history.count; i++) {
                 const e = history.get(i);
+                if (e.privateMsg) continue;         // messages (Lumen Inbox) never go to disk
                 items.push({ nid: e.nid, appName: e.appName, icon: e.icon, summary: e.summary, body: e.body,
                              urgency: e.urgency, time: e.time });
             }
@@ -348,7 +379,7 @@ Singleton {
                 if (root.isClient) history.clear();
                 for (const e of (d.items ?? []))
                     if (root.indexOf(e.nid) < 0)
-                        history.append(Object.assign({ hasActions: false, canReply: false }, e));
+                        history.append(Object.assign({ hasActions: false, canReply: false, chatKey: "", privateMsg: false }, e));
             } catch (err) {
                 console.warn("Notifications: history unreadable:", err);
             }

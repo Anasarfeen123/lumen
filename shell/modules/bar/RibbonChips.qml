@@ -66,6 +66,31 @@ Item {
             LIcon { anchors.verticalCenter: parent.verticalCenter; icon: Meeting.icon; size: 15; fill: 1; color: Theme.error }
             LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"; text: Meeting.label; color: Theme.text }
         }
+        // Messages (Lumen Inbox): a call, or how many chats are waiting
+        Chip {
+            id: messages
+            readonly property var waiting: Inbox.unreadConversations
+            want: WhatsApp.enabled && WhatsApp.cfg.ribbon && (Inbox.call !== null || waiting.length > 0)
+            onClicked: Inbox.call ? Inbox.focusApp(Inbox.call.provider) : Inbox.showPanel(waiting.length === 1 ? waiting[0].key : "")
+            LIcon {
+                anchors.verticalCenter: parent.verticalCenter
+                icon: Inbox.call ? (Inbox.call.video ? "videocam" : "call") : "forum"
+                size: 15; fill: 1; color: Theme.accent
+                SequentialAnimation on opacity {
+                    running: Inbox.call !== null && !Theme.reducedMotion; loops: Animation.Infinite; alwaysRunToEnd: true
+                    NumberAnimation { to: 0.35; duration: 600 } NumberAnimation { to: 1; duration: 600 }
+                }
+            }
+            LText {
+                anchors.verticalCenter: parent.verticalCenter
+                role: "caption"
+                width: Math.min(implicitWidth, 170)
+                elide: Text.ElideRight
+                text: Inbox.call ? Inbox.call.title + " · calling"
+                    : messages.waiting.length === 1 ? messages.waiting[0].title + (messages.waiting[0].unread > 1 ? " · " + messages.waiting[0].unread : "")
+                    : Inbox.unreadTotal + " in " + messages.waiting.length + " chats"
+            }
+        }
         Chip {
             id: media
             want: Media.present

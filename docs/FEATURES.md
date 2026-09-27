@@ -71,6 +71,18 @@ Drag files to the right edge of the screen and a shelf slides out: **Send to pho
 - The island announces your phone with its battery, warns when it's low, and tells you when a file arrives (Open / Show).
 - The sidebar card shows the battery and how it's linked, with Ring, send a file, send the clipboard and send a screenshot. Phone notifications arrive in the notification centre.
 
+## WhatsApp (through your WhatsApp Web session)
+
+Lumen is the interaction layer around WhatsApp; WhatsApp Web (Whatsie, or a web-app window) stays the account and does the sending.
+
+- **Messages** are grouped per chat with the sender's photo or initial, a preview (if you allow it) and an unread count, with **Reply**, **Dismiss** and **Mute**. The island shows new messages and calls; the Ribbon shows "Arya · 2" or "3 in 2 chats".
+- **Quick reply** (<kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd>): pick a chat, type, confirm, and WhatsApp opens with your message filled in — **you press Enter there**. Lumen never sends anything itself.
+- **Send to WhatsApp** from the Drop Zone, a screenshot card or search: text and links are filled in; files go on the clipboard to paste.
+- **Search:** `wa arya`, `whatsapp unread` — chat names only, never message text.
+- **Halo:** "tell Arya I'll send the build tonight" (or `/wa Arya: …`) shows a Send? card; "what did Arya say" and "catch me up on WhatsApp" use messages seen this session, only if you turn on Halo message context.
+- **Settings → WhatsApp:** separate switches for the integration, notifications and the Ribbon; previews; which chats may interrupt each Focus mode; muted chats; a small name → number book.
+- **What it can't do** (WhatsApp has no official API for personal accounts): mark chats read inside WhatsApp, answer calls (Answer brings WhatsApp forward), or see messages from before Lumen started watching. Messages are kept in memory only and never written to disk.
+
 ## Backup & recovery
 
 - **File backups:** pick a drive or folder in Settings → Backup & recovery; snapshots only copy what changed (hard links), progress shows in the island, and restores go to `~/Restored` so they never overwrite anything. Optional daily backups; plugging in your backup drive offers "Back up now" when one is due.

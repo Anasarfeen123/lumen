@@ -218,6 +218,8 @@ Singleton {
                 if (!hits.length) out.push({ kind: "command", group: "Snapshots", title: want ? "No snapshot “" + want + "”" : "No snapshots yet",
                                               subtitle: "Save one: type “save <name>”", glyph: "bookmark_border", badge: "", run: () => {} });
             }
+            // WhatsApp: "wa arya", "whatsapp unread" — chat names only, never message text
+            if (WhatsApp.enabled && (m = /^(?:whatsapp|wa)(?:\s+(.*))?$/i.exec(q))) out.push(...root.chatResults((m[1] ?? "").trim()));
             if ((m = /^(?:ask|ai)\s+(.+)$/i.exec(q)))
                 out.push({ kind: "command", group: "Halo", title: "Ask Halo: " + m[1], subtitle: Ai.configured ? "Answers in the AI panel" : "Set up AI first (Settings → AI)",
                            glyph: "auto_awesome", badge: "Ask", run: () => { Ai.show(); Ai.send(m[1]); } });
@@ -233,6 +235,8 @@ Singleton {
                                   glyph: "avg_pace", badge: "Start", run: () => Countdown.startStopwatch() });
             if (out.length) return out;
         }
+        // Plain names can list chats too, lower down (Settings → WhatsApp → search)
+        const chatHits = WhatsApp.enabled && WhatsApp.cfg.searchNames && q.length >= 2 ? root.chatResults(q).filter(r => r.kind === "chat") : [];
         const webOnly = q.startsWith("?");
         const text = webOnly ? q.slice(1).trim() : q;
 
@@ -294,9 +298,38 @@ Singleton {
         if (/^=\s*$/.test(text))
             return [{ kind: "calc", group: "Calculator", title: "Type a calculation", glyph: "calculate", badge: "",
                       subtitle: "Maths, units (5 ft to cm), percentages, and money in ₹ ($100, 2 lakh / 12)", run: () => {} }];
+        out.push(...chatHits);
         if (text !== "")
             out.push({ kind: "web", group: "Web", title: `Search the web for “${text}”`, subtitle: "", glyph: "travel_explore", badge: "Web",
                        run: () => Quickshell.execDetached(["xdg-open", webSearchUrl.replace("%s", encodeURIComponent(text))]) });
+        return out;
+    }
+
+    // WhatsApp chats for Search: conversations seen this session and your
+    // contact book. Titles and counts only — message text never appears here.
+    function chatResults(want) {
+        const out = [];
+        const w = want.toLowerCase();
+        if (w === "unread") {
+            for (const c of Inbox.unreadConversations)
+                out.push({ kind: "chat", group: "WhatsApp", title: c.title, subtitle: c.unread + " unread" + (c.isGroup ? " · group" : ""),
+                           glyph: "forum", badge: "Open", run: () => Inbox.open(c.key) });
+            if (!out.length) out.push({ kind: "chat", group: "WhatsApp", title: "Nothing unread", subtitle: "Since Lumen started", glyph: "mark_chat_read", badge: "", run: () => {} });
+            return out;
+        }
+        const seen = Inbox.conversations.map(c => ({ c, s: w ? Fuzzy.score(want, c.title) : 1 })).filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 6);
+        for (const x of seen)
+            out.push({ kind: "chat", group: "WhatsApp", title: x.c.title,
+                       subtitle: (x.c.unread ? x.c.unread + " unread · " : "") + (x.c.isGroup ? "Group" : "Chat") + " · " + Notifications.relativeTime(x.c.lastTime, Date.now()),
+                       glyph: "forum", badge: "Open", run: () => Inbox.open(x.c.key) });
+        const titles = new Set(seen.map(x => x.c.title.toLowerCase()));
+        for (const k of (WhatsApp.cfg.contacts ?? []).filter(k => !titles.has(k.name.toLowerCase()) && (!w || Fuzzy.score(want, k.name) > 0)).slice(0, 4))
+            out.push({ kind: "chat", group: "WhatsApp", title: k.name, subtitle: "Contact book · open the chat", glyph: "person", badge: "Open",
+                       run: () => WhatsApp.openChat(k.name, "") });
+        if (!want) out.push({ kind: "command", group: "WhatsApp", title: "Send clipboard to WhatsApp", subtitle: "Pick a chat — it opens with the text typed in",
+                              glyph: "content_paste_go", badge: "Send", run: () => Inbox.shareClipboard() });
+        out.push({ kind: "command", group: "WhatsApp", title: want && !out.length ? "Message “" + want + "”…" : "Messages", subtitle: "Reply or find a chat (Super+Shift+W)",
+                   glyph: "edit_square", badge: "Open", run: () => { const c = want ? Inbox.find(want) : null; Inbox.showPanel(c?.key ?? ""); } });
         return out;
     }
 }
