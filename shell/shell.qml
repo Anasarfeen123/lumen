@@ -26,6 +26,7 @@ import qs.modules.planner
 import qs.modules.ai
 import qs.modules.dropzone
 import qs.modules.inbox
+import qs.modules.welcome
 
 ShellRoot {
     // A desktop you use must not restart itself because a file changed on
@@ -125,6 +126,14 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: PlannerWindow {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    // First-run welcome (services/Welcome.qml): shown once, on the focused monitor
+    Variants {
+        model: Quickshell.screens
+        delegate: WelcomeWindow {
             required property var modelData
             screen: modelData
         }

@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Io
 import qs.theme
 import qs.components
+import qs.services
 import ".."
 
 Page {
@@ -60,5 +61,14 @@ Page {
         SetRow { icon: "window"; title: "Hyprland"; description: page.info.hyprland ?? "" }
         SetRow { icon: "widgets"; title: "Quickshell"; description: page.info.quickshell ?? "" }
         SetRow { icon: "folder_code"; title: "Lumen"; description: Theme.lumenRoot + "  ·  see DESIGN.md" }
+    }
+    Group {
+        title: "Getting started"
+        SetRow {
+            icon: "waving_hand"
+            title: "Show the welcome again"
+            description: "The short tour from the first login: look, your phone, Halo, five keys"
+            Button { text: "Show"; onActivated: SettingsState.shellCall("welcome", "show") }
+        }
     }
 }

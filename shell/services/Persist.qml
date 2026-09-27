@@ -14,12 +14,28 @@ Singleton {
     readonly property bool automates: Quickshell.env("LUMEN_SETTINGS_APP") !== "1" && !Quickshell.env("LUMEN_NESTED")
     readonly property alias data: adapter
 
+    // Test sessions (nested, LUMEN_NESTED) keep their own copy of these
+    // preferences, started from yours, so trying things there never changes
+    // your real desktop (e.g. a Halo provider picked while testing).
+    readonly property string dir: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/lumen"
+    readonly property bool testing: !!Quickshell.env("LUMEN_NESTED")
+    property bool seeded: false
+    Process {
+        id: seedTestCopy
+        command: ["sh", "-c", 'mkdir -p "$1" && [ ! -e "$1/shell-test.json" ] && cp "$1/shell.json" "$1/shell-test.json" 2>/dev/null; true', "sh", root.dir]
+        onExited: prefs.reload()
+    }
     FileView {
-        path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/lumen/shell.json"
+        id: prefs
+        path: root.dir + (root.testing ? "/shell-test.json" : "/shell.json")
         watchChanges: true
         onFileChanged: reload()
         onAdapterUpdated: writeAdapter()
-        onLoadFailed: error => { if (error === FileViewError.FileNotFound) writeAdapter(); }
+        onLoadFailed: error => {
+            if (error !== FileViewError.FileNotFound) return;
+            if (root.testing && !root.seeded) { root.seeded = true; seedTestCopy.running = true; }
+            else writeAdapter();
+        }
 
         JsonAdapter {
             id: adapter
@@ -59,6 +75,8 @@ Singleton {
             property bool lockBattery: true
             property bool lockCalendar: true
             property bool lockNotifications: true
+            property bool lockPhone: true             // your phone (Lumen Link): battery, linked
+            property bool lockMessages: true          // unread chats — counts only, never names or text
             // ── Screen time (services/ScreenTime.qml) ──
             property bool screenTime: true        // record which apps you use, on this machine only
         }

@@ -309,6 +309,7 @@ esac
 
 # ── Done ────────────────────────────────────────────────────────────────────
 printf '\n%s%sDone.%s\n' "$B" "$G" "$N"
+say "When Lumen starts for the first time, a short welcome walks you through the look, your phone, Halo and five keys."
 say "First steps: tap ${B}Super${N} to search · ${B}Super+/${N} for every shortcut · ${B}Super+I${N} for Settings."
 say "Optional extras (never installed automatically):"
 note "• Face ID on the lock screen — Gaze (gaze.gundulabs.com), then Settings → Face ID"
