@@ -5,6 +5,11 @@ pragma Singleton
 //   install   system packages via pkexec scripts/update-admin.sh (your
 //             password, every time), then Flatpak apps
 // State for viewers: $XDG_RUNTIME_DIR/lumen-updates.json
+//
+// Lumen itself (scripts/lumen-self-update.sh): checked once a day here, in the
+// main shell, if "Check for Lumen updates daily" is on; the island says so
+// once per new version. Settings → Updates runs check / apply itself and
+// watches $XDG_RUNTIME_DIR/lumen-self-update.json.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -97,8 +102,46 @@ Singleton {
         onExited: code => { if (code !== 0) root.error = "Flatpak update failed (exit " + code + ")"; root.finish(code === 0); }
     }
 
+    // ── Lumen itself ──
+    // The checkout to update: this Lumen, or (LUMEN_DEV only) a test clone
+    readonly property string lumenRepo: Quickshell.env("LUMEN_DEV") === "1" && Quickshell.env("LUMEN_UPDATE_ROOT") ? Quickshell.env("LUMEN_UPDATE_ROOT") : Theme.lumenRoot
+    readonly property string selfUpdate: Theme.lumenRoot + "/scripts/lumen-self-update.sh"
+    property var lumen: ({})                // the script's last report
+    property var lumenPrefs: ({ daily: true, announced: "" })
+    readonly property int lumenBehind: lumen.behind ?? 0
+    function lumenRun(mode) { return { command: [selfUpdate, mode], environment: { LUMEN_ROOT: lumenRepo } }; }
+    function checkLumen() {
+        if (lumenCheck.running) return;
+        lumenCheck.exec(lumenRun("check"));
+    }
+    Process {
+        id: lumenPrefsProc
+        running: Persist.automates
+        command: [root.selfUpdate, "settings"]
+        stdout: StdioCollector { onStreamFinished: { try { root.lumenPrefs = JSON.parse(text); } catch (e) {} } }
+    }
+    Process {
+        id: lumenCheck
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const last = text.trim().split("\n").pop();
+                try { root.lumen = JSON.parse(last); } catch (e) { return; }
+                const sha = root.lumen.remoteSha ?? "";
+                if (Persist.automates && root.lumenBehind > 0 && sha && sha !== root.lumenPrefs.announced && !["game", "sleep"].includes(Focus.mode)) {
+                    root.lumenPrefs = Object.assign({}, root.lumenPrefs, { announced: sha });
+                    Quickshell.execDetached([root.selfUpdate, "announced", sha]);
+                    Island.system("auto_awesome", "Lumen update available · " + root.lumenBehind + (root.lumenBehind === 1 ? " change" : " changes"), "Settings → Updates");
+                }
+            }
+        }
+    }
+    // Once a day (first check a few minutes after login), only when you asked for it
+    Timer { interval: 24 * 3600 * 1000; running: Persist.automates && (root.lumenPrefs.daily ?? true); repeat: true; onTriggered: root.checkLumen() }
+    Timer { interval: 4 * 60 * 1000; running: Persist.automates && (root.lumenPrefs.daily ?? true); onTriggered: root.checkLumen() }
+
     IpcHandler {
         target: "updates"
+        function lumenCheck(): void { root.checkLumen(); }
         function check(): void { root.check(); }
         function install(): void { root.install(); }
         function count(): int { return root.count; }
