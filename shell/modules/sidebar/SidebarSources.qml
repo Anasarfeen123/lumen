@@ -14,6 +14,8 @@ Scope {
     IpcHandler {
         target: "notifications"
         function toggleDnd(): void { Notifications.setDnd(!Notifications.dnd); }
+        function setDnd(on: bool): void { Notifications.setDnd(on); }
+        function dnd(): bool { return Notifications.dnd; }
         function clear(): void { Notifications.clearAll(); }
         function count(): int { return Notifications.count; }
     }

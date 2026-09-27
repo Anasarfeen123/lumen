@@ -112,6 +112,12 @@ Page {
             LSwitch { checked: Persist.data.uiSounds; onToggled: Persist.data.uiSounds = !checked }
         }
         SetRow {
+            icon: "do_not_disturb_on"
+            title: "Urgent alerts through Do Not Disturb"
+            description: "Off: DND is quiet, critical notifications included — they still land in history.\nOn: only apps that mark an alert critical can break through"
+            LSwitch { checked: Persist.data.dndCritical; onToggled: Persist.data.dndCritical = !checked }
+        }
+        SetRow {
             icon: "lock"
             title: "On the lock screen"
             description: "Only a count and app names — never what they say"

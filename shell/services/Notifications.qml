@@ -142,10 +142,14 @@ Singleton {
     }
 
     // Low urgency, island-originated (x-lumen-kind), muted apps, banners off
-    // and Do Not Disturb all stay in history only; Critical always shows.
+    // and Do Not Disturb all stay in history only. Critical breaks through
+    // only if Settings → Notifications says so.
     function shouldPopup(entry, quiet) {
         if (quiet || entry.urgency === NotificationUrgency.Low) return false;
-        if (entry.urgency === NotificationUrgency.Critical) return true;
+        // Critical used to always break through, which is why DND still made
+        // noise: an urgent app could ring regardless. That is now a choice, and
+        // off by default — DND means quiet. (Everything still lands in history.)
+        if (entry.urgency === NotificationUrgency.Critical && Persist.data.dndCritical) return true;
         if (!Persist.data.notifBanners || (Persist.data.mutedApps ?? []).includes(entry.appName)) return false;
         return !dnd || Focus.lets(entry.appName);        // Work focus: allowed apps get through
     }
@@ -390,10 +394,17 @@ Singleton {
         // The client follows the shell's writes live
         watchChanges: root.isClient
         onFileChanged: reload()
+        // The shell owns `dnd` and also writes this file, so it may only take
+        // the saved value once, at startup. Adopting it on every load undid a
+        // toggle the moment saveTimer flushed — setText can trigger
+        // onFileChanged -> reload, reload can read the pre-write text, and DND
+        // silently snapped back to off. That is why "mute everything" stopped
+        // muting. The settings app mirrors the shell and may follow freely.
+        property bool adopted: false
         onLoaded: {
             try {
                 const d = JSON.parse(text());
-                root.dnd = d.dnd ?? false;
+                if (root.isClient || !adopted) { root.dnd = d.dnd ?? false; adopted = true; }
                 if (root.isClient) history.clear();
                 for (const e of (d.items ?? []))
                     if (root.indexOf(e.nid) < 0)
