@@ -9,6 +9,7 @@
 #   lumen set <gaps|corners|border|anim_speed|follow_mouse|cursor|cursor_size|idle_lock|idle_sleep|
 #              accent_style|accent_intensity|glass_level|motion_scale> <value>
 #   lumen check                     contrast report for the active theme
+#   lumen bench [--json] [--cpu N]  what the running shell costs: memory, CPU, startup
 #   lumen rebuild                   regenerate app themes (Qt/KDE, kitty…) without reloading
 #   lumen progress <title> <0-100|-1|done|fail> [detail]   show progress in the island
 #   lumen run [--title T] -- <command…>   run it; the island shows it working, then ✓ or ✗
@@ -127,6 +128,8 @@ case ${1:-} in
         "$LUMEN_ROOT/bin/lumen-shell-ipc" shell reload ;;
     check)
         python3 "$LUMEN_ROOT/theme/build.py" --check ;;
+    bench)
+        shift; exec "$LUMEN_ROOT/scripts/bench.sh" "$@" ;;
     rebuild)    # regenerate app themes (e.g. after the icon theme changed); new windows pick it up
         python3 "$LUMEN_ROOT/theme/build.py" >/dev/null ;;
     progress)
