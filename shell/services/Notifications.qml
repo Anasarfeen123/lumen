@@ -72,7 +72,24 @@ Singleton {
         return entry ? Apps.iconFor(entry) : "";
     }
 
+    // Notifications mirrored from your phone by KDE Connect (Lumen Link).
+    // Settings → Lumen Link → Phone notifications: "calls" (default) lets only
+    // calls and pairing requests through — the laptop already shows its own
+    // WhatsApp etc., so the phone's copies would arrive twice — "all", or "none".
+    function fromPhoneBlocked(appName, desktopEntry, summary, body) {
+        if (!/kde ?connect/i.test(appName ?? "") && !/kdeconnect/i.test(desktopEntry ?? "")) return false;
+        const text = (summary ?? "") + " " + (body ?? "");
+        if (/\bpair/i.test(text)) return false;                         // pairing requests always
+        const mode = Persist.data.phoneNotifications ?? "calls";
+        const isCall = /\b(incoming|missed|ongoing)?\s*(voice |video )?call(ing)?\b|\bringing\b/i.test(text);
+        if (mode === "none") return true;
+        if (mode === "calls") return !isCall;
+        // "all": still skip the phone's WhatsApp copies when the laptop's WhatsApp integration is on
+        return !isCall && WhatsApp.enabled && /whatsapp/i.test(text);
+    }
+
     function receive(n) {
+        if (fromPhoneBlocked(n.appName, n.desktopEntry, n.summary, n.body)) { n.dismiss(); return; }
         n.tracked = true;
         const quiet = (n.hints?.["x-lumen-kind"] ?? "") !== "";
         const entry = {
@@ -243,6 +260,7 @@ Singleton {
             const e = DesktopEntries.heuristicLookup(hint("desktop-entry") || app);
             icon = e ? Apps.iconFor(e) : "";
         }
+        if (fromPhoneBlocked(app, hint("desktop-entry") ?? "", d[3] || "", d[4] || "")) return;
         const entry = {
             nid: -((Date.now() % 1e9) * 100 + (++mirrorSeq % 100)), appName: app, icon, summary: d[3] || "", body: d[4] || "",
             urgency: hint("urgency") ?? NotificationUrgency.Normal, time: Date.now(),

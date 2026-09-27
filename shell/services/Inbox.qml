@@ -102,6 +102,24 @@ Singleton {
         all[key] = Object.assign({}, c, { unread: 0 });
         convs = all;
     }
+    // Lumen can't see you read a chat in WhatsApp, so: opening WhatsApp clears
+    // the unread counts (you've seen them), and counts older than 2 hours fade.
+    Connections {
+        target: Hyprland
+        function onActiveToplevelChanged() {
+            const w = WhatsApp.window;
+            if (w && Hyprland.activeToplevel === w && root.unreadTotal > 0) root.dismissAll();
+        }
+    }
+    Timer {
+        interval: 300000; repeat: true; running: root.unreadTotal > 0
+        onTriggered: {
+            const old = Date.now() - 2 * 3600000, all = Object.assign({}, root.convs);
+            let changed = false;
+            for (const k in all) if (all[k].unread > 0 && all[k].lastTime < old) { all[k] = Object.assign({}, all[k], { unread: 0 }); changed = true; }
+            if (changed) root.convs = all;
+        }
+    }
     function dismissAll() {
         const all = {};
         for (const k in convs) all[k] = Object.assign({}, convs[k], { unread: 0 });

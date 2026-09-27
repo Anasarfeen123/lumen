@@ -53,6 +53,19 @@ Page {
                                                 : "Off — nothing you copy leaves this computer"
             LSwitch { checked: Link.clipSync === "on"; onToggled: Link.setClipSync(!checked) }
         }
+        SetRow {
+            icon: "notifications"
+            title: "Phone notifications"
+            description: (Persist.data.phoneNotifications ?? "calls") === "calls" ? "Only calls (and pairing requests). This computer already shows its own WhatsApp and apps, so the phone's copies would arrive twice."
+                       : Persist.data.phoneNotifications === "all" ? "Everything your phone shares — except WhatsApp messages while WhatsApp is set up here"
+                       : "None — the phone stays quiet on this computer (pairing requests still show)"
+            Segmented {
+                width: 300
+                options: [{ id: "calls", label: "Calls only" }, { id: "all", label: "Everything" }, { id: "none", label: "None" }]
+                current: Persist.data.phoneNotifications ?? "calls"
+                onPicked: id => Persist.data.phoneNotifications = id
+            }
+        }
     }
 
     // ── Doctor ──

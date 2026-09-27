@@ -71,7 +71,11 @@ Item {
             id: messages
             readonly property var waiting: Inbox.unreadConversations
             want: WhatsApp.enabled && WhatsApp.cfg.ribbon && (Inbox.call !== null || waiting.length > 0)
-            onClicked: Inbox.call ? Inbox.focusApp(Inbox.call.provider) : Inbox.showPanel(waiting.length === 1 ? waiting[0].key : "")
+            // Click: reply (or open WhatsApp for a call) · right/middle-click: clear
+            onClicked: m => {
+                if (m.button === Qt.RightButton || m.button === Qt.MiddleButton) { Inbox.call = null; Inbox.dismissAll(); return; }
+                Inbox.call ? Inbox.focusApp(Inbox.call.provider) : Inbox.showPanel(waiting.length === 1 ? waiting[0].key : "");
+            }
             LIcon {
                 anchors.verticalCenter: parent.verticalCenter
                 icon: Inbox.call ? (Inbox.call.video ? "videocam" : "call") : "forum"
