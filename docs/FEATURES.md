@@ -86,6 +86,7 @@ Lumen is the interaction layer around WhatsApp; WhatsApp Web (Whatsie, or a web-
 ## Backup & recovery
 
 - **File backups:** pick a drive or folder in Settings → Backup & recovery; snapshots only copy what changed (hard links), progress shows in the island, and restores go to `~/Restored` so they never overwrite anything. Optional daily backups; plugging in your backup drive offers "Back up now" when one is due.
+- **Cloud backups:** to Google Drive, OneDrive, Dropbox, S3 or Nextcloud through rclone (from Fedora's repositories; you sign in in your browser). Only what changed is copied, nothing in the cloud is ever deleted, replaced files keep their previous version, and an encrypted (crypt) remote encrypts before anything leaves.
 - **Lumen Recovery:** `lumen recovery` (works from a TTY) or the same page: back up and restore Lumen's settings (backed up daily at login), safe mode for the next login (no shell, a terminal with the recovery menu), a minimal Hyprland session, reset the generated theme, go back to an earlier version on a new git branch, logs and a health check. Nothing is deleted: old copies go to the trash.
 
 ## Lumen Halo (<kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd>)
