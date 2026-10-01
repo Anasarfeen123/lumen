@@ -130,6 +130,7 @@ PanelWindow {
                 Row {
                     anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                     spacing: 2
+                    Pill { visible: win.stage === "list" && Inbox.unreadTotal > 0; icon: "done_all"; text: "Mark all read"; onClicked: Inbox.dismissAll() }
                     Pill { icon: "open_in_new"; text: "Open WhatsApp"; onClicked: { Inbox.focusApp("whatsapp"); win.close(); } }
                     HoverTarget { width: 28; height: 28; onClicked: win.close()
                                   LIcon { anchors.centerIn: parent; icon: "close"; size: 18; color: Theme.textMuted } }
@@ -181,13 +182,23 @@ PanelWindow {
                     width: parent.width; wrapMode: Text.Wrap; color: Theme.textMuted
                     text: "No messages since Lumen started. Chats appear here as their messages arrive, and so do names from your contact book (Settings → WhatsApp)."
                 }
-                Repeater {
-                    model: win.rows.slice(0, 7)
+                // Every chat, scrolling past seven; the selection stays in view
+                ListView {
+                    id: chatList
+                    width: parent.width
+                    height: Math.min(contentHeight, 7 * 54)
+                    clip: true
+                    spacing: 2
+                    model: win.rows
+                    currentIndex: win.current
+                    onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
+                    boundsBehavior: Flickable.StopAtBounds
+                    QQC.ScrollBar.vertical: QQC.ScrollBar { policy: chatList.contentHeight > chatList.height ? QQC.ScrollBar.AsNeeded : QQC.ScrollBar.AlwaysOff }
                     delegate: HoverTarget {
                         id: row
                         required property var modelData
                         required property int index
-                        width: parent.width; height: 52
+                        width: chatList.width - 8; height: 52
                         radius: Theme.radius.sm
                         highlighted: win.current === index
                         onClicked: win.pick(modelData)

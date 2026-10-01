@@ -6,3 +6,4 @@ session.env
 *.swp
 *~
 .DS_Store
+__pycache__/
