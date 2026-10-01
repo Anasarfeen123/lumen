@@ -1,6 +1,7 @@
-// Island background equalizer: live spectrum bars behind the clock.
-// Low-contrast accent so the time stays readable; bars grow from the centre
-// line, inset from the rounded ends so nothing pokes out of the pill.
+// Island background equalizer: live spectrum bars along the bottom of the
+// pill, under the clock. They stay in the lower third and soft (the album
+// colour blended toward the accent), so the time and date always read
+// cleanly; inset from the rounded ends so nothing pokes out of the pill.
 import QtQuick
 import qs.theme
 import qs.services
@@ -17,7 +18,8 @@ Item {
 
     Row {
         id: row
-        anchors.centerIn: parent
+        anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 4 }
+        height: root.height * 0.34
         readonly property int n: Math.max(1, Visualizer.levels.length)
         // Span the pill, keeping clear of the rounded ends
         readonly property real pitch: (root.width - root.height * 0.75) / n
@@ -28,14 +30,14 @@ Item {
             model: Visualizer.levels.length
             delegate: Rectangle {
                 required property int index
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.bottom: parent.bottom
                 width: row.bw
                 radius: width / 2
-                // Album colour when the art has one, else the accent
-                color: Media.hasTint ? Media.tint : Theme.accent
-                opacity: 0.42
+                // Album colour softened toward the accent (bright art stays calm)
+                color: Media.hasTint ? Qt.tint(Theme.accent, Theme.withAlpha(Media.tint, 0.6)) : Theme.accent
+                opacity: 0.3
                 Behavior on color { ColorAnimation { duration: 900 } }
-                height: Math.max(2, (Visualizer.levels[index] ?? 0) * (root.height - 8))
+                height: Math.max(2, (Visualizer.levels[index] ?? 0) * row.height)
                 Behavior on height { NumberAnimation { duration: 60 } }
             }
         }

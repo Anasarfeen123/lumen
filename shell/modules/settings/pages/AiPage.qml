@@ -38,7 +38,7 @@ Page {
         title: "Lumen Halo"
         SetRow {
             icon: "auto_awesome"
-            title: Ai.provider === "off" ? "Off" : "Answers from " + page.info.label
+            title: Ai.provider === "off" ? "Off" : "Answers from " + page.info.label.replace(/^This /, "this ")
             description: Ai.provider === "off"
                 ? "Lumen never contacts a model. The shortcut does nothing."
                 : (Ai.configured
@@ -63,7 +63,7 @@ Page {
             delegate: SetRow {
                 required property var modelData
                 icon: "memory"
-                title: modelData.label + (Ai.provider === modelData.id ? "  ·  in use" : "")
+                title: modelData.label
                 description: modelData.note
                 Button {
                     text: Ai.provider === modelData.id ? "In use" : (Ai.isConfigured(modelData.id) ? "Use" : "Set up")
@@ -81,7 +81,7 @@ Page {
             delegate: SetRow {
                 required property var modelData
                 icon: "cloud"
-                title: modelData.label + (Ai.provider === modelData.id ? "  ·  in use" : "")
+                title: modelData.label
                 description: modelData.note + (Ai.isConfigured(modelData.id) ? " · key saved" : " · key at " + modelData.site)
                 Button {
                     text: Ai.provider === modelData.id ? "In use" : (Ai.isConfigured(modelData.id) ? "Use" : "Set up")
@@ -99,7 +99,7 @@ Page {
             delegate: SetRow {
                 required property var modelData
                 icon: "dns"
-                title: modelData.label + (Ai.provider === modelData.id ? "  ·  in use" : "")
+                title: modelData.label
                 description: modelData.note + (Ai.isConfigured(modelData.id) ? " · " + Ai.status.custom.url : "")
                 Button {
                     text: Ai.provider === modelData.id ? "In use" : (Ai.isConfigured(modelData.id) ? "Use" : "Set up")

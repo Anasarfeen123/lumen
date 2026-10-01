@@ -82,14 +82,14 @@
 
 | Keys | Action |
 |---|---|
-| <kbd>XF86RFKill</kbd> | Airplane mode |
-| <kbd>XF86TouchpadToggle</kbd> | Touchpad on / off |
-| <kbd>XF86KbdBrightnessUp</kbd> | Keyboard light up |
-| <kbd>XF86KbdBrightnessDown</kbd> | Keyboard light down |
+| <kbd>✈ Airplane key</kbd> | Airplane mode |
+| <kbd>Touchpad key</kbd> | Touchpad on / off |
+| <kbd>Keyboard light +</kbd> | Keyboard light up |
+| <kbd>Keyboard light −</kbd> | Keyboard light down |
 | <kbd>Super</kbd> + <kbd>P</kbd> | Displays: extend · mirror · external only · laptop only |
-| <kbd>XF86Calculator</kbd> | Calculator (the overview, ready for maths) |
-| <kbd>XF86Launch3</kbd> | Power mode: balanced → performance → saver |
-| <kbd>XF86PowerOff</kbd> | Power menu |
+| <kbd>Calculator key</kbd> | Calculator (the overview, ready for maths) |
+| <kbd>Fn key</kbd> | Power mode: balanced → performance → saver |
+| <kbd>Power button</kbd> | Power menu |
 
 ## Control centre
 

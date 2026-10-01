@@ -34,28 +34,36 @@ Item {
     Art { id: art; source: Media.artUrl; size: 64 }
 
     // Several players → pick which one this controls; shuffle / repeat when supported
-    Row {
+    // Players: a strip that stops before the controls on the right and
+    // scrolls sideways when there are many; long names are trimmed
+    Item {
         id: extras
         visible: Media.players.length > 1 || Media.shuffleOk || Media.loopOk || Lyrics.available
-        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+        anchors { left: parent.left; right: ctrls.left; rightMargin: Theme.space.s2; bottom: parent.bottom }
         height: 26
-        spacing: 6
-        Repeater {
+        ListView {
+            anchors.fill: parent
+            orientation: ListView.Horizontal
+            spacing: 6
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
             model: Media.players.length > 1 ? Media.players : []
             delegate: HoverTarget {
                 required property var modelData
                 readonly property bool on: modelData === Media.active
-                width: pl.implicitWidth + 18; height: 24
+                width: pl.width + 18; height: 24
+                anchors.verticalCenter: parent ? parent.verticalCenter : undefined
                 Rectangle { anchors.fill: parent; radius: height / 2; z: -1
                             color: on ? Theme.withAlpha(Theme.text, 0.14) : "transparent"; border.width: 1; border.color: Theme.border }
                 LText { id: pl; anchors.centerIn: parent; role: "caption"; color: on ? Theme.text : Theme.textMuted
+                        width: Math.min(implicitWidth, 130); elide: Text.ElideRight
                         text: (modelData.isPlaying ? "♪ " : "") + Media.playerName(modelData) }
                 onClicked: Media.choose(modelData)
             }
         }
-        Item { width: 1; height: 1 }
     }
     Row {
+        id: ctrls
         anchors { right: parent.right; bottom: parent.bottom }
         visible: extras.visible
         height: 26

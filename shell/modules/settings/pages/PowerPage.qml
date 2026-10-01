@@ -73,12 +73,12 @@ Page {
         SetRow {
             icon: "eco"
             title: "Charge limit"
-            description: chargeLimit >= 100 ? "Charges to 100 %."
-                : "Stops at " + chargeLimit + " % — gentler on a battery that lives on the charger" + (Battery.pluggedIn && !Battery.charging && Battery.percentage * 100 >= chargeLimit - 1 ? " (paused now)" : "") + "."
+            description: chargeLimit >= 100 ? "Charges to 100%."
+                : "Stops at " + chargeLimit + "% — gentler on a battery that lives on the charger" + (Battery.pluggedIn && !Battery.charging && Battery.percentage * 100 >= chargeLimit - 1 ? " (paused now)" : "") + "."
             Segmented {
                 width: 300
                 enabled: !applying
-                options: [{ id: "100", label: "Full" }, { id: "90", label: "90 %" }, { id: "80", label: "80 %" }, { id: "60", label: "60 %" }]
+                options: [{ id: "100", label: "Full" }, { id: "90", label: "90%" }, { id: "80", label: "80%" }, { id: "60", label: "60%" }]
                 current: String(chargeLimit)
                 onPicked: id => {
                     applying = true;
@@ -102,8 +102,8 @@ Page {
                 : "Dims a minute before · screen off 30 s after"
             Segmented {
                 width: 330
-                options: [{ id: "2", label: "2 m" }, { id: "5", label: "5 m" }, { id: "10", label: "10 m" },
-                          { id: "30", label: "30 m" }, { id: "never", label: "Never" }]
+                options: [{ id: "2", label: "2 min" }, { id: "5", label: "5 min" }, { id: "10", label: "10 min" },
+                          { id: "30", label: "30 min" }, { id: "never", label: "Never" }]
                 current: idle.lock
                 onPicked: id => SettingsState.lumen(["set", "idle_lock", id])
             }
@@ -116,7 +116,7 @@ Page {
                 : mins(idle.sleep) + " · fullscreen video and games keep it awake"
             Segmented {
                 width: 330
-                options: [{ id: "15", label: "15 m" }, { id: "30", label: "30 m" }, { id: "60", label: "1 h" },
+                options: [{ id: "15", label: "15 min" }, { id: "30", label: "30 min" }, { id: "60", label: "1 h" },
                           { id: "battery", label: "Battery" }, { id: "never", label: "Never" }]
                 current: idle.sleep
                 onPicked: id => SettingsState.lumen(["set", "idle_sleep", id])
