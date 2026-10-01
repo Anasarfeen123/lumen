@@ -8,11 +8,18 @@ local bin = LUMEN_ROOT .. "/bin"
 local scripts = LUMEN_ROOT .. "/scripts"
 local ipc = bin .. "/lumen-shell-ipc"            -- this session's shell only
 
-local terminal    = "kitty"
-local fileManager = bin .. "/lumen-launch dolphin nautilus 'kitty -e yazi'"
-local browser     = bin .. "/lumen-launch brave-origin brave-browser firefox chromium"
-local editor      = bin .. "/lumen-launch code codium zed kate"
-local taskManager = bin .. "/lumen-launch plasma-systemmonitor 'kitty -e btop'"
+-- Default apps: your choice in Settings → Default apps first, then Lumen's
+-- own list (the first one that's installed)
+local A = LM.apps or {}
+local function launch(choice, fallbacks)
+    local first = (choice and choice ~= "") and ("'" .. choice .. "' ") or ""
+    return bin .. "/lumen-launch " .. first .. fallbacks
+end
+local terminal    = (A.terminal and A.terminal ~= "") and A.terminal or "kitty"
+local fileManager = launch(A.files, "dolphin nautilus 'kitty -e yazi'")
+local browser     = launch(A.browser, "brave-origin brave-browser firefox chromium")
+local editor      = launch(A.editor, "code codium zed kate")
+local taskManager = launch(A.monitor, "plasma-systemmonitor 'kitty -e btop'")
 
 local section = "General"
 local function group(name) section = name end

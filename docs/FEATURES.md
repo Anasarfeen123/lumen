@@ -150,11 +150,11 @@ The assistant built into the desktop. A ring of light turns around the panel whi
 
 ## Settings (<kbd>Super</kbd>+<kbd>I</kbd>)
 
-Twenty-one pages in five groups, all searchable; the sidebar scrolls and keeps your page in view.
+Twenty-four pages in five groups, all searchable; the sidebar scrolls and keeps your page in view.
 
-- **Personalise:** Appearance (themes, accents, glass, pointer, icons, sounds), Wallpaper, Bar & Island, Windows (gaps, corners, borders, animation speed, snapshots).
+- **Personalise:** Appearance (themes, accents, glass, pointer, icons, sounds), Wallpaper, Bar & Island, Windows (gaps, corners, borders, animation speed, snapshots), Default apps (browser, files, editor, terminal, system monitor).
 - **Connections:** Network, Bluetooth, Lumen Link (your phone).
-- **Devices:** Sound (including your music app), Display, Keyboard & Gestures (read live from the config), Power (modes, charge limit, idle).
+- **Devices:** Sound (including your music app), Display, Keyboard & Gestures (read live from the config), Mouse & touchpad (pointer speed, acceleration, tap to click, natural and scroll speed, palm rejection, key repeat, layouts), Power (modes, charge limit, idle).
 - **Focus & privacy:** Notifications (Focus, schedules, per-app rules), Lock screen, Face ID, Security.
 - **System:** Halo, Backup & recovery, System (hardware, CPU/GPU/NVIDIA, memory, disks, battery health), Updates (dnf, pacman, apt, zypper and Flatpak, installed only when you say so), **Advanced** (config files, a health check, logs, reload, rebuild, safe resets), About.
 

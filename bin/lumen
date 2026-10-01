@@ -126,6 +126,21 @@ case ${1:-} in
                     kb_repeat_rate)  [ "$3" -ge 10 ]  && [ "$3" -le 80 ] ;;
                 esac || { echo "lumen: $2 out of range" >&2; exit 2; }
                 set_state "$2" "$3"; reload ;;
+            app_browser=*|app_files=*|app_editor=*|app_terminal=*|app_monitor=*)
+                # One program name, no arguments, or "" for Lumen's own pick. It must be
+                # installed AND be a desktop app (a launcher whose Exec starts with it),
+                # so only real apps can be chosen — never an arbitrary command.
+                if [ -n "$3" ]; then
+                    printf '%s' "$3" | grep -Eqx '[A-Za-z0-9._+-]+' || { echo "lumen: $2 takes one program name" >&2; exit 2; }
+                    command -v "$3" >/dev/null 2>&1 || { echo "lumen: $3 isn't installed" >&2; exit 2; }
+                    found=""
+                    for d in "$HOME/.local/share/applications" /usr/share/applications /usr/local/share/applications; do
+                        [ -d "$d" ] || continue
+                        grep -lEq "^Exec=(.*/)?$3( |$)" "$d"/*.desktop 2>/dev/null && { found=1; break; }
+                    done
+                    [ -n "$found" ] || { echo "lumen: $3 isn't a desktop app" >&2; exit 2; }
+                fi
+                set_state "$2" "$3"; reload ;;
             kb_layout=*)
                 printf '%s' "$3" | grep -Eqx '[a-z]{2,3}(\([a-z_]+\))?(,[a-z]{2,3}(\([a-z_]+\))?){0,3}' \
                     || { echo "lumen: kb_layout looks like us or us,in or de(nodeadkeys)" >&2; exit 2; }

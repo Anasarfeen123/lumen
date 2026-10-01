@@ -208,6 +208,11 @@ def resolve(theme_name: str | None, accent_name: str | None, accent_hue: float |
         "repeat_rate": int(num("kb_repeat_rate", 10, 80, 35)),
         "kb_layout": layout,
     }
+    # Default apps (Settings → Default apps): a command, validated; "" = Lumen's own pick
+    def app(k):
+        v = state.get(k, "")
+        return v if re.fullmatch(r"[A-Za-z0-9._+-]+", v or "") else ""      # one program name, no arguments
+    apps = {k: app("app_" + k) for k in ("browser", "files", "editor", "terminal", "monitor")}
 
     return {
         "theme": theme_name,
@@ -229,10 +234,12 @@ def resolve(theme_name: str | None, accent_name: str | None, accent_hue: float |
                                                   ("glass_level", "50"), ("motion_scale", ""),
                                                   ("pointer_speed", "0"), ("accel", "adaptive"), ("natural_scroll", "on"),
                                                   ("tap_click", "on"), ("scroll_speed", "70"), ("dwt", "on"), ("left_handed", "off"),
-                                                  ("kb_repeat_delay", "250"), ("kb_repeat_rate", "35"), ("kb_layout", "us"))},
+                                                  ("kb_repeat_delay", "250"), ("kb_repeat_rate", "35"), ("kb_layout", "us"),
+                                                  ("app_browser", ""), ("app_files", ""), ("app_editor", ""), ("app_terminal", ""), ("app_monitor", ""))},
         "idle": idle_prefs(state),
         "cursor": cursor,
         "input": inputs,
+        "apps": apps,
         "blur": tokens["blur"],
         "shadow": tokens["shadow"],
         "island": tokens["island"],
@@ -344,6 +351,7 @@ def emit_hypr_lua(t: dict) -> str:
         "follow_mouse": w["follow_mouse"],
         "cursor": t["cursor"]["theme"], "cursor_size": t["cursor"]["size"],
         "input": dict(t["input"]),
+        "apps": dict(t["apps"]),
         "opacity": {"terminal": op(w["terminal_opacity"]), "app_active": op(w["app_active"]),
                     "app_inactive": op(w["app_inactive"]), "glass_active": op(w["glass_app_active"]),
                     "glass_inactive": op(w["glass_app_inactive"])},

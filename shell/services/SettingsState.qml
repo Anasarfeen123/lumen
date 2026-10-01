@@ -19,6 +19,7 @@ Singleton {
         { group: "Personalise", id: "wallpaper",     icon: "wallpaper",           label: "Wallpaper",           keys: "background picture shuffle match accent" },
         { group: "Personalise", id: "bar",           icon: "top_panel_open",      label: "Bar & Island",        keys: "island date workspace hot corners" },
         { group: "Personalise", id: "windows",       icon: "select_window",       label: "Windows",             keys: "gaps corners rounding border animation speed focus follows mouse" },
+        { group: "Personalise", id: "apps",          icon: "apps",                label: "Default apps",        keys: "default apps browser files file manager editor code terminal system monitor brave firefox dolphin kitty" },
         { group: "Connections", id: "network",       icon: "wifi",                label: "Network",             keys: "wifi wi-fi internet airplane vpn warp cloudflare dns" },
         { group: "Connections", id: "bluetooth",     icon: "bluetooth",           label: "Bluetooth",           keys: "devices headphones pair connect battery" },
         { group: "Connections", id: "phone",         icon: "phonelink",           label: "Lumen Link",          keys: "phone link kde connect android iphone pair find ring send file clipboard sync usb tethering hotspot address bluetooth" },
