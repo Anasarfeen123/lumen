@@ -262,7 +262,7 @@ key("CTRL + SUPER + mouse:274", exec("playerctl play-pause"), "Ctrl+middle-click
 group("Windows")
 key("SUPER + H", hl.dsp.window.move({ workspace = "special:minimized", follow = false }), "Minimise (tuck the window away)")
 key("SUPER + SHIFT + H", hl.dsp.workspace.toggle_special("minimized"), "Show minimised windows")
-key("SUPER + SHIFT + Return", hl.dsp.exec_cmd(terminal, { float = true, size = { 1100, 680 } }), "Floating terminal")
+key("SUPER + SHIFT + Return", hl.dsp.exec_cmd(terminal, { float = true, size = "1100 680", center = true }), "Floating terminal")
 key("SUPER + SHIFT + F", function()
     hl.dispatch(hl.dsp.window.float({ action = "toggle" }))
     hl.dispatch(hl.dsp.window.resize({ x = 1280, y = 800, exact = true }))
