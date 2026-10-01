@@ -239,8 +239,8 @@ key("SUPER + Minus", zoom(1 / 1.25), "Zoom out", { repeating = true })
 -- (volume, brightness) · +Alt is the finer variant. Up = previous / more.
 group("Scroll & mouse")
 local function both(mods, up, down, label)
-    key(mods .. " + mouse_up", up, label, { repeating = true })
-    key(mods .. " + mouse_down", down, nil, { repeating = true })
+    key(mods .. " + mouse_up", up, label)
+    key(mods .. " + mouse_down", down, nil)
 end
 local function sh(cmd) return exec(cmd) end
 both("SUPER + SHIFT", hl.dsp.window.move({ workspace = "r-1" }), hl.dsp.window.move({ workspace = "r+1" }),

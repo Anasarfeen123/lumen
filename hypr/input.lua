@@ -22,7 +22,9 @@ hl.config({
         workspace_swipe_create_new = true,
     },
     binds = {
-        scroll_event_delay = 0,
+        -- One step per scroll gesture: touchpads and smooth-scrolling wheels send
+        -- dozens of tiny events per swipe, each of which would switch a workspace
+        scroll_event_delay = 220,
         hide_special_on_workspace_change = true,
         workspace_back_and_forth = false,
     },

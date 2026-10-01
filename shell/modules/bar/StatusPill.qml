@@ -40,7 +40,8 @@ GlassSurface {
             height: Theme.barHeight - 8
             anchors.verticalCenter: parent.verticalCenter
             onClicked: Sidebar.toggle(Notifications.count > 0 && mouseX < Theme.space.s3 + 10 ? "notifications" : "controls")
-            onWheel: wheel => Audio.nudge(wheel.angleDelta.y > 0 ? 0.05 : -0.05)
+            onWheel: wheel => volSteps.feed(wheel.angleDelta.y)
+            ScrollSteps { id: volSteps; cooldown: 60; onStep: dir => Audio.nudge(dir > 0 ? 0.05 : -0.05) }
 
             Row {
                 id: sysRow

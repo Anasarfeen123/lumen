@@ -71,9 +71,10 @@ PanelWindow {
         visible: opacity > 0.01
 
         // Scroll anywhere on the merged bar → previous / next workspace
+        ScrollSteps { id: wsSteps; onStep: dir => Hypr.workspace(dir > 0 ? "r-1" : "r+1") }
         WheelHandler {
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-            onWheel: event => Hypr.workspace(event.angleDelta.y > 0 ? "r-1" : "r+1")
+            onWheel: event => wsSteps.feed(event.angleDelta.y)
         }
 
         states: State {

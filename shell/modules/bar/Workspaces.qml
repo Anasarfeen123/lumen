@@ -132,8 +132,9 @@ GlassSurface {
         }
     }
 
+    ScrollSteps { id: wsSteps; onStep: dir => Hypr.workspace(dir > 0 ? "r-1" : "r+1") }
     WheelHandler {
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-        onWheel: event => Hypr.workspace(event.angleDelta.y > 0 ? "r-1" : "r+1")
+        onWheel: event => wsSteps.feed(event.angleDelta.y)
     }
 }
