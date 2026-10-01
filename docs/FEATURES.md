@@ -174,6 +174,6 @@ Twenty-one pages in five groups, all searchable; the sidebar scrolls and keeps y
 - **More keys:** <kbd>Super</kbd>+<kbd>H</kbd> minimise (<kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> shows them), <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> float, size and centre, <kbd>Super</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+arrows swap windows, <kbd>Super</kbd>+<kbd>Home</kbd>/<kbd>End</kbd> first / last busy workspace, <kbd>Super</kbd>+<kbd>Backspace</kbd> back to the last workspace, <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>Return</kbd> floating terminal, <kbd>Super</kbd>+<kbd>R</kbd> run a command, <kbd>Super</kbd>+<kbd>X</kbd> Drop Zone shelf, <kbd>Ctrl</kbd>+<kbd>Super</kbd>+<kbd>Space</kbd> ask Halo about the screen, <kbd>Super</kbd>+<kbd>B</kbd> planner, <kbd>Ctrl</kbd>+<kbd>Super</kbd>+<kbd>W</kbd> send the clipboard to WhatsApp.
 - **Hot corners:** top-left for the overview, top-right for the control centre.
 - **Gestures:**
-  - 4 fingers up or down for the overview;
-  - 4 fingers left or right for workspaces;
-  - 3 fingers to move a window, and a 3-finger pinch for fullscreen.
+  - 4 fingers up or down for the overview, left or right for workspaces, pinch in to minimise the window and out to show minimised windows;
+  - 3 fingers to move a window, pinch out for fullscreen and in to float or tile it;
+  - with a key held: Alt + 3 fingers resizes, Super + 3-finger pinch zooms the screen, Super + 3 fingers up / down opens the scratchpad / drop-down terminal, Super + 4 fingers left / right visits only workspaces with windows.

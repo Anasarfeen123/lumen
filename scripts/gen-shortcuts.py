@@ -27,9 +27,14 @@ NAMES.update({  # laptop keys: what's printed on the key, not the XF86 code name
 })
 GESTURES = [
     ("Tap Super", "Overview & search"), ("Top-left corner", "Overview & search"), ("Top-right corner", "Control centre"),
-    ("4 fingers ↑ / ↓", "Open / close the overview"), ("4 fingers ← / →", "Switch workspace"),
-    ("3 fingers drag", "Move a window"), ("3 fingers pinch", "Fullscreen"),
-    ("Scroll on the bar", "Switch workspace"), ("Scroll on the island", "Volume (Shift: brightness)"),
+    ("4 fingers ↑ / ↓", "Open / close the overview"), ("4 fingers ← / →", "Switch workspace (follows your fingers)"),
+    ("4 fingers pinch in / out", "Minimise the window / show minimised windows"),
+    ("3 fingers drag", "Move a window"), ("3 fingers pinch out / in", "Fullscreen / float or tile"),
+    ("Alt + 3 fingers drag", "Resize a window"), ("Super + 3 fingers pinch", "Zoom the screen"),
+    ("Super + 3 fingers ↑ / ↓", "Scratchpad / drop-down terminal"), ("Super + 4 fingers ← / →", "Workspaces with windows only"),
+    ("Scroll on the bar", "Switch workspace"), ("Scroll on the island", "Now timeline (or volume: Settings → Bar & Island)"),
+    ("Super + scroll", "Switch workspace (+Shift: take the window along)"), ("Ctrl + Super + scroll", "Volume (+Shift: brightness)"),
+    ("Super + Alt + scroll", "Zoom"), ("Super + middle-click", "Float / tile the window"),
     ("Right-click workspaces / island", "Apps in the background (tray)"), ("Middle-click the island", "Play / pause"),
     ("Click the island timer", "Pause / resume (right-click stops)"), ("Swipe a notification →", "Dismiss it"),
 ]
