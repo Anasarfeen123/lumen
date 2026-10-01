@@ -47,6 +47,14 @@
 | <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>Tab</kbd> | Next tab in group |
 | <kbd>Alt</kbd> + <kbd>Tab</kbd> | Switch windows (release Alt to pick) |
 | <kbd>Alt</kbd> + <kbd>`</kbd> | Switch between this app's windows |
+| <kbd>Super</kbd> + <kbd>H</kbd> | Minimise (tuck the window away) |
+| <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>H</kbd> | Show minimised windows |
+| <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>Enter</kbd> | Floating terminal |
+| <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>F</kbd> | Float, size and centre the window (focus it) |
+| <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>←</kbd> | Swap with the window to the left / right / up / down |
+| <kbd>Super</kbd> + <kbd>Home</kbd> | First workspace with windows |
+| <kbd>Super</kbd> + <kbd>End</kbd> | Last workspace with windows |
+| <kbd>Super</kbd> + <kbd>Backspace</kbd> | Back to the last workspace |
 
 ## Workspaces
 
@@ -124,6 +132,29 @@
 | <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>T</kbd> | Random wallpaper |
 | <kbd>Super</kbd> + <kbd>=</kbd> | Zoom in |
 | <kbd>Super</kbd> + <kbd>−</kbd> | Zoom out |
+
+## Scroll & mouse
+
+| Keys | Action |
+|---|---|
+| <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>Scroll ↑</kbd> | Scroll: carry the window to the previous / next workspace |
+| <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>Scroll ↑</kbd> | Scroll: workspaces that have windows |
+| <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>Scroll ↑</kbd> | Scroll: cycle through this workspace's windows |
+| <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>Scroll ↑</kbd> | Scroll: volume |
+| <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Scroll ↑</kbd> | Scroll: screen brightness |
+| <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>Scroll ↑</kbd> | Scroll: zoom in / out (magnifier) |
+| <kbd>Super</kbd> + <kbd>mouse:274</kbd> | Middle-click: float / tile the window |
+| <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>mouse:274</kbd> | Ctrl+middle-click: play / pause |
+
+## Lumen
+
+| Keys | Action |
+|---|---|
+| <kbd>Super</kbd> + <kbd>R</kbd> | Run a command (the overview, ready) |
+| <kbd>Super</kbd> + <kbd>X</kbd> | Drop Zone shelf |
+| <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>Space</kbd> | Ask Halo about the screen |
+| <kbd>Super</kbd> + <kbd>B</kbd> | Your day (planner) |
+| <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>W</kbd> | Send the clipboard to WhatsApp |
 
 ## Session
 

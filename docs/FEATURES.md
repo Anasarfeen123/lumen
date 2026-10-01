@@ -166,6 +166,12 @@ Twenty-one pages in five groups, all searchable; the sidebar scrolls and keeps y
   - <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd> for music, which starts YouTube Music (as a Brave Origin / Brave / Chrome web app) or Spotify if it's empty.
 - **Game mode**, battery charge limit, keyboard backlight and zoom (<kbd>Super</kbd>+<kbd>=</kbd> and <kbd>Super</kbd>+<kbd>−</kbd>).
 - **Hybrid GPUs:** the integrated GPU renders; `lumen-dgpu <app>` runs one app on the discrete GPU.
+- **Scroll shortcuts** (one grammar: Super moves you, +Shift carries the window, +Ctrl is the system, +Alt is finer):
+  - <kbd>Super</kbd>+scroll: workspaces · +<kbd>Shift</kbd>: carry the window along · <kbd>Ctrl</kbd>+<kbd>Super</kbd>+<kbd>Alt</kbd>+scroll: only workspaces with windows;
+  - <kbd>Super</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+scroll: cycle this workspace's windows;
+  - <kbd>Ctrl</kbd>+<kbd>Super</kbd>+scroll: volume · +<kbd>Shift</kbd>: brightness · <kbd>Super</kbd>+<kbd>Alt</kbd>+scroll: zoom;
+  - <kbd>Super</kbd>+middle-click: float / tile · <kbd>Ctrl</kbd>+<kbd>Super</kbd>+middle-click: play / pause.
+- **More keys:** <kbd>Super</kbd>+<kbd>H</kbd> minimise (<kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> shows them), <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> float, size and centre, <kbd>Super</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+arrows swap windows, <kbd>Super</kbd>+<kbd>Home</kbd>/<kbd>End</kbd> first / last busy workspace, <kbd>Super</kbd>+<kbd>Backspace</kbd> back to the last workspace, <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>Return</kbd> floating terminal, <kbd>Super</kbd>+<kbd>R</kbd> run a command, <kbd>Super</kbd>+<kbd>X</kbd> Drop Zone shelf, <kbd>Ctrl</kbd>+<kbd>Super</kbd>+<kbd>Space</kbd> ask Halo about the screen, <kbd>Super</kbd>+<kbd>B</kbd> planner, <kbd>Ctrl</kbd>+<kbd>Super</kbd>+<kbd>W</kbd> send the clipboard to WhatsApp.
 - **Hot corners:** top-left for the overview, top-right for the control centre.
 - **Gestures:**
   - 4 fingers up or down for the overview;

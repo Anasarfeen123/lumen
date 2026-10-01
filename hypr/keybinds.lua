@@ -234,6 +234,67 @@ end
 key("SUPER + Equal", zoom(1.25), "Zoom in", { repeating = true })
 key("SUPER + Minus", zoom(1 / 1.25), "Zoom out", { repeating = true })
 
+-- ── Scroll & mouse: one grammar with the keyboard ──
+-- Super moves you · +Shift carries the window · +Ctrl is the system
+-- (volume, brightness) · +Alt is the finer variant. Up = previous / more.
+group("Scroll & mouse")
+local function both(mods, up, down, label)
+    key(mods .. " + mouse_up", up, label, { repeating = true })
+    key(mods .. " + mouse_down", down, nil, { repeating = true })
+end
+local function sh(cmd) return exec(cmd) end
+both("SUPER + SHIFT", hl.dsp.window.move({ workspace = "r-1" }), hl.dsp.window.move({ workspace = "r+1" }),
+     "Scroll: carry the window to the previous / next workspace")
+both("CTRL + SUPER + ALT", occupied(-1), occupied(1), "Scroll: workspaces that have windows")
+both("SUPER + ALT + SHIFT", hl.dsp.window.cycle_next({ next = false }), hl.dsp.window.cycle_next(),
+     "Scroll: cycle through this workspace's windows")
+both("CTRL + SUPER", sh("wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+"), sh("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"),
+     "Scroll: volume")
+both("CTRL + SUPER + SHIFT", sh(ipc .. " brightness up"), sh(ipc .. " brightness down"), "Scroll: screen brightness")
+both("SUPER + ALT", zoom(1.15), zoom(1 / 1.15), "Scroll: zoom in / out (magnifier)")
+key("SUPER + mouse:274", function()
+    hl.dispatch(hl.dsp.window.float({ action = "toggle" }))
+    hl.dispatch(hl.dsp.window.center())
+end, "Middle-click: float / tile the window")
+key("CTRL + SUPER + mouse:274", exec("playerctl play-pause"), "Ctrl+middle-click: play / pause")
+
+-- ── More windows & places ──
+group("Windows")
+key("SUPER + H", hl.dsp.window.move({ workspace = "special:minimized", follow = false }), "Minimise (tuck the window away)")
+key("SUPER + SHIFT + H", hl.dsp.workspace.toggle_special("minimized"), "Show minimised windows")
+key("SUPER + SHIFT + Return", hl.dsp.exec_cmd(terminal, { float = true, size = { 1100, 680 } }), "Floating terminal")
+key("SUPER + SHIFT + F", function()
+    hl.dispatch(hl.dsp.window.float({ action = "toggle" }))
+    hl.dispatch(hl.dsp.window.resize({ x = 1280, y = 800, exact = true }))
+    hl.dispatch(hl.dsp.window.center())
+end, "Float, size and centre the window (focus it)")
+key("SUPER + ALT + SHIFT + left",  hl.dsp.window.swap({ direction = "left" }), "Swap with the window to the left / right / up / down")
+key("SUPER + ALT + SHIFT + right", hl.dsp.window.swap({ direction = "right" }))
+key("SUPER + ALT + SHIFT + up",    hl.dsp.window.swap({ direction = "up" }))
+key("SUPER + ALT + SHIFT + down",  hl.dsp.window.swap({ direction = "down" }))
+key("SUPER + Home", function()
+    local ids = {}
+    for _, ws in ipairs(hl.get_workspaces()) do if ws.id > 0 and not ws.is_empty then ids[#ids + 1] = ws.id end end
+    table.sort(ids)
+    if #ids > 0 then hl.dispatch(hl.dsp.focus({ workspace = ids[1] })) end
+end, "First workspace with windows")
+key("SUPER + End", function()
+    local ids = {}
+    for _, ws in ipairs(hl.get_workspaces()) do if ws.id > 0 and not ws.is_empty then ids[#ids + 1] = ws.id end end
+    table.sort(ids)
+    if #ids > 0 then hl.dispatch(hl.dsp.focus({ workspace = ids[#ids] })) end
+end, "Last workspace with windows")
+key("SUPER + Backspace", hl.dsp.focus({ workspace = "previous" }), "Back to the last workspace")
+
+group("Lumen")
+key("SUPER + R", exec(ipc .. ' overview search ">"'), "Run a command (the overview, ready)")
+key("SUPER + X", exec(ipc .. " dropzone toggle"), "Drop Zone shelf")
+key("CTRL + SUPER + Space", exec(ipc .. ' ai ask "/screen"'), "Ask Halo about the screen")
+key("SUPER + B", global("lumen:planner"), "Your day (planner)")
+key("SUPER + comma", global("lumen:settings"))
+key("CTRL + SUPER + W", exec(ipc .. " inbox shareClipboard"), "Send the clipboard to WhatsApp")
+
+
 -- ── Session ──
 group("Session")
 key("SUPER + L", exec(ipc .. " lock lock || loginctl lock-session"), "Lock")

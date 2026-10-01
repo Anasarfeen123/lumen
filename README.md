@@ -132,7 +132,7 @@ Inside any Wayland desktop, `bin/lumen-session` runs Lumen in a window, so nothi
 | <kbd>Super</kbd>+<kbd>L</kbd> · <kbd>Super</kbd>+<kbd>I</kbd> | Lock · Settings |
 | <kbd>Super</kbd>+<kbd>/</kbd> | Every shortcut |
 
-All 88 shortcuts and the gestures: **[docs/SHORTCUTS.md](docs/SHORTCUTS.md)**.
+All 109 shortcuts and the gestures: **[docs/SHORTCUTS.md](docs/SHORTCUTS.md)**.
 
 ## Documentation
 
