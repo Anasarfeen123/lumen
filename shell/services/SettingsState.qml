@@ -26,6 +26,7 @@ Singleton {
         { group: "Devices", id: "sound",         icon: "volume_up",           label: "Sound",               keys: "volume output input microphone speaker headphones music lyrics" },
         { group: "Devices", id: "display",       icon: "brightness_6",        label: "Display",             keys: "brightness night light warmth" },
         { group: "Devices", id: "keyboard",      icon: "keyboard",            label: "Keyboard & Gestures", keys: "shortcuts keybinds cheatsheet touchpad gestures corners" },
+        { group: "Devices", id: "mouse",         icon: "mouse",               label: "Mouse & touchpad",    keys: "mouse touchpad pointer speed acceleration tap click natural scrolling scroll speed palm typing repeat delay rate keyboard layout language gestures left handed" },
         { group: "Devices", id: "power",         icon: "battery_charging_80", label: "Power",               keys: "battery saver performance idle sleep suspend lock timeout screen off charge limit health" },
         { group: "Focus & privacy", id: "notifications", icon: "notifications",       label: "Notifications",       keys: "focus do not disturb dnd banners mute apps sound history" },
         { group: "Focus & privacy", id: "lock",          icon: "lock",                label: "Lock screen",         keys: "widgets password unlock" },

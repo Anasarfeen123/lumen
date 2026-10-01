@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import math
 import os
 import sys
@@ -191,6 +192,22 @@ def resolve(theme_name: str | None, accent_name: str | None, accent_hue: float |
         motion[k] = round(motion[k] * speed)
     window["follow_mouse"] = 0 if state.get("follow_mouse") == "off" else 1
     cursor = {"theme": state.get("cursor", "Bibata-Modern-Classic"), "size": int(state.get("cursor_size", 24))}
+    # Mouse, touchpad and keyboard (Settings → Mouse & touchpad / Keyboard)
+    def onoff(k, d): return (state.get(k, d) == "on")
+    layout = state.get("kb_layout", "us")
+    if not re.fullmatch(r"[a-z]{2,3}(\([a-z_]+\))?(,[a-z]{2,3}(\([a-z_]+\))?){0,3}", layout): layout = "us"
+    inputs = {
+        "sensitivity": num("pointer_speed", -100, 100, 0) / 100,
+        "accel_profile": "flat" if state.get("accel") == "flat" else "adaptive",
+        "natural_scroll": onoff("natural_scroll", "on"),
+        "tap_to_click": onoff("tap_click", "on"),
+        "scroll_factor": num("scroll_speed", 25, 200, 70) / 100,
+        "disable_while_typing": onoff("dwt", "on"),
+        "left_handed": onoff("left_handed", "off"),
+        "repeat_delay": int(num("kb_repeat_delay", 150, 800, 250)),
+        "repeat_rate": int(num("kb_repeat_rate", 10, 80, 35)),
+        "kb_layout": layout,
+    }
 
     return {
         "theme": theme_name,
@@ -209,9 +226,13 @@ def resolve(theme_name: str | None, accent_name: str | None, accent_hue: float |
                                                   ("anim_speed", "normal"), ("follow_mouse", "on"),
                                                   ("cursor", "Bibata-Modern-Classic"), ("cursor_size", "24"),
                                                   ("accent_style", "adaptive"), ("accent_intensity", "100"),
-                                                  ("glass_level", "50"), ("motion_scale", ""))},
+                                                  ("glass_level", "50"), ("motion_scale", ""),
+                                                  ("pointer_speed", "0"), ("accel", "adaptive"), ("natural_scroll", "on"),
+                                                  ("tap_click", "on"), ("scroll_speed", "70"), ("dwt", "on"), ("left_handed", "off"),
+                                                  ("kb_repeat_delay", "250"), ("kb_repeat_rate", "35"), ("kb_layout", "us"))},
         "idle": idle_prefs(state),
         "cursor": cursor,
+        "input": inputs,
         "blur": tokens["blur"],
         "shadow": tokens["shadow"],
         "island": tokens["island"],
@@ -322,6 +343,7 @@ def emit_hypr_lua(t: dict) -> str:
         "border_size": w["border"], "gaps_in": w["gaps_in"], "gaps_out": w["gaps_out"],
         "follow_mouse": w["follow_mouse"],
         "cursor": t["cursor"]["theme"], "cursor_size": t["cursor"]["size"],
+        "input": dict(t["input"]),
         "opacity": {"terminal": op(w["terminal_opacity"]), "app_active": op(w["app_active"]),
                     "app_inactive": op(w["app_inactive"]), "glass_active": op(w["glass_app_active"]),
                     "glass_inactive": op(w["glass_app_inactive"])},

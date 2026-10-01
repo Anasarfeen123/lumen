@@ -7,7 +7,8 @@
 #   lumen accent-hue <0-360>         set the wallpaper-derived accent hue (used by the picker)
 #   lumen clock <12h|24h>  ·  lumen motion <full|reduced>  ·  lumen reload
 #   lumen set <gaps|corners|border|anim_speed|follow_mouse|cursor|cursor_size|idle_lock|idle_sleep|
-#              accent_style|accent_intensity|glass_level|motion_scale> <value>
+#              accent_style|accent_intensity|glass_level|motion_scale|pointer_speed|accel|natural_scroll|
+#              tap_click|scroll_speed|dwt|left_handed|kb_repeat_delay|kb_repeat_rate|kb_layout> <value>
 #   lumen check                     contrast report for the active theme
 #   lumen bench [--json] [--cpu N]  what the running shell costs: memory, CPU, startup
 #   lumen rebuild                   regenerate app themes (Qt/KDE, kitty…) without reloading
@@ -108,6 +109,26 @@ case ${1:-} in
                 gsettings set org.gnome.desktop.interface cursor-theme "$cur" 2>/dev/null || true
                 gsettings set org.gnome.desktop.interface cursor-size "$size" 2>/dev/null || true ;;
             accent_style=adaptive|accent_style=exact|accent_style=subtle|accent_style=mono)
+                set_state "$2" "$3"; reload ;;
+            # Mouse, touchpad and keyboard (Settings → Mouse & touchpad / Keyboard)
+            accel=adaptive|accel=flat|natural_scroll=on|natural_scroll=off|tap_click=on|tap_click=off|\
+            dwt=on|dwt=off|left_handed=on|left_handed=off)
+                set_state "$2" "$3"; reload ;;
+            pointer_speed=*)
+                printf '%s' "$3" | grep -Eqx -- '-?[0-9]{1,3}' && [ "$3" -ge -100 ] && [ "$3" -le 100 ] \
+                    || { echo "lumen: pointer_speed is -100…100" >&2; exit 2; }
+                set_state "$2" "$3"; reload ;;
+            scroll_speed=*|kb_repeat_delay=*|kb_repeat_rate=*)
+                case $3 in ''|*[!0-9]*) echo "lumen: $2 takes a whole number" >&2; exit 2 ;; esac
+                case $2 in
+                    scroll_speed)    [ "$3" -ge 25 ]  && [ "$3" -le 200 ] ;;
+                    kb_repeat_delay) [ "$3" -ge 150 ] && [ "$3" -le 800 ] ;;
+                    kb_repeat_rate)  [ "$3" -ge 10 ]  && [ "$3" -le 80 ] ;;
+                esac || { echo "lumen: $2 out of range" >&2; exit 2; }
+                set_state "$2" "$3"; reload ;;
+            kb_layout=*)
+                printf '%s' "$3" | grep -Eqx '[a-z]{2,3}(\([a-z_]+\))?(,[a-z]{2,3}(\([a-z_]+\))?){0,3}' \
+                    || { echo "lumen: kb_layout looks like us or us,in or de(nodeadkeys)" >&2; exit 2; }
                 set_state "$2" "$3"; reload ;;
             accent_intensity=*|glass_level=*|motion_scale=*)
                 # numbers only, within range (build.py clamps too)

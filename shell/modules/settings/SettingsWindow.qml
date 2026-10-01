@@ -188,7 +188,7 @@ FloatingWindow {
                 sourceComponent: ({
                     appearance: appearanceC, wallpaper: wallpaperC, bar: barC, display: displayC,
                     sound: soundC, faceid: faceC, power: powerC, keyboard: keyboardC, about: aboutC,
-                    windows: windowsC, notifications: notificationsC, network: networkC, bluetooth: bluetoothC, lock: lockC, ai: aiC, updates: updatesC, system: systemC, security: securityC, phone: phoneC, whatsapp: whatsappC, advanced: advancedC, backup: backupC
+                    windows: windowsC, notifications: notificationsC, network: networkC, bluetooth: bluetoothC, lock: lockC, ai: aiC, updates: updatesC, system: systemC, security: securityC, phone: phoneC, whatsapp: whatsappC, mouse: mouseC, advanced: advancedC, backup: backupC
                 })[shown] ?? appearanceC
 
                 // Slide + fade between pages
@@ -231,6 +231,7 @@ FloatingWindow {
     Component { id: securityC; SecurityPage {} }
     Component { id: phoneC; PhonePage {} }
     Component { id: whatsappC; WhatsAppPage {} }
+    Component { id: mouseC; MousePage {} }
     Component { id: advancedC; AdvancedPage {} }
     Component { id: backupC; BackupPage {} }
 }

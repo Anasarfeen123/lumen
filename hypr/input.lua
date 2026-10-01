@@ -1,17 +1,24 @@
 -- ── Input ────────────────────────────────────────────────────────────────────
+local I = LM.input or {}                         -- Lumen Settings → Mouse & touchpad / Keyboard
+local function pick(v, d) if v == nil then return d end return v end
 hl.config({
     input = {
-        kb_layout = "us",
+        kb_layout = pick(I.kb_layout, "us"),
+        kb_options = (pick(I.kb_layout, "us"):find(",") and "grp:alt_shift_toggle") or "",
         numlock_by_default = true,
-        repeat_delay = 250,
-        repeat_rate = 35,
+        repeat_delay = pick(I.repeat_delay, 250),
+        repeat_rate = pick(I.repeat_rate, 35),
+        sensitivity = pick(I.sensitivity, 0),
+        accel_profile = pick(I.accel_profile, "adaptive"),
+        left_handed = pick(I.left_handed, false),
         follow_mouse = LM.follow_mouse,        -- Lumen Settings → Windows
         off_window_axis_events = 2,
         touchpad = {
-            natural_scroll = true,
-            disable_while_typing = true,
+            natural_scroll = pick(I.natural_scroll, true),
+            tap_to_click = pick(I.tap_to_click, true),
+            disable_while_typing = pick(I.disable_while_typing, true),
             clickfinger_behavior = true,
-            scroll_factor = 0.7,
+            scroll_factor = pick(I.scroll_factor, 0.7),
         },
     },
     gestures = {
