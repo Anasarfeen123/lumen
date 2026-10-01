@@ -33,7 +33,21 @@ Page {
     property var configs: []
     property string safe: "off"
     property string note: ""
-    function refresh() { statusProc.running = true; drivesProc.running = true; configsProc.running = true; safeProc.running = true; }
+    function refresh() { statusProc.running = true; drivesProc.running = true; configsProc.running = true; safeProc.running = true; cloudProc.running = true; }
+
+    // ── cloud (scripts/cloud-backup.sh, through rclone) ──
+    readonly property string cloudScript: Theme.lumenRoot + "/scripts/cloud-backup.sh"
+    property var cloud: ({ installed: false, remotes: [], cloud: {} })
+    property string cloudMsg: ""
+    property int cloudPct: -1
+    Process { id: cloudProc; command: [page.cloudScript, "status"]; stdout: StdioCollector { onStreamFinished: { try { page.cloud = JSON.parse(text); } catch (e) {} } } }
+    Process {
+        id: cloudRun
+        command: [page.cloudScript, "run"]
+        stdout: SplitParser { onRead: line => { let d; try { d = JSON.parse(line); } catch (e) { return; } if (d.e) page.cloudMsg = d.e; else { page.cloudPct = d.p; page.cloudMsg = d.st === "done" ? "Backed up" : "Copying " + d.st; } } }
+        onExited: { page.cloudPct = -1; page.refresh(); }
+    }
+    Timer { interval: 4000; repeat: true; running: page.visible && !page.cloud.installed; onTriggered: cloudProc.running = true }
     Component.onCompleted: refresh()
 
     Process { id: statusProc; command: [page.backup, "status"]; stdout: StdioCollector { onStreamFinished: { try { page.st = JSON.parse(text); } catch (e) {} } } }
@@ -142,6 +156,55 @@ Page {
                 current: String(page.st.keep ?? 30)
                 onPicked: id => page.run([page.backup, "set-keep", id])
             }
+        }
+    }
+
+    Group {
+        title: "Cloud"
+        SetRow {
+            visible: !page.cloud.installed
+            icon: "cloud_off"
+            title: "Back up to Google Drive, OneDrive, Dropbox…"
+            description: "Lumen uses rclone, from Fedora's own repositories. Install it once in a terminal (you'll be asked for your password): sudo dnf install rclone"
+            Button { primary: true; text: "Open a terminal"; onActivated: Quickshell.execDetached(["kitty", "--title", "Install rclone", "sh", "-c", "echo 'Installing rclone (cloud backups) from Fedora'\''s repositories:'; echo; sudo dnf install rclone; echo; echo 'Done — close this and go back to Settings.'; read -r _"]) }
+        }
+        SetRow {
+            visible: page.cloud.installed
+            icon: (page.cloud.cloud?.remote ?? "") !== "" ? "cloud_done" : "cloud_upload"
+            title: (page.cloud.cloud?.remote ?? "") !== "" ? "Backing up to " + page.cloud.cloud.remote.replace(/:$/, "") : "Choose a cloud"
+            description: (page.cloud.remotes ?? []).length === 0
+                ? "No cloud set up yet. Set one up: you'll sign in in your browser, and rclone keeps the access on this computer."
+                : (page.cloud.cloud?.remote ?? "") !== ""
+                    ? ((page.cloud.remotes.find(r => r.name + ":" === page.cloud.cloud.remote)?.encrypted ? "Encrypted before it leaves · " : "Not encrypted (add a crypt remote to encrypt) · ")
+                       + "“" + (page.cloud.cloud.folder ?? "") + "” · copies only what changed, never deletes in the cloud")
+                    : "Pick one below. A “crypt” remote encrypts names and contents before upload."
+            Button { text: "Set up a cloud…"; onActivated: Quickshell.execDetached([page.cloudScript, "setup"]) }
+        }
+        Repeater {
+            model: page.cloud.installed ? (page.cloud.remotes ?? []) : []
+            delegate: SetRow {
+                required property var modelData
+                readonly property bool chosen: (page.cloud.cloud?.remote ?? "") === modelData.name + ":"
+                icon: modelData.encrypted ? "lock" : "cloud"
+                title: modelData.name + (modelData.encrypted ? " · encrypted" : "")
+                description: ({ drive: "Google Drive", onedrive: "OneDrive", dropbox: "Dropbox", s3: "S3", webdav: "WebDAV / Nextcloud", crypt: "Encrypted (on top of another remote)", sftp: "SFTP", b2: "Backblaze B2" })[modelData.type] ?? modelData.type
+                Button { text: chosen ? "In use" : "Use"; primary: chosen; onActivated: if (!chosen) page.run([page.cloudScript, "set", modelData.name + ":"], "Cloud backups go to " + modelData.name) }
+            }
+        }
+        SetRow {
+            visible: page.cloud.installed && (page.cloud.cloud?.remote ?? "") !== ""
+            icon: "backup"
+            title: page.cloudPct >= 0 ? "Backing up · " + page.cloudPct + "%" : "Back up to the cloud now"
+            description: page.cloudMsg !== "" ? page.cloudMsg
+                : page.cloud.cloud?.last ? "Last: " + page.ago(page.cloud.cloud.last.time) + (page.cloud.cloud.last.ok ? "" : " · had problems") : "Never backed up yet"
+            Button { primary: true; enabled: !cloudRun.running; text: cloudRun.running ? "Backing up…" : "Back up now"; onActivated: { page.cloudMsg = ""; cloudRun.running = true; } }
+        }
+        SetRow {
+            visible: page.cloud.installed && (page.cloud.cloud?.remote ?? "") !== ""
+            icon: "settings_backup_restore"
+            title: "Restore a folder from the cloud"
+            description: "Copies it into ~/Restored/cloud-<date>/ — never over your files"
+            Button { text: "Choose…"; onActivated: page.chooseFolder(page.home, p => page.run([page.cloudScript, "restore", p.replace(page.home + "/", "")], "")) }
         }
     }
 
