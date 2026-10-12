@@ -218,14 +218,29 @@ def build_week(courses, slots):
     return week
 
 
-def build_courses(attendance):
+def build_courses(attendance, timetable=None):
+    # The timetable knows each class's id and room; attendance knows the counts.
+    # Both key a course as "BACSE202(T)" / "BACSE202(L)".
+    tt = {}
+    for t in timetable or []:
+        code = re.sub(r"\s+", "", t.get("courseCode") or "")
+        if code and t.get("classId"):
+            tt[code] = t
     courses = []
     for a in attendance or []:
-        code_raw = (a.get("courseCode") or "").strip()
+        code_raw = re.sub(r"\s+", "", a.get("courseCode") or "")
+        if not re.sub(r"\((T|L)\)$", "", code_raw) or not (a.get("courseTitle") or "").strip():
+            continue                     # VTOP's empty trailing row
+        t = tt.get(code_raw, {})
+        if not a.get("slotVenue") and t.get("slotVenue"):
+            a = dict(a, slotVenue=t["slotVenue"])
+        if not a.get("classId") and t.get("classId"):
+            a = dict(a, classId=t["classId"])
         # VTOP's "L31+L32 - AB1-607B": the separator is " - " (a bare "-" is inside venues)
+        # either "L31+L32 - AB1-607B" (timetable) or just "AB1-607B" (attendance)
         parts = re.split(r"\s+-\s+", (a.get("slotVenue") or "").strip(), maxsplit=1)
         slot_part = parts[0] if len(parts) == 2 else (a.get("slotName") or "")
-        venue = parts[1] if len(parts) == 2 else ""
+        venue = parts[1] if len(parts) == 2 else (parts[0] if parts[0] != slot_part else "")
         attended, total = a.get("attendedClasses"), a.get("totalClasses")
         pct = num(a.get("attendancePercentage"))
         if pct is None and total:
@@ -423,6 +438,10 @@ def fetch_all(api, s, semester):
     if not attendance:
         raise ApiError("session")             # an expired VTOP session reads as an empty list
     try:
+        tt = (post(api, "timetable", base) or {}).get("courseInfo") or []
+    except ApiError:
+        tt = []
+    try:
         sched = post(api, "schedule", base)
     except ApiError:
         sched = None
@@ -430,7 +449,7 @@ def fetch_all(api, s, semester):
         cal = post(api, "calendar", dict(base, type="ALL"), timeout=180)
     except ApiError:
         cal = None
-    return att, sched, cal
+    return att, tt, sched, cal
 
 
 def cmd_sync(a):
@@ -443,19 +462,19 @@ def cmd_sync(a):
     try:
         s = session(a.api, creds)
         try:
-            att, sched, cal = fetch_all(a.api, s, semester)
+            att, tt, sched, cal = fetch_all(a.api, s, semester)
         except ApiError as e:
             if str(e) != "session" and "session" not in str(e).lower():
                 raise
             s = session(a.api, creds, fresh=True)
-            att, sched, cal = fetch_all(a.api, s, semester)
+            att, tt, sched, cal = fetch_all(a.api, s, semester)
     except ApiError as e:
         out({"ok": False, "error": "VTOP returned no courses for this semester" if str(e) == "session" else str(e)})
         return
 
     with open(os.path.join(HERE, "amazecc-slots.json")) as f:
         slots = json.load(f)["slots"]
-    courses = build_courses(att["attRes"]["attendance"])
+    courses = build_courses(att["attRes"]["attendance"], tt)
     snap = {
         "version": 1,
         "updated": int(time.time() * 1000),
