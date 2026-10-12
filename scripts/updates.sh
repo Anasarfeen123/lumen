@@ -30,7 +30,9 @@ check)
     printf '%s\n' "$rows" | jq -R -s --argjson sec "$sec" '
         [ split("\n")[] | select(length > 0) | split("\t") | {name: .[0], arch: .[1], version: .[2], repo: .[3]} ] as $pk
         | ($sec | map(select((.type // "") == "security") | (.nevra // .package // "")) ) as $secnevras
-        | [ $pk[] | . + {security: ([ $secnevras[] | startswith(.name + "-") ] | any)} ]' > "${XDG_RUNTIME_DIR:-/tmp}/lumen-dnf.json"
+        | [ $pk[] | . as $p
+            # a security advisory names this package: "<name>-<version>" exactly, not "<name>-extras-…"
+            | . + {security: ([ $secnevras[] | startswith($p.name + "-") and (ltrimstr($p.name + "-") | test("^[0-9]")) ] | any)} ]' > "${XDG_RUNTIME_DIR:-/tmp}/lumen-dnf.json"
     fp='[]'
     command -v flatpak >/dev/null && fp=$(flatpak remote-ls --updates --columns=application,name,version 2>/dev/null |
          jq -R -s '[ split("\n")[] | select(length > 0) | split("\t") | {id: .[0], name: (.[1] // .[0]), version: (.[2] // "")} ]' || echo '[]')

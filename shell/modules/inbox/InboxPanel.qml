@@ -348,7 +348,7 @@ PanelWindow {
         ClippingRectangle {
             anchors.fill: parent; radius: width / 2; color: "transparent"
             visible: avImg.status === Image.Ready
-            Image { id: avImg; anchors.fill: parent; source: parent.parent.source; sourceSize: Qt.size(72, 72); fillMode: Image.PreserveAspectCrop; asynchronous: true }
+            Image { id: avImg; anchors.fill: parent; source: parent.parent.source ?? ""; sourceSize: Qt.size(72, 72); fillMode: Image.PreserveAspectCrop; asynchronous: true }
         }
     }
 }

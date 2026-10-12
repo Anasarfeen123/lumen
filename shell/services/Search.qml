@@ -111,6 +111,7 @@ Singleton {
             if (!Overview.open) return;
             projectScan.running = true;
             snapScan.running = true;
+            Notes.refresh();                // "n …" searches today's notes
             if (Overview.mode === "clipboard") Clipboard.refresh();
             if (Overview.mode === "emoji") Emoji.ensure();
         }
@@ -220,6 +221,38 @@ Singleton {
             }
             // WhatsApp: "wa arya", "whatsapp unread" — chat names only, never message text
             if (WhatsApp.enabled && (m = /^(?:whatsapp|wa)(?:\s+(.*))?$/i.exec(q))) out.push(...root.chatResults((m[1] ?? "").trim()));
+            // Notes: "n dbms", "note lab", "notes" — titles and previews; Enter on the first line makes one
+            if ((m = /^(?:n|note|notes)(?:\s+(.*))?$/i.exec(q))) {
+                const want = (m[1] ?? "").trim();
+                if (want) out.push({ kind: "command", group: "Notes", title: "New note “" + want + "”", subtitle: "Opens it in Notes, ready to write",
+                                     glyph: "note_add", badge: "Create", run: () => Notes.launch("+new:" + want) });
+                const hits = Notes.all.map(n => ({ n, s: want ? Math.max(Fuzzy.score(want, n.title), n.preview.toLowerCase().includes(want.toLowerCase()) ? 500 : 0) : 1 }))
+                    .filter(y => y.s > 0).sort((a, b) => b.s - a.s || b.n.mtime - a.n.mtime).slice(0, 7);
+                for (const h of hits)
+                    out.push({ kind: "command", group: "Notes", title: h.n.title, subtitle: h.n.preview || "Empty note", glyph: Notes.isPinned(h.n.file) ? "keep" : "description",
+                               badge: "Open", run: () => Notes.launch(h.n.file) });
+                if (!want) out.push({ kind: "command", group: "Notes", title: "All notes", subtitle: "Super+O", glyph: "edit_note", badge: "Open", run: () => Notes.launch("") });
+            }
+            // AmazeCC: "class", "today", "timetable", "attendance", "exams"
+            if (Amazecc.cfg.enabled && Amazecc.ready) {
+                if (/^(?:class(?:es)?|today|timetable|tt)$/i.test(q)) {
+                    for (const c of Amazecc.today)
+                        out.push({ kind: "command", group: "Today's classes", title: c.title, glyph: c.kind === "lab" ? "science" : "school", badge: Amazecc.isCurrent(c) ? "Now" : "",
+                                   subtitle: Amazecc.clockLabel(c.start) + "–" + Amazecc.clockLabel(c.end) + (c.venue ? " · " + c.venue : "") + (c.end <= Amazecc.nowMin ? " · done" : ""),
+                                   run: () => { Planner.open = true; } });
+                    if (!Amazecc.today.length) out.push({ kind: "command", group: "Today's classes", title: "No classes today", glyph: "event_available", badge: "",
+                                                          subtitle: Amazecc.nextDay ? "Next: " + Amazecc.nextDay.first.title + " · " + Qt.formatDate(Amazecc.nextDay.date, "dddd") : "", run: () => { Planner.open = true; } });
+                }
+                if (/^(?:att|attendance)$/i.test(q))
+                    for (const c of Amazecc.courses.filter(c => c.pct !== null).sort((a, b) => a.pct - b.pct))
+                        out.push({ kind: "command", group: "Attendance", title: c.title + " · " + c.pct + "%", glyph: Amazecc.attendanceTone(c) === "error" ? "error" : Amazecc.attendanceTone(c) === "warning" ? "warning" : "check_circle",
+                                   subtitle: c.attended + " of " + c.total + " · " + (c.pct < Amazecc.cfg.threshold ? "attend the next " + Amazecc.needed(c) : "can miss " + Amazecc.skippable(c)),
+                                   badge: "", run: () => { Planner.open = true; } });
+                if (/^(?:exams?|cat|fat)$/i.test(q))
+                    for (const e of Amazecc.exams.filter(e => e.when > Date.now() - 3 * 3600000).slice(0, 8))
+                        out.push({ kind: "command", group: "Exams", title: e.kind + " · " + e.title, glyph: "edit_note", badge: "",
+                                   subtitle: Planner.whenLabel(e.when, !e.timed) + [e.venue, e.seat].filter(x => x).map(x => " · " + x).join(""), run: () => { Planner.open = true; } });
+            }
             if ((m = /^(?:ask|ai)\s+(.+)$/i.exec(q)))
                 out.push({ kind: "command", group: "Halo", title: "Ask Halo: " + m[1], subtitle: Ai.configured ? "Answers in the AI panel" : "Set up AI first (Settings → AI)",
                            glyph: "auto_awesome", badge: "Ask", run: () => { Ai.show(); Ai.send(m[1]); } });

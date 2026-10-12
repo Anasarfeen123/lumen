@@ -104,6 +104,12 @@ Page {
             LSwitch { checked: page.cfg.islandNext; onToggled: page.cfg.islandNext = !checked }
         }
         SetRow {
+            icon: "lock"
+            title: "Next class on the lock screen"
+            description: "What, where and when — attendance only as a count of courses under the minimum, never which"
+            LSwitch { checked: page.cfg.lockScreen; onToggled: page.cfg.lockScreen = !checked }
+        }
+        SetRow {
             icon: "notifications_active"
             title: "Class reminders"
             description: "The island tells you where to go before each class (not during Sleep focus)"
@@ -165,6 +171,18 @@ Page {
                 current: String(page.cfg.threshold)
                 onPicked: id => page.cfg.threshold = parseInt(id)
             }
+        }
+    }
+
+    Group {
+        title: "Halo"
+        visible: page.cfg.enabled
+        SetRow {
+            icon: "auto_awesome"
+            title: "Let Halo use this"
+            description: (Ai.provider === "ollama" ? "Your local model" : Ai.provider === "anthropic" ? "Halo (Anthropic's servers)" : "Halo")
+                         + " gets your timetable, attendance, marks and exams only for questions about them — \"can I skip Friday's class?\", \"what do I need in the FAT?\""
+            LSwitch { checked: page.cfg.haloContext; onToggled: page.cfg.haloContext = !checked }
         }
     }
 

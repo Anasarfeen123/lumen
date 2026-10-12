@@ -14,6 +14,7 @@ can open it. Lumen keeps only small preferences (pins) to itself.
   notes.py [--dir D] trash <file>       move it to .trash/ (kept locally, never synced)
   notes.py [--dir D] restore            JSON list of trashed notes; `restore <name>` puts one back
   notes.py [--dir D] watch              one line per change in the folder (inotifywait), for live lists
+  notes.py [--dir D] append <file> <text|->   add text (or stdin) to a note, under a time stamp
 """
 import argparse
 import datetime as dt
@@ -205,6 +206,26 @@ def cmd_restore(a):
     print(name)
 
 
+def cmd_append(a):
+    path = safe(a.dir, a.file)
+    text = sys.stdin.read() if a.text == "-" else a.text
+    text = text.strip()
+    if not text:
+        out({"ok": False, "error": "nothing to add"})
+        return
+    if not os.path.exists(path):
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("# %s\n\n" % os.path.basename(path)[:-3])
+    with open(path, encoding="utf-8", errors="replace") as f:
+        old = f.read()
+    stamp = dt.datetime.now().strftime("%d %b, %H:%M")
+    lines = text.splitlines()
+    block = "- **%s** %s" % (stamp, lines[0]) + "".join("\n  " + l for l in lines[1:])
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(("" if old.endswith("\n\n") or not old else "\n" if old.endswith("\n") else "\n\n") + block + "\n")
+    out({"ok": True})
+
+
 def cmd_watch(a):
     os.makedirs(a.dir, exist_ok=True)
     try:
@@ -230,6 +251,7 @@ def main():
     s = sub.add_parser("trash"); s.add_argument("file")
     s = sub.add_parser("restore"); s.add_argument("name", nargs="?", default="")
     sub.add_parser("watch")
+    s = sub.add_parser("append"); s.add_argument("file"); s.add_argument("text")
     a = p.parse_args()
     a.dir = os.path.abspath(os.path.expanduser(a.dir))
     globals()["cmd_" + a.cmd](a)

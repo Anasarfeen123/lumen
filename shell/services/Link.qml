@@ -143,8 +143,18 @@ Singleton {
         const flat = text.replace(/\s+/g, " ").trim();
         const detail = image ? "An image" : kind === "secret" ? "•".repeat(Math.min(12, flat.length)) + " (hidden)"
                      : flat.length > 60 ? flat.slice(0, 58) + "…" : flat;
-        Island.push({ kind: "system", key: "copied", priority: Island.priority.system, duration: 2600, force: true,
-                      data: { icon: "phone_android", title: "Copied from " + (phone?.name ?? "your phone"), detail, tone: "normal" } });
+        // Text from the phone can go straight into a note (Lumen Notes' Scratchpad);
+        // a secret never gets the offer
+        if (image || kind === "secret") {
+            Island.push({ kind: "system", key: "copied", priority: Island.priority.system, duration: 2600, force: true,
+                          data: { icon: "phone_android", title: "Copied from " + (phone?.name ?? "your phone"), detail, tone: "normal" } });
+            return;
+        }
+        Island.push({ kind: "device", key: "copied", priority: Island.priority.system, duration: 6000, force: true, queueable: true,
+                      data: { icon: "phone_android", title: "Copied from " + (phone?.name ?? "your phone"), badge: "", detail,
+                              actions: [{ icon: "note_add", label: "Save to note",
+                                          cmd: ["sh", "-c", 'wl-paste -n | "$1" --dir "$2" append Scratchpad.md - >/dev/null && notify-send -a Notes -i edit_note "Saved to Scratchpad" "From your phone"',
+                                                "sh", Theme.lumenRoot + "/scripts/notes.py", Notes.dir] }] } });
     }
 
     // ── live events → the island ──

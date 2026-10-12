@@ -26,6 +26,7 @@ Singleton {
         readSelection();
         refreshStatus();
         if (Context.kind === "dev") Context.refreshDev();
+        Notes.refresh();                // "…my DBMS notes" finds today's notes
         warm();
     }
 
@@ -292,6 +293,37 @@ Singleton {
         return "";
     }
 
+    // ── your college data (AmazeCC) and your notes, when a question is about them ──
+    // Only for questions that name them, only if allowed (Settings → AmazeCC /
+    // Notes), and the chips under the answer say they were used.
+    function collegeContext(raw) {
+        if (!Amazecc.cfg.enabled || !Amazecc.cfg.haloContext || !Amazecc.ready) return "";
+        if (!/\b(class(es)?|lecture|lab|attendance|bunk|skip|miss|absent|marks?|grades?|scored?|cat|fat|exams?|timetable|schedule|semester|course|subject|faculty|room|venue|holiday)\b/i.test(raw)) return "";
+        const now = new Date();
+        const days = ["MON", "TUE", "WED", "THU", "FRI", "SAT"];
+        const week = days.map(d => d + ": " + ((Amazecc.data.week ?? {})[d] ?? []).map(c => Amazecc.clockLabel(c.start) + "-" + Amazecc.clockLabel(c.end) + " " + c.title + (c.kind === "lab" ? " (lab)" : "") + (c.venue ? " @" + c.venue : "")).join("; ")).join("\n");
+        const att = Amazecc.courses.filter(c => c.total).map(c => "- " + c.title + " (" + c.code + ", " + c.kind + "): " + c.attended + "/" + c.total + " = " + c.pct + "% · can miss " + Amazecc.skippable(c) + (c.pct < Amazecc.cfg.threshold ? " · needs the next " + Amazecc.needed(c) : "")).join("\n");
+        const marks = Amazecc.marks.map(m => "- " + m.title + " (" + m.kind + "): " + (m.assessments.filter(a => a.scored !== null).map(a => a.title + " " + a.scored + "/" + a.max + (a.weightMark !== null ? " → " + a.weightMark + " of " + a.weight + "%" : "")).join(", ") || "no marks yet")).join("\n");
+        const exams = Amazecc.exams.filter(e => e.when > Date.now() - 86400000).map(e => "- " + e.kind + " " + e.title + ": " + Planner.whenLabel(e.when, !e.timed) + (e.venue ? " @" + e.venue : "") + (e.seat ? " seat " + e.seat : "")).join("\n");
+        const special = (Amazecc.data.days ?? []).filter(d => d.date >= Qt.formatDate(now, "yyyy-MM-dd") && (d.kind === "holiday" || d.order)).slice(0, 8)
+            .map(d => "- " + d.date + ": " + (d.order ? "follows " + d.order + " timetable" : "holiday — " + d.text)).join("\n");
+        root.pendingChips = root.pendingChips.concat(["college"]);
+        return "The user's college data (VIT, from VTOP via AmazeCC; synced " + Qt.formatDateTime(new Date(Amazecc.updated), "d MMM h:mm AP") + "). "
+            + "Today is " + Qt.formatDate(now, "dddd d MMMM yyyy") + ", " + Qt.formatTime(now, "h:mm AP") + ". Minimum attendance: " + Amazecc.cfg.threshold + "%. "
+            + "\"Can miss N\" keeps the course at or above the minimum after N more absences; skipping one class of a course counts once for that course.\n"
+            + "Weekly timetable:\n" + week + "\n\nAttendance:\n" + (att || "none") + "\n\nMarks:\n" + (marks || "none")
+            + "\n\nUpcoming exams:\n" + (exams || "none scheduled") + (special ? "\n\nHolidays and day-order changes:\n" + special : "") + "\n\n";
+    }
+    // "summarise my DBMS notes" → the notes whose titles match, attached like files
+    function notesFor(raw) {
+        if (!Notes.cfg.haloContext || !/\bnotes?\b|scratchpad/i.test(raw)) return [];
+        const words = raw.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 3 && !["notes", "note", "summarise", "summarize", "summary", "what", "from", "about", "with", "the", "and", "for", "can", "you", "please", "give", "make", "into", "explain", "list"].includes(w));
+        const scored = Notes.all.map(n => ({ n, s: words.filter(w => n.title.toLowerCase().includes(w)).length + (/scratchpad/i.test(raw) && n.file === "Scratchpad.md" ? 2 : 0) }))
+            .filter(x => x.s > 0).sort((a, b) => b.s - a.s || b.n.mtime - a.n.mtime).slice(0, 3);
+        return scored.map(x => Notes.pathOf(x.n.file));
+    }
+    property var pendingChips: []
+
     // Build the prompt: skill → context blocks → screenshot → ask
     property var pending: null          // { text, chips, ctx: [kinds], ctxText, screen }
     function send(raw) {
@@ -302,7 +334,8 @@ Singleton {
         error = "";
         history = history.filter(h => h !== raw).concat([raw]).slice(-30);
         const sk = skillFor(raw);
-        let prompt = whatsappContext(raw) + (sk ? sk.skill.prompt(sk.arg) : raw);
+        pendingChips = [];
+        let prompt = whatsappContext(raw) + collegeContext(raw) + (sk ? sk.skill.prompt(sk.arg) : raw);
         const ctx = [];
         if (useClipboard) ctx.push("clipboard");
         if (useWindow) ctx.push("window");
@@ -312,7 +345,9 @@ Singleton {
         if (sk?.skill.ctx?.includes("project") && !projectDir) { error = "Open a terminal or editor in your project first, then ask again."; return; }
         if (sk?.skill.files && files.length === 0) { pickerOpen = true; loadDownloads(); error = "Pick the files first (up to 5), then send again."; return; }
         // Attached files: one context read each (renaming needs only a taste of each)
-        const attached = files.slice();
+        const noteFiles = notesFor(raw).filter(f => !files.includes(f));
+        if (noteFiles.length) pendingChips = pendingChips.concat(["notes"]);
+        const attached = files.slice().concat(noteFiles).slice(0, 5);
         for (const f of attached) ctx.push({ kind: "file", path: f, limit: sk?.skill.rename ? 1500 : 12000 });
         if (sk?.skill.rename)
             prompt = "Current names: " + attached.map(f => "\"" + f.replace(/.*\//, "") + "\"").join(", ") + "\n\n" + prompt;
@@ -322,7 +357,7 @@ Singleton {
             prompt = "Selected text:\n```\n" + selection + "\n```\n\n" + prompt;
             chips.push("selection");
         }
-        pending = { text: prompt, shown: raw, chips: chips.concat(ctx.map(c => typeof c === "string" ? c : "file")).concat(screen ? ["screen"] : []).filter((c, i, a) => a.indexOf(c) === i),
+        pending = { text: prompt, shown: raw, chips: chips.concat(pendingChips).concat(ctx.filter(c => typeof c === "string" || !c.path.startsWith(Notes.dir + "/")).map(c => typeof c === "string" ? c : "file")).concat(screen ? ["screen"] : []).filter((c, i, a) => a.indexOf(c) === i),
                     ctx, ctxText: "", screen, image: "", renameFor: sk?.skill.rename ? attached : null, fileNames: attached.map(f => f.replace(/.*\//, "")) };
         busy = true;
         useScreen = false;

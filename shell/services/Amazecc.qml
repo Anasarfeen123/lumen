@@ -40,6 +40,8 @@ Singleton {
             property string semester: ""                  // empty: the one AmazeCC opens by default
             property int syncMinutes: 60
             property bool islandNext: true                // next class when you hover the island
+            property bool lockScreen: true                // next class on the lock screen (no attendance details)
+            property bool haloContext: true               // Halo may read this for questions about classes, attendance, marks, exams
             property bool classReminders: true
             property int reminderMinutes: 10
             property bool examReminders: true

@@ -36,6 +36,17 @@ Page {
     }
 
     Group {
+        title: "Halo"
+        SetRow {
+            icon: "auto_awesome"
+            title: "Let Halo read notes you name"
+            description: "\"Summarise my DBMS notes\" attaches the notes whose titles match (up to three), "
+                         + (Ai.provider === "anthropic" ? "sent to Anthropic with your question" : "for that question only")
+            LSwitch { checked: Notes.cfg.haloContext; onToggled: Notes.cfg.haloContext = !checked }
+        }
+    }
+
+    Group {
         title: "Sync with your phone"
         SetRow {
             visible: !(page.s.installed ?? true)

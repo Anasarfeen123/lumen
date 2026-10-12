@@ -248,6 +248,7 @@ Item {
             BatteryCard { frost: frost; visible: Battery.available && Persist.data.lockBattery }
             CalendarCard { frost: frost; today: clock.date; visible: Persist.data.lockCalendar }
             NotificationsCard { frost: frost; visible: Notifications.count > 0 && Persist.data.lockNotifications }
+            ClassCard { id: classCard; frost: frost; visible: classCard.wanted }
             GlanceCard { id: glance; frost: frost; visible: glance.wanted }
         }
 

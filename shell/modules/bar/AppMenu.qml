@@ -21,8 +21,11 @@ Item {
     readonly property var focused: Hyprland.activeToplevel
     readonly property var ipc: focused?.lastIpcObject ?? ({})
     readonly property bool onThisMonitor: (focused?.monitor?.name ?? "") === (monitor?.name ?? "")
-    readonly property var entry: DesktopEntries.heuristicLookup(ipc.class ?? "")
-    readonly property string appName: entry?.name || ipc.class || ""
+    // Lumen's own apps (Settings, Notes, Monitor) are Quickshell windows: name them from their title
+    readonly property bool lumenApp: (ipc.class ?? "") === "org.quickshell"
+    readonly property string lumenName: { const t = ipc.title ?? ""; return /^Lumen /.test(t) ? t : / — Notes$/.test(t) ? "Lumen Notes" : "Lumen"; }
+    readonly property var entry: lumenApp ? null : DesktopEntries.heuristicLookup(ipc.class ?? "")
+    readonly property string appName: lumenApp ? lumenName : (entry?.name || ipc.class || "")
     readonly property string address: ipc.address ?? (focused ? "0x" + focused.address : "")
     readonly property bool active: shown && onThisMonitor && appName !== ""
 
@@ -45,10 +48,12 @@ Item {
             anchors { left: parent.left; leftMargin: Theme.space.s3; verticalCenter: parent.verticalCenter }
             spacing: Theme.space.s2
             IconImage {
+                visible: !root.lumenApp
                 anchors.verticalCenter: parent.verticalCenter
                 implicitSize: 18
                 source: root.entry ? Apps.iconFor(root.entry) : Quickshell.iconPath("application-x-executable")
             }
+            LumenLogo { visible: root.lumenApp; size: 18; anchors.verticalCenter: parent.verticalCenter }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.appName
@@ -110,8 +115,10 @@ Item {
                         id: bigIcon
                         anchors { left: parent.left; leftMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
                         implicitSize: 32
+                        opacity: root.lumenApp ? 0 : 1
                         source: root.entry ? Apps.iconFor(root.entry) : Quickshell.iconPath("application-x-executable")
                     }
+                    LumenLogo { visible: root.lumenApp; size: 32; anchors.centerIn: bigIcon }
                     Column {
                         anchors { left: bigIcon.right; leftMargin: Theme.space.s3; right: parent.right; verticalCenter: parent.verticalCenter }
                         LText { width: parent.width; role: "heading"; text: root.appName; elide: Text.ElideRight }

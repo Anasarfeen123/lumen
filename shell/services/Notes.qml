@@ -36,6 +36,7 @@ Singleton {
             property var pinned: []            // file names
             property string last: ""           // the note open last time
             property bool preview: false       // open notes formatted, not as Markdown source
+            property bool haloContext: true    // Halo may read notes a question names ("…my DBMS notes")
         }
     }
     readonly property string dir: cfg.dir || (Quickshell.env("HOME") + "/Notes")
@@ -87,7 +88,8 @@ Singleton {
     function togglePin(file) {
         cfg.pinned = isPinned(file) ? cfg.pinned.filter(f => f !== file) : (cfg.pinned ?? []).concat([file]);
     }
-    function refresh() { if (app && !listProc.running) listProc.running = true; else if (app) refreshAgain = true; }
+    // The app keeps it live; the shell refreshes it when the launcher opens
+    function refresh() { if (!ready) return; if (!listProc.running) listProc.running = true; else refreshAgain = true; }
     property bool refreshAgain: false
     Process {
         id: listProc

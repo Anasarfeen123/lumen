@@ -34,6 +34,7 @@ FloatingWindow {
     // ── what to open ──
     function handle(what) {
         if (what === "+new") Notes.create("");
+        else if (what.startsWith("+new:")) Notes.create(what.slice(5));
         else if (what) openNote(what);
         else if (!current && Notes.cfg.last) openNote(Notes.cfg.last);
     }

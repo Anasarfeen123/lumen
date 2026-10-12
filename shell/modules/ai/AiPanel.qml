@@ -722,8 +722,8 @@ PanelWindow {
     }
 
     // ── pieces ──
-    function ctxIcon(k) { return ({ selection: "format_quote", clipboard: "content_paste", screen: "screenshot_monitor", window: "select_window", system: "monitor_heart", project: "commit", file: "attach_file" })[k] ?? "attach_file"; }
-    function ctxLabel(k) { return ({ selection: "Selection", clipboard: "Clipboard", screen: "Screen", window: "Window", system: "System", project: "Project", file: "Files" })[k] ?? k; }
+    function ctxIcon(k) { return ({ selection: "format_quote", clipboard: "content_paste", screen: "screenshot_monitor", window: "select_window", system: "monitor_heart", project: "commit", file: "attach_file", college: "school", notes: "edit_note" })[k] ?? "attach_file"; }
+    function ctxLabel(k) { return ({ selection: "Selection", clipboard: "Clipboard", screen: "Screen", window: "Window", system: "System", project: "Project", file: "Files", college: "Classes & marks", notes: "Notes" })[k] ?? k; }
     function fileIcon(name) {
         const e = (name.match(/\.([^.\/]+)$/)?.[1] ?? "").toLowerCase();
         if (e === "pdf") return "picture_as_pdf";
