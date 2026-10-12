@@ -17,6 +17,8 @@
 | <kbd>Super</kbd> + <kbd>V</kbd> | Clipboard history |
 | <kbd>Super</kbd> + <kbd>.</kbd> | Emoji picker |
 | <kbd>Super</kbd> + <kbd>I</kbd> | Lumen Settings |
+| <kbd>Super</kbd> + <kbd>O</kbd> | Notes |
+| <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>O</kbd> | New note |
 | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd> | Lumen Halo (AI) |
 | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>W</kbd> | Messages: reply, find a chat (WhatsApp) |
 
