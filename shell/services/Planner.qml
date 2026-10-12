@@ -1,6 +1,6 @@
 pragma Singleton
 // The left sidebar's data: to-dos, agenda events and a scratchpad note.
-// Stored in ~/.local/state/lumen/planner.json and notes.md (plain files you
+// Stored in ~/.local/state/lumen/planner.json and ~/Notes/Scratchpad.md (plain files you
 // can read or back up). Events get an island reminder 10 minutes before.
 //
 // Quick event entry understands:  [day] [time] title
@@ -50,9 +50,11 @@ Singleton {
             property var events: []       // { title, when (ms), reminded }
         }
     }
+    // The scratchpad is a Lumen Notes note (~/Notes/Scratchpad.md), so it syncs
+    // to your phone like the rest; notes.py moved the old notes.md in.
     FileView {
         id: notesFile
-        path: root.dir + "/notes.md"
+        path: Notes.ready ? Notes.scratchFile : ""
         printErrors: false
         watchChanges: true
         onFileChanged: reload()

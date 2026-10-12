@@ -65,6 +65,19 @@ Everything below is in the shipped desktop. Keys are the defaults; [SHORTCUTS.md
 
 Drag files to the right edge of the screen and a shelf slides out: **Send to phone**, **Copy** (as files), **Compress** (a .zip next to them), **Open with** (apps for that file type), **Move to** (Documents, Downloads, Desktop, Pictures, Projects; never overwrites), or **Keep on shelf** to park them at the edge and drag them out later.
 
+## Notes (<kbd>Super</kbd>+<kbd>O</kbd>, new note <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd>)
+
+- **Plain Markdown files** in `~/Notes`, one per note — Obsidian, Markor or any editor opens them too. The planner's Notes card is `Scratchpad.md` there.
+- **The app:** notes newest first with pins on top, search inside every note, write in Markdown (Enter continues lists, <kbd>Ctrl</kbd>+<kbd>B</kbd>/<kbd>I</kbd>/<kbd>K</kbd>/<kbd>L</kbd> for bold, italic, link, checkbox) or read it formatted (<kbd>Ctrl</kbd>+<kbd>E</kbd>). Saves as you type; deleted notes wait in Recently deleted.
+- **On your phone:** Settings → Notes sets up Syncthing — scan a code with Syncthing-Fork, accept the phone, and notes sync both ways, device to device, no cloud. A note changed on the phone updates in place; if you were editing it too, you choose which to keep.
+
+## AmazeCC (your VIT timetable, attendance, marks and exams)
+
+- Through an AmazeCC API (your own on this computer by default); the VTOP login stays in the system keyring. Settings → AmazeCC: sign in, pick the semester, reminders and alerts.
+- **The day:** the class you're in or the next one in the island (hover) and the Ribbon; today's classes in the planner, with holidays and "Monday Day Order" Saturdays from the academic calendar.
+- **Reminders:** before each class (with the room), the evening before an exam and an hour before it — on your phone too, through Lumen Link.
+- **Alerts:** a new mark, attendance slipping under (or near) the minimum with how many you can miss or need to attend, an exam scheduled or a seat allotted. Exams and holidays also appear in the Agenda.
+
 ## Lumen Link (your phone, via KDE Connect)
 
 - **Connects where Wi-Fi won't:** Settings → Lumen Link notices networks that keep devices apart (hostels, campuses, cafés) and offers ways around it: connect by the phone's address, a USB cable with USB tethering, Bluetooth, or the phone's hotspot.

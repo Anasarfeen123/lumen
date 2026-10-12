@@ -554,11 +554,18 @@ PanelWindow {
                     LIcon { icon: "edit_note"; size: 16; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
                     LText { role: "bodyStrong"; text: "Notes"; anchors.verticalCenter: parent.verticalCenter }
                 }
-                LText {
-                    anchors { right: parent.right; rightMargin: Theme.space.s3; verticalCenter: notesHead.verticalCenter }
-                    visible: Planner.notes.length > 0
-                    role: "caption"; color: Theme.textMuted
-                    text: { const w = Planner.notes.trim().split(/\s+/).filter(x => x).length; return w + (w === 1 ? " word" : " words"); }
+                Row {
+                    anchors { right: parent.right; rightMargin: Theme.space.s2; verticalCenter: notesHead.verticalCenter }
+                    spacing: Theme.space.s1
+                    LText {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: Planner.notes.length > 0
+                        role: "caption"; color: Theme.textMuted
+                        text: { const w = Planner.notes.trim().split(/\s+/).filter(x => x).length; return w + (w === 1 ? " word" : " words"); }
+                    }
+                    // All your notes (Lumen Notes; this one is Scratchpad.md there)
+                    HoverTarget { width: 26; height: 26; radius: 13; onClicked: { Planner.open = false; Notes.launch("Scratchpad.md"); }
+                                  LIcon { anchors.centerIn: parent; icon: "open_in_new"; size: 15; color: Theme.textMuted } }
                 }
                 // Clicking anywhere in the box starts typing
                 MouseArea {

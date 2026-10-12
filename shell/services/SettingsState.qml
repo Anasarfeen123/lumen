@@ -25,6 +25,7 @@ Singleton {
         { group: "Connections", id: "phone",         icon: "phonelink",           label: "Lumen Link",          keys: "phone link kde connect android iphone pair find ring send file clipboard sync usb tethering hotspot address bluetooth" },
         { group: "Connections", id: "whatsapp",      icon: "forum",               label: "WhatsApp",            keys: "whatsapp messages chat reply inbox whatsie contacts focus mute previews calls" },
         { group: "Connections", id: "amazecc",       icon: "school",              label: "AmazeCC",             keys: "amazecc vit vtop college university timetable classes attendance marks grades exams cat fat schedule semester reminders" },
+        { group: "Connections", id: "notes",         icon: "edit_note",           label: "Notes",               keys: "notes notepad markdown write sync phone syncthing obsidian scratchpad folder" },
         { group: "Devices", id: "sound",         icon: "volume_up",           label: "Sound",               keys: "volume output input microphone speaker headphones music lyrics" },
         { group: "Devices", id: "display",       icon: "brightness_6",        label: "Display",             keys: "brightness night light warmth" },
         { group: "Devices", id: "keyboard",      icon: "keyboard",            label: "Keyboard & Gestures", keys: "shortcuts keybinds cheatsheet touchpad gestures corners" },
