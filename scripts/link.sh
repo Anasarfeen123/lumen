@@ -7,6 +7,7 @@
 #   link.sh ring|ping|send-clipboard|pair|unpair <id>
 #   link.sh share <id> <file-or-url>…      send files or a link
 #   link.sh text <id> <text>               send text (opens on the phone)
+#   link.sh notify <id> <text>             a notification on the phone (KDE Connect's ping with a message)
 #   link.sh pick-and-share <id>            choose files, then send them
 #   link.sh screenshot <id>                screenshot a region, send it
 #   link.sh add-address <ip> | remove-address <ip>   find the phone by address (networks that hide devices)
@@ -174,6 +175,8 @@ share)
     for f in "$@"; do kdeconnect-cli -d "$id" --share "$f" || exit 1; done ;;
 text)
     exec kdeconnect-cli -d "${2:?device id}" --share-text "${3:?text}" ;;
+notify)
+    exec kdeconnect-cli -d "${2:?device id}" --ping-msg "${3:?text}" ;;
 pick-and-share)
     id=${2:?device id}
     files=$(kdialog --title "Send to your phone" --multiple --separate-output --getopenfilename "$HOME" 2>/dev/null \

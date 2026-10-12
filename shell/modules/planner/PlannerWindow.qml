@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Controls.Basic as QQC
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import qs.theme
@@ -76,17 +77,174 @@ PanelWindow {
         Behavior on opacity { NumberAnimation { duration: win.showing ? Theme.motion.normal : Theme.motion.normal * Theme.motion.exitRatio } }
         focus: win.showing
         Keys.onEscapePressed: Planner.open = false
+        // Scroll with the keyboard too (a text field keeps its own keys)
+        Keys.onPressed: e => {
+            const page = flick.height * 0.85;
+            if (e.key === Qt.Key_PageDown) flick.scrollTo(flick.contentY + page);
+            else if (e.key === Qt.Key_PageUp) flick.scrollTo(flick.contentY - page);
+            else if (e.key === Qt.Key_Home) flick.scrollTo(0);
+            else if (e.key === Qt.Key_End) flick.scrollTo(flick.contentHeight);
+            else return;
+            e.accepted = true;
+        }
+        // Opening starts at the top: your day at a glance
+        Connections { target: win; function onShowingChanged() { if (win.showing) { flick.cancelFlick(); flick.contentY = 0; } } }
+
+        // ── Date (stays put while the rest scrolls) ──
+        Column {
+            id: header
+            anchors { top: parent.top; left: parent.left; right: parent.right; margins: Theme.space.s4 }
+            LText { role: "caption"; color: Theme.textMuted; text: Qt.formatDate(clock.date, "dddd").toUpperCase(); font.letterSpacing: 1.2 }
+            LText { role: "title"; font.pixelSize: 24; text: Qt.formatDate(clock.date, "d MMMM") }
+        }
+        // A hairline under the date once the cards have scrolled beneath it
+        Rectangle {
+            anchors { top: flick.top; left: parent.left; right: parent.right; leftMargin: Theme.space.s4; rightMargin: Theme.space.s4 }
+            height: 1; z: 2
+            color: Theme.border
+            opacity: flick.contentY > 2 ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Theme.motion.micro } }
+        }
+
+        Flickable {
+            id: flick
+            anchors { top: header.bottom; topMargin: Theme.space.s3; bottom: parent.bottom; left: parent.left; right: parent.right }
+            clip: true
+            contentWidth: width
+            contentHeight: col.height + Theme.space.s4
+            boundsBehavior: Flickable.StopAtBounds
+            flickableDirection: Flickable.VerticalFlick
+            maximumFlickVelocity: 3200
+            Behavior on contentY { enabled: flick.animating; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.OutCubic } }
+            property bool animating: false
+            function scrollTo(y) {
+                animating = true;
+                contentY = Math.max(0, Math.min(y, contentHeight - height));
+                settle.restart();
+            }
+            Timer { id: settle; interval: Theme.motion.normal + 20; onTriggered: flick.animating = false }
+            // Keep a spot (a field you're typing in) on screen
+            function ensureVisible(item, y, h) {
+                const p = item.mapToItem(col, 0, y);
+                const pad = Theme.space.s3;
+                if (p.y - pad < contentY) contentY = Math.max(0, p.y - pad);
+                else if (p.y + h + pad > contentY + height) contentY = Math.min(contentHeight - height, p.y + h + pad - height);
+            }
+
+            QQC.ScrollBar.vertical: QQC.ScrollBar {
+                id: bar
+                policy: flick.contentHeight > flick.height ? QQC.ScrollBar.AsNeeded : QQC.ScrollBar.AlwaysOff
+                width: 10
+                padding: 2
+                contentItem: Rectangle {
+                    implicitWidth: 4
+                    radius: width / 2
+                    color: Theme.withAlpha(Theme.text, bar.pressed ? 0.42 : bar.hovered ? 0.3 : 0.18)
+                    opacity: bar.active || bar.hovered ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: Theme.motion.normal } }
+                }
+                background: null
+            }
 
         Column {
             id: col
-            anchors { top: parent.top; left: parent.left; right: parent.right; margins: Theme.space.s4 }
+            x: Theme.space.s4
+            width: flick.width - Theme.space.s4 * 2
             spacing: Theme.space.s3
 
-            // ── Date ──
-            Column {
-                width: parent.width
-                LText { role: "caption"; color: Theme.textMuted; text: Qt.formatDate(clock.date, "dddd").toUpperCase(); font.letterSpacing: 1.2 }
-                LText { role: "title"; font.pixelSize: 24; text: Qt.formatDate(clock.date, "d MMMM") }
+            // ── Classes (AmazeCC: today's timetable, attendance that needs care) ──
+            Card {
+                id: classes
+                visible: Amazecc.cfg.enabled
+                title: Amazecc.todayInfo?.order ? "Classes · " + Amazecc.dayNames[Amazecc.todayInfo.order] + " order" : "Classes"
+                icon: "school"
+                readonly property string ago: {
+                    const m = Math.round((clock.date.getTime() - Amazecc.updated) / 60000);
+                    return !Amazecc.updated ? "" : m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago";
+                }
+                headerRight: [
+                    LText { visible: Amazecc.ready; role: "caption"; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
+                            text: Amazecc.syncing ? "Syncing…" : classes.ago },
+                    HoverTarget { visible: Amazecc.hasLogin; width: 26; height: 26; onClicked: Amazecc.sync(true)
+                                  LIcon { id: syncIcon; anchors.centerIn: parent; icon: "sync"; size: 16; color: Theme.textMuted
+                                          RotationAnimation on rotation { running: Amazecc.syncing; loops: Animation.Infinite; from: 360; to: 0; duration: 1100 } } }
+                ]
+                Column {
+                    width: parent.width
+                    spacing: Theme.space.s1
+
+                    // Not connected yet
+                    HoverTarget {
+                        visible: !Amazecc.hasLogin && !Amazecc.ready
+                        width: parent.width; height: 36; radius: Theme.radius.sm
+                        onClicked: { Planner.open = false; SettingsState.launch("amazecc"); }
+                        Row {
+                            anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                            spacing: Theme.space.s2
+                            LIcon { icon: "link"; size: 16; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                            LText { role: "bodyStrong"; text: "Connect VTOP"; anchors.verticalCenter: parent.verticalCenter }
+                            LText { role: "caption"; color: Theme.textMuted; text: "timetable, attendance, marks"; anchors.verticalCenter: parent.verticalCenter }
+                        }
+                        LIcon { anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                icon: "chevron_right"; size: 16; color: Theme.textMuted }
+                    }
+                    LText { visible: Amazecc.hasLogin && !Amazecc.ready && Amazecc.error === ""; role: "caption"; color: Theme.textMuted
+                            text: Amazecc.syncing ? "Fetching your timetable from VTOP… (about half a minute)" : "Not synced yet" }
+
+                    // A holiday
+                    LText { visible: Amazecc.ready && Amazecc.todayInfo?.kind === "holiday"; width: parent.width; wrapMode: Text.Wrap
+                            role: "caption"; color: Theme.textSecondary
+                            text: "No classes today" + (Amazecc.todayInfo?.text ? " — " + Amazecc.todayInfo.text : "") }
+
+                    // Today's classes
+                    Repeater {
+                        model: Amazecc.today.slice(0, 7)
+                        delegate: Item {
+                            id: row
+                            required property var modelData
+                            readonly property bool now: Amazecc.isCurrent(modelData)
+                            readonly property bool past: modelData.end <= Amazecc.nowMin
+                            width: parent.width; height: 34
+                            opacity: past ? 0.45 : 1
+                            Rectangle { width: 3; height: 24; radius: 1.5; anchors.verticalCenter: parent.verticalCenter
+                                        color: row.now ? Theme.accent : Theme.withAlpha(Theme.textMuted, 0.5) }
+                            LText { id: at; x: Theme.space.s3; width: 58; anchors.verticalCenter: parent.verticalCenter
+                                    role: "caption"; color: row.now ? Theme.accent : Theme.textSecondary
+                                    font.features: { "tnum": 1 }
+                                    text: Amazecc.clockLabel(modelData.start) }
+                            Column {
+                                anchors { left: at.right; leftMargin: Theme.space.s1; right: parent.right; verticalCenter: parent.verticalCenter }
+                                LText { width: parent.width; elide: Text.ElideRight; role: "bodyStrong"; text: modelData.title }
+                                LText { width: parent.width; elide: Text.ElideRight; role: "caption"; color: Theme.textMuted
+                                        text: [modelData.venue, modelData.kind === "lab" ? "Lab" : "", row.now ? "till " + Amazecc.clockLabel(modelData.end) : ""].filter(x => x).join(" · ") }
+                            }
+                        }
+                    }
+                    // Done for the day
+                    LText {
+                        visible: Amazecc.ready && !Amazecc.next && !Amazecc.current && Amazecc.todayInfo?.kind !== "holiday"
+                        width: parent.width; elide: Text.ElideRight; role: "caption"; color: Theme.textMuted
+                        text: (Amazecc.today.length ? "Done for today." : "No classes today.")
+                              + (Amazecc.nextDay ? " " + Planner.whenLabel(Amazecc.nextDay.date.getTime() + Amazecc.nextDay.first.start * 60000, false) + " · " + Amazecc.nextDay.first.title : "")
+                    }
+
+                    // Attendance that needs care
+                    Repeater {
+                        model: Amazecc.attention.slice(0, 3)
+                        delegate: Row {
+                            required property var modelData
+                            readonly property string tone: Amazecc.attendanceTone(modelData)
+                            width: parent.width; height: 22; spacing: Theme.space.s2
+                            LIcon { anchors.verticalCenter: parent.verticalCenter; icon: parent.tone === "error" ? "error" : "warning"; size: 14
+                                    color: parent.tone === "error" ? Theme.error : Theme.warning }
+                            LText { anchors.verticalCenter: parent.verticalCenter; width: parent.width - 22; elide: Text.ElideRight; role: "caption"
+                                    text: modelData.title + " · " + modelData.pct + "% · "
+                                          + (modelData.pct < Amazecc.cfg.threshold ? "attend the next " + Amazecc.needed(modelData)
+                                             : Amazecc.skippable(modelData) === 0 ? "don't miss the next one" : "can miss " + Amazecc.skippable(modelData)) }
+                        }
+                    }
+                    LText { visible: Amazecc.error !== ""; width: parent.width; wrapMode: Text.Wrap; role: "caption"; color: Theme.error; text: Amazecc.error }
+                }
             }
 
             // ── Weather ──
@@ -162,9 +320,13 @@ PanelWindow {
                             Column {
                                 anchors { left: parent.left; leftMargin: Theme.space.s3; right: del.left; verticalCenter: parent.verticalCenter }
                                 LText { width: parent.width; elide: Text.ElideRight; role: "bodyStrong"; text: modelData.title }
-                                LText { role: "caption"; color: parent.parent.soon ? Theme.accent : Theme.textMuted; text: Planner.whenLabel(modelData.when, modelData.allDay) }
+                                LText { width: parent.width; elide: Text.ElideRight; role: "caption"; color: parent.parent.soon ? Theme.accent : Theme.textMuted
+                                        text: Planner.whenLabel(modelData.when, modelData.allDay) + (modelData.detail ? " · " + modelData.detail : "") }
                             }
-                            HoverTarget { id: del; width: 24; height: 24; anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                            // From AmazeCC (VTOP): read-only here
+                            LIcon { visible: !!modelData.external; anchors { right: parent.right; rightMargin: 5; verticalCenter: parent.verticalCenter }
+                                    icon: "school"; size: 14; color: Theme.textMuted }
+                            HoverTarget { id: del; visible: !modelData.external; width: 24; height: 24; anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                                           onClicked: Planner.removeEvent(modelData.index)
                                           LIcon { anchors.centerIn: parent; icon: "close"; size: 14; color: Theme.textMuted } }
                         }
@@ -370,27 +532,47 @@ PanelWindow {
                     }
                 }
             }
-        }
 
-        // ── Notes: whatever height is left ──
-        Rectangle {
-            anchors { top: col.bottom; bottom: parent.bottom; left: parent.left; right: parent.right; margins: Theme.space.s4; topMargin: Theme.space.s3 }
-            radius: Theme.radius.md
-            color: Theme.withAlpha(Theme.surfaceElevated, 0.85)
-            border.width: 1; border.color: Theme.border
-            visible: height > 70
-            Row {
-                id: notesHead
-                x: Theme.space.s3; y: Theme.space.s3
-                spacing: Theme.space.s2
-                LIcon { icon: "edit_note"; size: 16; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
-                LText { role: "bodyStrong"; text: "Notes"; anchors.verticalCenter: parent.verticalCenter }
-            }
-            QQC.ScrollView {
-                anchors { top: notesHead.bottom; bottom: parent.bottom; left: parent.left; right: parent.right; margins: Theme.space.s3; topMargin: Theme.space.s2 }
+            // ── Notes: at least a comfortable box, the rest of the panel when
+            //    there's room, and as long as what you've written ──
+            Rectangle {
+                id: notesCard
+                width: parent.width
+                readonly property real minH: 180
+                // `y` doesn't depend on this height, so no binding loop
+                height: Math.max(minH, flick.height - y - Theme.space.s4,
+                                 notesHead.height + notesArea.implicitHeight + Theme.space.s3 * 2 + Theme.space.s2)
+                radius: Theme.radius.md
+                color: Theme.withAlpha(Theme.surfaceElevated, 0.85)
+                border.width: 1; border.color: notesArea.activeFocus ? Theme.withAlpha(Theme.accent, 0.5) : Theme.border
+                Behavior on border.color { ColorAnimation { duration: Theme.motion.micro } }
+                Row {
+                    id: notesHead
+                    x: Theme.space.s3; y: Theme.space.s3
+                    height: 24
+                    spacing: Theme.space.s2
+                    LIcon { icon: "edit_note"; size: 16; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                    LText { role: "bodyStrong"; text: "Notes"; anchors.verticalCenter: parent.verticalCenter }
+                }
+                LText {
+                    anchors { right: parent.right; rightMargin: Theme.space.s3; verticalCenter: notesHead.verticalCenter }
+                    visible: Planner.notes.length > 0
+                    role: "caption"; color: Theme.textMuted
+                    text: { const w = Planner.notes.trim().split(/\s+/).filter(x => x).length; return w + (w === 1 ? " word" : " words"); }
+                }
+                // Clicking anywhere in the box starts typing
+                MouseArea {
+                    anchors { top: notesHead.bottom; bottom: parent.bottom; left: parent.left; right: parent.right }
+                    cursorShape: Qt.IBeamShape
+                    onClicked: { notesArea.forceActiveFocus(); notesArea.cursorPosition = notesArea.length; }
+                }
                 QQC.TextArea {
+                    id: notesArea
+                    anchors { top: notesHead.bottom; left: parent.left; right: parent.right; margins: Theme.space.s3; topMargin: Theme.space.s2 }
                     text: Planner.notes
                     onTextChanged: Planner.setNotes(text)
+                    onCursorRectangleChanged: if (activeFocus) flick.ensureVisible(notesArea, cursorRectangle.y, cursorRectangle.height)
+                    onActiveFocusChanged: if (activeFocus) flick.ensureVisible(notesArea, cursorRectangle.y, cursorRectangle.height)
                     wrapMode: TextEdit.Wrap
                     color: Theme.text
                     placeholderText: "Jot something down…  (saved as you type)"
@@ -402,6 +584,7 @@ PanelWindow {
                     padding: 0
                 }
             }
+        }
         }
     }
 }

@@ -79,6 +79,13 @@ Singleton {
         run([/^https?:\/\//.test(text.trim()) ? "share" : "text", to, text.trim()]);
         Island.system(/^https?:/.test(text.trim()) ? "link" : "sms", /^https?:/.test(text.trim()) ? "Link sent" : "Text sent", nameOf(to));
     }
+    // A notification on the phone, quietly (no island echo): reminders and alerts from other services
+    function notify(text, id) {
+        const to = id ?? (connected ? phone?.id : null);
+        if (!to || !text) return false;
+        run(["notify", to, text]);
+        return true;
+    }
     function pickAndSend(id) { run(["pick-and-share", id ?? phone?.id]); }
     function screenshotToPhone(id) { run(["screenshot", id ?? phone?.id]); }
     function pair(id) { run(["pair", id]); refreshSoon.restart(); }

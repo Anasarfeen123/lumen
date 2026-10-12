@@ -24,5 +24,20 @@ Item {
             color: Theme.textMuted
             text: Battery.formatDuration(Battery.timeToEmpty) ? "· " + Battery.formatDuration(Battery.timeToEmpty) + " left" : ""
         }
+        // Your class (AmazeCC): the one you're in, else the next today
+        Row {
+            readonly property var cls: Amazecc.current ?? Amazecc.next
+            visible: Amazecc.cfg.enabled && Amazecc.cfg.islandNext && cls !== null
+            spacing: 5
+            LText { role: "body"; color: Theme.textMuted; text: "·"; anchors.verticalCenter: parent.verticalCenter }
+            LIcon { icon: parent.cls?.kind === "lab" ? "science" : "school"; size: 15; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+            LText {
+                anchors.verticalCenter: parent.verticalCenter
+                role: "body"; color: Theme.textSecondary
+                width: Math.min(implicitWidth, 260); elide: Text.ElideRight
+                text: !parent.cls ? "" : parent.cls.title + (parent.cls.venue ? " · " + parent.cls.venue : "")
+                      + " · " + (Amazecc.isCurrent(parent.cls) ? "till " + Amazecc.clockLabel(parent.cls.end) : Amazecc.inLabel(parent.cls.start))
+            }
+        }
     }
 }

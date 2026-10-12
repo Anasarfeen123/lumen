@@ -69,9 +69,11 @@ Singleton {
 
     // ── events ──
     readonly property var upcoming: {
-        // Timed: keep for an hour after they start · all-day: until the day ends
+        // Timed: keep for an hour after they start · all-day: until the day ends.
+        // AmazeCC's exams and holidays join in, read-only (external: true, no index).
         const now = Date.now();
         return (data.events ?? []).map((e, i) => Object.assign({ index: i }, e))
+                                   .concat(Amazecc.agenda)
                                    .filter(e => e.allDay ? e.when + 86400000 > now : e.when >= now - 3600000)
                                    .sort((a, b) => a.when - b.when);
     }
