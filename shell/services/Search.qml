@@ -245,7 +245,7 @@ Singleton {
                 }
                 if (/^(?:att|attendance)$/i.test(q))
                     for (const c of Amazecc.courses.filter(c => c.pct !== null).sort((a, b) => a.pct - b.pct))
-                        out.push({ kind: "command", group: "Attendance", title: c.title + " · " + c.pct + "%", glyph: Amazecc.attendanceTone(c) === "error" ? "error" : Amazecc.attendanceTone(c) === "warning" ? "warning" : "check_circle",
+                        out.push({ kind: "command", group: "Attendance", title: Amazecc.courseName(c) + " · " + c.pct + "%", glyph: Amazecc.attendanceTone(c) === "error" ? "error" : Amazecc.attendanceTone(c) === "warning" ? "warning" : "check_circle",
                                    subtitle: c.attended + " of " + c.total + " · " + (c.pct < Amazecc.cfg.threshold ? "attend the next " + Amazecc.needed(c) : "can miss " + Amazecc.skippable(c)),
                                    badge: "", run: () => { Planner.open = true; } });
                 if (/^(?:exams?|cat|fat)$/i.test(q))

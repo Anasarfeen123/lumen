@@ -209,8 +209,8 @@ Singleton {
             const body = c.state === "below"
                 ? c.pct + "% (" + c.attended + "/" + c.total + ") — under " + cfg.threshold + "%. Attend the next " + needed(course) + " to get back."
                 : c.pct + "% (" + c.attended + "/" + c.total + ") — " + (skippable(course) === 0 ? "don't miss the next one" : "you can miss " + skippable(course) + " more");
-            notify("warning", "Attendance · " + c.title, body);
-            toPhone("Attendance — " + c.title + ": " + body);
+            notify("warning", "Attendance · " + courseName(Object.assign({ kind: c.kindOf }, c)), body);
+            toPhone("Attendance — " + courseName(Object.assign({ kind: c.kindOf }, c)) + ": " + body);
         } else if (c.kind === "exam" && cfg.examReminders) {
             const when = Planner.whenLabel(c.when, !c.timed);
             const title = c.what === "seat" ? "Seat allotted · " + c.title : c.what === "moved" ? "Exam moved · " + c.title : c.examKind + " scheduled · " + c.title;
@@ -221,6 +221,8 @@ Singleton {
     }
 
     // ── attendance maths ──
+    // "Database Systems (lab)": theory and lab of one course are counted separately
+    function courseName(c) { return (c?.title ?? "") + (c?.kind === "lab" ? " (lab)" : ""); }
     // How many more you can miss and stay at or above the minimum, and how
     // many in a row you need to get back to it (VTOP's own percentages shown).
     function skippable(c) {
@@ -292,13 +294,33 @@ Singleton {
             for (const e of exams)
                 out.push({ title: e.kind + " · " + e.title, when: e.when, allDay: !e.timed,
                            external: true, source: "amazecc", detail: [e.venue, e.seat].filter(x => x).join(" · ") });
-        if (cfg.holidaysInAgenda)
+        if (cfg.holidaysInAgenda) {
+            // "Holiday · (Deepavali)" → "Deepavali"; a weekend with no name isn't news;
+            // a run of the same holiday (an 8-day break) is one line
+            let run = null;
+            const flush = () => {
+                if (!run) return;
+                const until = run.last !== run.first ? " · till " + Qt.formatDate(new Date(run.last + "T12:00"), "ddd d MMM") : "";
+                out.push({ title: run.name + " — no classes" + until, when: new Date(run.first + "T00:00").getTime(), allDay: true, external: true, source: "amazecc" });
+                run = null;
+            };
             for (const d of data.days ?? []) {
-                if (d.kind !== "holiday" && !d.order) continue;
-                const text = d.order ? "Classes follow " + dayNames[d.order] + "'s timetable"
-                                     : (d.text.split(" · ")[0] || "Holiday").replace(/\s*-\s*holiday$/i, "") + " — no classes";
-                out.push({ title: text, when: new Date(d.date + "T00:00").getTime(), allDay: true, external: true, source: "amazecc" });
+                if (d.order) {
+                    flush();
+                    out.push({ title: "Classes follow " + dayNames[d.order] + "'s timetable", when: new Date(d.date + "T00:00").getTime(), allDay: true, external: true, source: "amazecc" });
+                    continue;
+                }
+                if (d.kind !== "holiday") { flush(); continue; }
+                const name = /\(([^)]+)\)/.exec(d.text)?.[1]?.trim() ?? "";
+                const dow = new Date(d.date + "T12:00").getDay();
+                if (!name && (dow === 0 || dow === 6)) continue;          // an ordinary weekend
+                const label = name || "Holiday";
+                const prev = run ? new Date(new Date(run.last + "T12:00").getTime() + 86400000) : null;
+                if (run && run.name === label && Qt.formatDate(prev, "yyyy-MM-dd") === d.date) run.last = d.date;
+                else { flush(); run = { name: label, first: d.date, last: d.date }; }
             }
+            flush();
+        }
         return out;
     }
 

@@ -238,7 +238,7 @@ PanelWindow {
                             LIcon { anchors.verticalCenter: parent.verticalCenter; icon: parent.tone === "error" ? "error" : "warning"; size: 14
                                     color: parent.tone === "error" ? Theme.error : Theme.warning }
                             LText { anchors.verticalCenter: parent.verticalCenter; width: parent.width - 22; elide: Text.ElideRight; role: "caption"
-                                    text: modelData.title + " · " + modelData.pct + "% · "
+                                    text: Amazecc.courseName(modelData) + " · " + modelData.pct + "% · "
                                           + (modelData.pct < Amazecc.cfg.threshold ? "attend the next " + Amazecc.needed(modelData)
                                              : Amazecc.skippable(modelData) === 0 ? "don't miss the next one" : "can miss " + Amazecc.skippable(modelData)) }
                         }
