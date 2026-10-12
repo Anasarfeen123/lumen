@@ -16,14 +16,20 @@ FloatingWindow {
     minimumSize: Qt.size(860, 560)
     color: Theme.withAlpha(Theme.bg, 0.9)
 
-    property string tab: Quickshell.env("LUMEN_MONITOR_TAB") || "processes"
+    property string tab: "processes"
+    property string resource: ""            // Performance: which one to show first
+    function go(where) {
+        const [t, r] = String(where || "processes").split("/");
+        if (tabs.some(x => x.id === t)) tab = t;
+        resource = r ?? "";
+    }
     readonly property var tabs: [
         { id: "processes",   icon: "list_alt",       label: "Processes" },
         { id: "performance", icon: "monitoring",     label: "Performance" },
         { id: "startup",     icon: "rocket_launch",  label: "Startup" },
         { id: "services",    icon: "settings_applications", label: "Services" },
     ]
-    Component.onCompleted: SystemMonitor.active = true
+    Component.onCompleted: { SystemMonitor.active = true; go(Quickshell.env("LUMEN_MONITOR_TAB") || "processes"); }
     property bool shownOnce: false
     onVisibleChanged: { if (visible) shownOnce = true; else if (shownOnce) { SystemMonitor.active = false; Qt.quit(); } }
 
@@ -136,7 +142,7 @@ FloatingWindow {
             sourceComponent: ({ processes: processesC, performance: performanceC, startup: startupC, services: servicesC })[win.tab]
         }
         Component { id: processesC; ProcessesView { query: search.text } }
-        Component { id: performanceC; PerformanceView {} }
+        Component { id: performanceC; PerformanceView { pick: win.resource || "cpu" } }
         Component { id: startupC; StartupView { query: search.text } }
         Component { id: servicesC; ServicesView { query: search.text } }
 

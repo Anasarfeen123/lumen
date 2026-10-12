@@ -73,7 +73,7 @@ Singleton {
         enabled: !root.app
         function open(): void { root.launch(""); }
         function create(): void { root.launch("+new"); }
-        function show(file: string): void { root.launch(file); }
+        function note(file: string): void { root.launch(file); }   // "show" is a qs ipc keyword
     }
 
     // ═════ the Notes app's half ═════

@@ -21,6 +21,7 @@ ShellRoot {
     }
     IpcHandler {
         target: "monitorApp"
-        function open(tab: string): void { if (tab) win.tab = tab; }
+        // "performance", or "performance/mem" for one resource (cpu · mem · disk:<dev> · net:<if> · gpu:<card> · battery)
+        function open(tab: string): void { if (tab) win.go(tab); }
     }
 }

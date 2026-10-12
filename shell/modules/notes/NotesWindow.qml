@@ -555,15 +555,20 @@ FloatingWindow {
                 visible: !!win.current && win.reading
                 anchors { top: banner.visible ? banner.bottom : bar.bottom; topMargin: Theme.space.s4; bottom: status.top; left: parent.left; right: parent.right }
                 contentWidth: availableWidth
-                Text {
+                QQC.Label {
                     readonly property real measure: Math.min(760, readView.availableWidth - Theme.space.s6 * 2)
                     x: Theme.space.s6
                     width: measure
                     bottomPadding: Theme.space.s8
                     textFormat: Text.MarkdownText
-                    text: editor.text || "*Empty note.*"
+                    // The title bar already shows a leading "# Title"
+                    text: (editor.text.replace(/^\s*#\s+(.*)\n/, (m, t) => t.trim() === titleInput.current ? "" : m) || "*Empty note.*")
+                          // Qt's Markdown ignores linkColor: colour the labels ourselves
+                          .replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, (m, label, url) => "[<font color=\"" + Theme.accent + "\">" + label + "</font>](" + url + ")")
                     wrapMode: Text.Wrap
                     color: Theme.text
+                    palette.link: Theme.accent
+                    palette.linkVisited: Theme.accent
                     linkColor: Theme.accent
                     font.family: Theme.fontUi
                     font.pixelSize: 15

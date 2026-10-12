@@ -118,15 +118,25 @@ Singleton {
                 for (const k of kids[x] ?? []) stack.push(k);
             }
             const w = wins[String(pid)];
-            apps.push(group("app:" + pid, prettyClass(w.class) || byPid[pid].name, w.title, members, w.class, pid));
+            // Lumen's own apps are Quickshell windows: their title is their name
+            const name = w.class === "org.quickshell" ? (/^Lumen /.test(w.title) ? w.title : / — Notes$/.test(w.title) ? "Lumen Notes" : "Lumen")
+                       : prettyClass(w.class) || byPid[pid].name;
+            apps.push(group("app:" + pid, name, w.title, members, w.class, pid));
         }
-        const bg = [], sys = [];
+        // The rest, one row per program: six "brave" helpers are one line (expand to see them)
+        const bgBy = {}, sysBy = {};
         for (const p of procs) {
             if (taken.has(p.pid)) continue;
-            if (p.uid === root.uid && !p.kernel) bg.push(group("p:" + p.pid, p.name, p.cmd, [p], "", p.pid));
-            else sys.push(group("p:" + p.pid, p.name, p.cmd, [p], "", p.pid));
+            const by = p.uid === root.uid && !p.kernel ? bgBy : sysBy;
+            // kernel workers differ only by their suffix: "kworker/3:1-events" → "kworker"
+            const name = p.kernel ? p.name.replace(/[\/:].*$/, "") : p.name;
+            (by[name] = by[name] ?? []).push(p);
         }
-        return { apps, background: bg, system: sys };
+        const rows = (by, prefix) => Object.keys(by).map(name => {
+            const ms = by[name].sort((a, b) => a.pid - b.pid);
+            return group(ms.length > 1 ? prefix + name : "p:" + ms[0].pid, name, ms[0].cmd, ms, "", ms[0].pid);
+        });
+        return { apps, background: rows(bgBy, "bg:"), system: rows(sysBy, "sys:") };
     }
     function group(key, name, sub, members, cls, pid) {
         let cpu = 0, mem = 0, rd = 0, wr = 0, threads = 0, suspended = 0;
@@ -142,9 +152,12 @@ Singleton {
         return last.charAt(0).toUpperCase() + last.slice(1);
     }
     function iconFor(g) {
-        const e = g.cls ? DesktopEntries.heuristicLookup(g.cls) : DesktopEntries.heuristicLookup(g.members?.[0]?.comm ?? "");
+        if (g.cls === "org.quickshell") return "file://" + Theme.lumenRoot + "/assets/lumen.svg";
+        const e = (g.cls ? DesktopEntries.heuristicLookup(g.cls) : null)
+               ?? DesktopEntries.heuristicLookup(g.name ?? "") ?? DesktopEntries.heuristicLookup(g.members?.[0]?.comm ?? "");
         return e?.icon ? Quickshell.iconPath(e.icon, true) : "";
     }
+
 
     // ── formatting ──
     function bytes(b, dec) {
