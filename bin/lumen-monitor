@@ -1,0 +1,11 @@
+#!/bin/sh
+# lumen-monitor — open Lumen Monitor (Ctrl+Shift+Esc), or bring this session's
+# one to the front.   lumen-monitor [processes|performance|startup|services]
+set -u
+LUMEN_ROOT=${LUMEN_ROOT:-$HOME/.config/lumen}
+pidfile=${XDG_RUNTIME_DIR:-/tmp}/lumen-monitor-${HYPRLAND_INSTANCE_SIGNATURE:-x}.pid
+if pid=$(cat "$pidfile" 2>/dev/null) && tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -q monitor.qml; then
+    qs ipc --pid "$pid" call monitorApp open "${1:-}" >/dev/null 2>&1
+    exec hyprctl dispatch "hl.dsp.focus({ window = \"pid:$pid\" })" >/dev/null 2>&1
+fi
+LUMEN_MONITOR_TAB=${1:-} exec qs -p "$LUMEN_ROOT/shell/monitor.qml"

@@ -20,18 +20,18 @@ Page {
         { key: "files",    icon: "folder",          title: "Files",           keys: "Super+E", apps: ["dolphin", "nautilus", "thunar", "nemo", "pcmanfm-qt"] },
         { key: "editor",   icon: "code",            title: "Code editor",     keys: "Super+C", apps: ["code", "codium", "zed", "kate", "gnome-text-editor", "kwrite"] },
         { key: "terminal", icon: "terminal",        title: "Terminal",        keys: "Super+Enter", apps: ["kitty", "foot", "alacritty", "konsole", "wezterm", "ghostty", "ptyxis"] },
-        { key: "monitor",  icon: "monitor_heart",   title: "System monitor",  keys: "Ctrl+Shift+Esc", apps: ["plasma-systemmonitor", "gnome-system-monitor", "missioncenter", "resources"] },
+        { key: "monitor",  icon: "monitor_heart",   title: "System monitor",  keys: "Ctrl+Shift+Esc", apps: ["lumen-monitor", "plasma-systemmonitor", "gnome-system-monitor", "missioncenter", "resources"] },
     ]
     // Which of the candidates are installed
     property var installed: ({})
     Process {
         running: true
         command: ["sh", "-c", 'for a in "$@"; do command -v "$a" >/dev/null 2>&1 && printf "%s\\n" "$a"; done', "sh"].concat(page.kinds.reduce((all, k) => all.concat(k.apps), []))
-        stdout: StdioCollector { onStreamFinished: { const m = {}; text.split("\n").filter(x => x).forEach(a => m[a] = true); page.installed = m; } }
+        stdout: StdioCollector { onStreamFinished: { const m = { "lumen-monitor": true }; text.split("\n").filter(x => x).forEach(a => m[a] = true); page.installed = m; } }
     }
     function nice(a) {
         return ({ "brave-origin": "Brave Origin", "brave-browser": "Brave", "chromium-browser": "Chromium", "google-chrome-stable": "Chrome",
-                  "zen-browser": "Zen", "plasma-systemmonitor": "KDE Monitor", "gnome-system-monitor": "GNOME Monitor",
+                  "zen-browser": "Zen", "plasma-systemmonitor": "KDE Monitor", "lumen-monitor": "Lumen Monitor", "gnome-system-monitor": "GNOME Monitor",
                   "missioncenter": "Mission Center", "gnome-text-editor": "Text Editor", "code": "VS Code", "codium": "VSCodium" })[a]
                ?? a.charAt(0).toUpperCase() + a.slice(1);
     }

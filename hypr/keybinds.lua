@@ -19,7 +19,7 @@ local terminal    = (A.terminal and A.terminal ~= "") and A.terminal or "kitty"
 local fileManager = launch(A.files, "dolphin nautilus 'kitty -e yazi'")
 local browser     = launch(A.browser, "brave-origin brave-browser firefox chromium")
 local editor      = launch(A.editor, "code codium zed kate")
-local taskManager = launch(A.monitor, "plasma-systemmonitor 'kitty -e btop'")
+local taskManager = launch(A.monitor, bin .. "/lumen-monitor plasma-systemmonitor 'kitty -e btop'")
 
 local section = "General"
 local function group(name) section = name end
