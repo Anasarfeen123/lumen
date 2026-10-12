@@ -86,7 +86,7 @@ Page {
                     color: "white"
                     Image {
                         anchors { fill: parent; margins: 8 }
-                        source: Notes.qrVersion > 0 ? "file://" + Notes.qrPath + "?v=" + Notes.qrVersion : ""
+                        source: Notes.qrVersion > 0 ? "file://" + Notes.qrPath : ""    // (a "?v=" query would make Qt fail to open the file)
                         cache: false
                         smooth: false
                         fillMode: Image.PreserveAspectFit

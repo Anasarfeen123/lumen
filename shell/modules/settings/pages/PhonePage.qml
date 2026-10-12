@@ -8,6 +8,7 @@
 // connect by address · USB tethering · Bluetooth · your phone's hotspot.
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.theme
 import qs.components
 import qs.services
@@ -104,6 +105,48 @@ Page {
             visible: page.doc.warp === true && page.trouble
             icon: "cloud"; title: "Cloudflare WARP is on"
             description: "A VPN can hide your phone. If it still doesn't appear, turn WARP off while you pair (Controls → WARP)."
+        }
+    }
+
+    // ── Point the phone's camera: the app, then this computer's address ──
+    // KDE Connect itself has no QR pairing; these save typing (scripts/qr.py)
+    property string myAddress: ""
+    property int qrStamp: 0
+    readonly property string qrDir: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp")
+    Process {
+        running: true
+        command: ["sh", "-c",
+            'ip=$(ip -4 -o addr show scope global 2>/dev/null | awk \'$2 !~ /^(lo|docker|br-|veth|virbr|tun|wg|CloudflareWARP)/ {sub(/\\/.*/, "", $4); print $4; exit}\'); '
+            + '"$1" "https://kdeconnect.kde.org/download.html" "$2/lumen-link-app.png" >/dev/null; '
+            + '[ -n "$ip" ] && "$1" "$ip" "$2/lumen-link-address.png" >/dev/null; printf "%s" "$ip"',
+            "sh", Theme.lumenRoot + "/scripts/qr.py", page.qrDir]
+        stdout: StdioCollector { onStreamFinished: { page.myAddress = text.trim(); page.qrStamp++; } }
+    }
+    component QrTile: Column {
+        property string file
+        property string caption
+        spacing: Theme.space.s2
+        Rectangle {
+            width: 164; height: 164; radius: Theme.radius.sm; color: "white"
+            Image { anchors { fill: parent; margins: 6 } smooth: false; cache: false; fillMode: Image.PreserveAspectFit
+                    source: page.qrStamp ? "file://" + page.qrDir + "/" + parent.parent.file : "" }
+        }
+        LText { width: 164; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap; role: "caption"; color: Theme.textSecondary; text: parent.caption }
+    }
+    Group {
+        title: "Set up from your phone"
+        visible: Link.available
+        SetRow {
+            icon: "qr_code_2"
+            title: "Point your phone's camera"
+            description: "1 · Get KDE Connect (free on Android and iPhone). 2 · If your phone doesn't see this computer, open KDE Connect → ⋮ → Add devices by IP and use the address on the right "
+                         + "(scan it, copy, paste). Then press Pair on whichever side shows the other."
+            minHeight: 220
+            Row {
+                spacing: Theme.space.s4
+                QrTile { file: "lumen-link-app.png"; caption: "Get KDE Connect" }
+                QrTile { visible: page.myAddress !== ""; file: "lumen-link-address.png"; caption: "This computer · " + page.myAddress }
+            }
         }
     }
 
