@@ -86,11 +86,11 @@ Singleton {
     onActiveChanged: if (!active) { hist = ({}); samples = 0; s = ({}); }
 
     // ── processes ──
-    readonly property var cols: ({ pid: 0, ppid: 1, name: 2, uid: 3, state: 4, nice: 5, threads: 6, start: 7, cpu: 8, mem: 9, rss: 10, rd: 11, wr: 12, kernel: 13 })
+    readonly property var cols: ({ pid: 0, ppid: 1, name: 2, uid: 3, state: 4, nice: 5, threads: 6, start: 7, cpu: 8, mem: 9, rss: 10, rd: 11, wr: 12, kernel: 13, net: 14, gpu: 15 })
     function row(r) {
         const i = pinfo[String(r[0])] ?? {};
         return { pid: r[0], ppid: r[1], name: r[2], uid: r[3], state: r[4], nice: r[5], threads: r[6], start: r[7],
-                 cpu: r[8], mem: r[9], rss: r[10], rd: r[11], wr: r[12], kernel: r[13] === 1,
+                 cpu: r[8], mem: r[9], rss: r[10], rd: r[11], wr: r[12], kernel: r[13] === 1, net: r[14] ?? 0, gpu: r[15] ?? 0,
                  cmd: i.cmd ?? "", exe: i.exe ?? "", user: i.user ?? String(r[3]), comm: i.comm ?? r[2] };
     }
     readonly property var procs: (s.procs ?? []).map(r => row(r))
@@ -139,9 +139,9 @@ Singleton {
         return { apps, background: rows(bgBy, "bg:"), system: rows(sysBy, "sys:") };
     }
     function group(key, name, sub, members, cls, pid) {
-        let cpu = 0, mem = 0, rd = 0, wr = 0, threads = 0, suspended = 0;
-        for (const m of members) { cpu += m.cpu; mem += m.mem; rd += m.rd; wr += m.wr; threads += m.threads; if (m.state === "T") suspended++; }
-        return { key, name, sub, cls, pid, members, count: members.length, cpu, mem, rd, wr, threads,
+        let cpu = 0, mem = 0, rd = 0, wr = 0, threads = 0, suspended = 0, net = 0, gpu = 0;
+        for (const m of members) { cpu += m.cpu; mem += m.mem; rd += m.rd; wr += m.wr; threads += m.threads; net += m.net; gpu += m.gpu; if (m.state === "T") suspended++; }
+        return { key, name, sub, cls, pid, members, count: members.length, cpu, mem, rd, wr, threads, net, gpu: Math.min(100, gpu),
                  suspended: suspended > 0 && suspended === members.length, user: members[0]?.user ?? "", kernel: members[0]?.kernel ?? false };
     }
     function prettyClass(c) {
@@ -213,6 +213,11 @@ Singleton {
     function loadStartup() { startupLoaded = true; if (!startupProc.running) startupProc.running = true; }
     Process { id: startupProc; command: [root.script, "startup"]; stdout: StdioCollector { onStreamFinished: { try { root.startup = JSON.parse(text); } catch (e) {} } } }
     function setStartup(item, on) { act(["startup-set", item.kind, item.id, on ? "on" : "off"], item.name + (on ? " starts at login" : " won't start at login")); }
+
+    // App history (monitor.py usage-snap, every 5 minutes from the shell): {date: {app: [cpu s, gpu s]}}
+    property var usage: ({})
+    function loadUsage() { if (!usageProc.running) usageProc.running = true; }
+    Process { id: usageProc; command: [root.script, "usage"]; stdout: StdioCollector { onStreamFinished: { try { root.usage = JSON.parse(text); } catch (e) {} } } }
 
     property var services: ({ user: [], system: [] })
     property bool servicesLoaded: false

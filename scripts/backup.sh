@@ -43,7 +43,7 @@ plainfs() { case $(stat -f -c %T "$1" 2>/dev/null) in msdos|vfat|exfat|fuseblk|f
 init() {
     [ -s "$CONF" ] && return 0
     mkdir -p "$STATE_DIR"
-    folders=$(for d in Documents Pictures Projects Desktop Music Videos; do [ -d "$HOME/$d" ] && printf '%s\n' "$HOME/$d"; done | jq -R . | jq -sc .)
+    folders=$(for d in Documents Notes Pictures Projects Desktop Music Videos; do [ -d "$HOME/$d" ] && printf '%s\n' "$HOME/$d"; done | jq -R . | jq -sc .)
     jq -n --argjson f "$folders" '{dest:"", folders:$f,
         exclude:["node_modules",".cache","target","build","*.iso",".venv","__pycache__",".Trash-*"], keep:30, last:null}' > "$CONF"
 }

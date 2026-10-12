@@ -76,6 +76,8 @@ def describe(path):
     preview = " ".join(re.sub(r"^([-*] \[[ xX]\]|[#>*\-+]|\d+\.)\s*", "", l) for l in rest)
     preview = re.sub(r"[*_`~]{1,3}", "", preview)
     tasks = len(re.findall(r"^\s*[-*] \[ \]", text, re.M))
+    # #tags in the text (not headings, not inside code or links)
+    tags = sorted(set(t.lower() for t in re.findall(r"(?<![\w#/`(])#([A-Za-z][\w-]{1,30})", re.sub(r"`[^`]*`", "", text))))
     return {
         "file": os.path.basename(path),
         "title": title or stem,
@@ -83,6 +85,7 @@ def describe(path):
         "mtime": int(os.path.getmtime(path) * 1000),
         "words": len(re.findall(r"\S+", text)),
         "open": tasks,
+        "tags": tags,
     }
 
 

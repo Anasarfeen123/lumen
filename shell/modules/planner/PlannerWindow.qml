@@ -88,7 +88,7 @@ PanelWindow {
             e.accepted = true;
         }
         // Opening starts at the top: your day at a glance
-        Connections { target: win; function onShowingChanged() { if (win.showing) { flick.cancelFlick(); flick.contentY = 0; } } }
+        Connections { target: win; function onShowingChanged() { if (win.showing) { flick.cancelFlick(); flick.contentY = 0; classes.dayOffset = 0; classes.whatIf = false; } } }
 
         // ── Date (stays put while the rest scrolls) ──
         Column {
@@ -156,7 +156,12 @@ PanelWindow {
             Card {
                 id: classes
                 visible: Amazecc.cfg.enabled
-                title: Amazecc.todayInfo?.order ? "Classes · " + Amazecc.dayNames[Amazecc.todayInfo.order] + " order" : "Classes"
+                property int dayOffset: 0                  // 0 today, 1 tomorrow…
+                property bool whatIf: false
+                readonly property var day: { clock.date; return new Date(clock.date.getFullYear(), clock.date.getMonth(), clock.date.getDate() + dayOffset); }
+                readonly property var list: Amazecc.classesOn(day)
+                readonly property var info: Amazecc.dayInfo(day)
+                title: classes.info?.order ? "Classes · " + Amazecc.dayNames[classes.info.order] + " order" : "Classes"
                 icon: "school"
                 readonly property string ago: {
                     const m = Math.round((clock.date.getTime() - Amazecc.updated) / 60000);
@@ -191,21 +196,49 @@ PanelWindow {
                     LText { visible: Amazecc.hasLogin && !Amazecc.ready && Amazecc.error === ""; role: "caption"; color: Theme.textMuted
                             text: Amazecc.syncing ? "Fetching your timetable from VTOP… (about half a minute)" : "Not synced yet" }
 
-                    // A holiday
-                    LText { visible: Amazecc.ready && Amazecc.todayInfo?.kind === "holiday"; width: parent.width; wrapMode: Text.Wrap
-                            role: "caption"; color: Theme.textSecondary
-                            text: "No classes today" + (Amazecc.todayInfo?.text ? " — " + Amazecc.todayInfo.text : "") }
+                    // Which day: today and the next days that have classes (or a holiday to say)
+                    Row {
+                        visible: Amazecc.ready
+                        spacing: 4
+                        Repeater {
+                            model: {
+                                clock.date;
+                                const out = [], base = new Date(clock.date.getFullYear(), clock.date.getMonth(), clock.date.getDate());
+                                for (let i = 0; out.length < 5 && i < 10; i++) {
+                                    const d = new Date(base.getTime() + i * 86400000);
+                                    if (i === 0 || Amazecc.classesOn(d).length) out.push({ i, d, label: i === 0 ? "Today" : i === 1 ? "Tmrw" : Qt.formatDate(d, "ddd") });
+                                }
+                                return out;
+                            }
+                            delegate: HoverTarget {
+                                required property var modelData
+                                readonly property bool on: classes.dayOffset === modelData.i
+                                width: chipText.implicitWidth + 20; height: 26; radius: 13
+                                onClicked: { classes.dayOffset = modelData.i; }
+                                Rectangle { anchors.fill: parent; radius: 13; z: -1
+                                            color: parent.on ? Theme.withAlpha(Theme.accent, 0.18) : Theme.withAlpha(Theme.text, 0.05)
+                                            border.width: 1; border.color: parent.on ? Theme.withAlpha(Theme.accent, 0.45) : Theme.border }
+                                LText { id: chipText; anchors.centerIn: parent; role: "caption"; color: parent.on ? Theme.accent : Theme.textSecondary; text: modelData.label }
+                            }
+                        }
+                    }
 
-                    // Today's classes
+                    // A holiday
+                    LText { visible: Amazecc.ready && classes.info?.kind === "holiday"; width: parent.width; wrapMode: Text.Wrap
+                            role: "caption"; color: Theme.textSecondary
+                            text: "No classes" + (classes.dayOffset === 0 ? " today" : "") + (classes.info?.text ? " — " + classes.info.text : "") }
+
+                    // The day's classes
                     Repeater {
-                        model: Amazecc.today.slice(0, 7)
+                        model: classes.list.slice(0, 7)
                         delegate: Item {
                             id: row
                             required property var modelData
-                            readonly property bool now: Amazecc.isCurrent(modelData)
-                            readonly property bool past: modelData.end <= Amazecc.nowMin
+                            readonly property bool isToday: classes.dayOffset === 0
+                            readonly property bool now: isToday && Amazecc.isCurrent(modelData)
+                            readonly property bool past: isToday && modelData.end <= Amazecc.nowMin
                             width: parent.width; height: 34
-                            opacity: past ? 0.45 : 1
+                            opacity: past && !classes.whatIf ? 0.45 : 1
                             Rectangle { width: 3; height: 24; radius: 1.5; anchors.verticalCenter: parent.verticalCenter
                                         color: row.now ? Theme.accent : Theme.withAlpha(Theme.textMuted, 0.5) }
                             LText { id: at; x: Theme.space.s3; width: 58; anchors.verticalCenter: parent.verticalCenter
@@ -222,15 +255,42 @@ PanelWindow {
                     }
                     // Done for the day
                     LText {
-                        visible: Amazecc.ready && !Amazecc.next && !Amazecc.current && Amazecc.todayInfo?.kind !== "holiday"
+                        visible: classes.dayOffset === 0 && Amazecc.ready && !Amazecc.next && !Amazecc.current && Amazecc.todayInfo?.kind !== "holiday"
                         width: parent.width; elide: Text.ElideRight; role: "caption"; color: Theme.textMuted
                         text: (Amazecc.today.length ? "Done for today." : "No classes today.")
                               + (Amazecc.nextDay ? " " + Planner.whenLabel(Amazecc.nextDay.date.getTime() + Amazecc.nextDay.first.start * 60000, false) + " · " + Amazecc.nextDay.first.title : "")
                     }
 
+                    // What if I skip this day?
+                    HoverTarget {
+                        visible: Amazecc.ready && classes.list.length > 0
+                        width: wiRow.implicitWidth + 20; height: 28; radius: 14
+                        onClicked: classes.whatIf = !classes.whatIf
+                        Rectangle { anchors.fill: parent; radius: 14; z: -1
+                                    color: classes.whatIf ? Theme.withAlpha(Theme.warning, 0.14) : "transparent"
+                                    border.width: 1; border.color: classes.whatIf ? Theme.withAlpha(Theme.warning, 0.45) : Theme.border }
+                        Row { id: wiRow; anchors.centerIn: parent; spacing: 5
+                              LIcon { icon: "event_busy"; size: 14; color: classes.whatIf ? Theme.warning : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                              LText { role: "caption"; color: classes.whatIf ? Theme.warning : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter
+                                      text: classes.whatIf ? "If you skip " + (classes.dayOffset === 0 ? "today" : classes.dayOffset === 1 ? "tomorrow" : Qt.formatDate(classes.day, "dddd")) : "What if I skip it?" } }
+                    }
+                    Repeater {
+                        model: classes.whatIf ? Amazecc.skipImpact(classes.day) : []
+                        delegate: Row {
+                            required property var modelData
+                            width: parent.width; height: 22; spacing: Theme.space.s2
+                            LIcon { anchors.verticalCenter: parent.verticalCenter; size: 14
+                                    icon: modelData.below ? "error" : modelData.after < Amazecc.cfg.threshold + 5 ? "warning" : "check_circle"
+                                    color: modelData.below ? Theme.error : modelData.after < Amazecc.cfg.threshold + 5 ? Theme.warning : Theme.success }
+                            LText { anchors.verticalCenter: parent.verticalCenter; width: parent.width - 22; elide: Text.ElideRight; role: "caption"
+                                    text: Amazecc.courseName(modelData.course) + " · " + modelData.before + "% → " + modelData.after.toFixed(1) + "%"
+                                          + (modelData.below ? " · under " + Amazecc.cfg.threshold + "%" : "") }
+                        }
+                    }
+
                     // Attendance that needs care
                     Repeater {
-                        model: Amazecc.attention.slice(0, 3)
+                        model: classes.whatIf ? [] : Amazecc.attention.slice(0, 3)
                         delegate: Row {
                             required property var modelData
                             readonly property string tone: Amazecc.attendanceTone(modelData)
@@ -240,7 +300,8 @@ PanelWindow {
                             LText { anchors.verticalCenter: parent.verticalCenter; width: parent.width - 22; elide: Text.ElideRight; role: "caption"
                                     text: Amazecc.courseName(modelData) + " · " + modelData.pct + "% · "
                                           + (modelData.pct < Amazecc.cfg.threshold ? "attend the next " + Amazecc.needed(modelData)
-                                             : Amazecc.skippable(modelData) === 0 ? "don't miss the next one" : "can miss " + Amazecc.skippable(modelData)) }
+                                             : Amazecc.skippable(modelData) === 0 ? "don't miss the next one" : "can miss " + Amazecc.skippable(modelData))
+                                          + Amazecc.trendText(modelData) }
                         }
                     }
                     LText { visible: Amazecc.error !== ""; width: parent.width; wrapMode: Text.Wrap; role: "caption"; color: Theme.error; text: Amazecc.error }

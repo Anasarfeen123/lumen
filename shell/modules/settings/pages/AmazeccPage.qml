@@ -203,6 +203,13 @@ Page {
             LSwitch { checked: page.cfg.phoneAlerts; onToggled: page.cfg.phoneAlerts = !checked }
         }
         SetRow {
+            icon: "calendar_month"
+            title: "Timetable in the phone's calendar"
+            description: "Every class, exam and holiday in " + Amazecc.calendarPath.replace(Quickshell.env("HOME"), "~")
+                         + " — it reaches the phone with your notes (Settings → Notes). Open it there with a calendar app, or subscribe to it with ICSx⁵ to keep it updated."
+            LSwitch { checked: page.cfg.calendarFile; onToggled: page.cfg.calendarFile = !checked }
+        }
+        SetRow {
             icon: "alarm"
             title: "Reminders on the phone"
             description: "Before each class (with the room), and before exams"

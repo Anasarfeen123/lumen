@@ -90,6 +90,20 @@ Singleton {
     function screenshotToPhone(id) { run(["screenshot", id ?? phone?.id]); }
     function pair(id) { run(["pair", id]); refreshSoon.restart(); }
     function unpair(id) { run(["unpair", id]); refreshSoon.restart(); }
+    // One click: unpair the phone, with a way back in the island
+    function unlink(id) {
+        const to = id ?? phone?.id;
+        if (!to) return;
+        const name = nameOf(to);
+        run(["unpair", to]);
+        refreshSoon.restart();
+        Island.device("unlinked:" + to, {
+            icon: "link_off", badge: "",
+            title: name + " unlinked",
+            detail: "It won't get files, the clipboard or reminders until you link it again",
+            actions: [{ icon: "link", label: "Link again", cmd: [script, "pair", to] }]
+        });
+    }
     function addAddress(ip) { run(["add-address", ip]); refreshSoon.restart(); }
     function removeAddress(ip) { run(["remove-address", ip]); refreshSoon.restart(); }
     function setBackend(name, on) { run(["backend", name, on ? "on" : "off"]); refreshSoon.restart(); Qt.callLater(diagnose); }
@@ -214,6 +228,7 @@ Singleton {
         function clipboard(): void { root.sendClipboard(); }
         function screenshot(): void { root.screenshotToPhone(); }
         function bluetooth(): void { root.panFails = 0; root.panUp(true); }
+        function unlink(): void { root.unlink(); }
         function state(): string { return JSON.stringify({ available: root.available, connected: root.connected, phone: root.phone, backends: root.backends, custom: root.custom, tether: root.tether }); }
     }
 

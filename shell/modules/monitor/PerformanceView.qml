@@ -39,7 +39,7 @@ Item {
         for (const g of S.gpus ?? []) {
             const awake = g.state === "active";
             r.push({ id: "gpu:" + g.card, icon: "developer_board", title: "GPU · " + (g.kind === "amd" ? "Radeon" : g.kind === "nvidia" ? "NVIDIA" : g.kind),
-                     series: "gpu:" + g.card, max: 100, value: awake && g.util !== undefined && g.util !== null ? Math.round(g.util) + "%" : g.state === "suspended" ? "Asleep" : g.state === "error" ? "Unavailable" : "–",
+                     series: "gpu:" + g.card, max: 100, value: awake && g.util !== undefined && g.util !== null ? Math.round(g.util) + "%" : g.state === "suspended" ? "Asleep" : g.state === "error" ? "Stuck awake" : "–",
                      sub: g.temp ? Math.round(g.temp) + " °C" : "", gpu: g });
         }
         if (SystemMonitor.battery) {
@@ -230,6 +230,30 @@ Item {
                 }
             }
 
+            // A GPU stuck awake: say so, and offer the fix
+            Rectangle {
+                visible: !!view.cur?.gpu && (view.smp.gpus ?? []).some(g => g.card === view.cur.gpu.card && g.state === "error")
+                width: parent.width; height: 64; radius: Theme.radius.md
+                color: Theme.withAlpha(Theme.warning, 0.1); border.width: 1; border.color: Theme.withAlpha(Theme.warning, 0.4)
+                Row {
+                    anchors { left: parent.left; leftMargin: Theme.space.s4; verticalCenter: parent.verticalCenter }
+                    spacing: Theme.space.s3
+                    LIcon { icon: "battery_alert"; size: 22; color: Theme.warning; anchors.verticalCenter: parent.verticalCenter }
+                    Column {
+                        anchors.verticalCenter: parent.verticalCenter
+                        LText { role: "bodyStrong"; text: "Stuck awake — its power management failed" }
+                        LText { role: "caption"; color: Theme.textSecondary; text: "It can't go to sleep, so it uses the battery even when nothing needs it. Fixing asks for your password." }
+                    }
+                }
+                HoverTarget {
+                    anchors { right: parent.right; rightMargin: Theme.space.s3; verticalCenter: parent.verticalCenter }
+                    width: 92; height: 34; radius: 17
+                    onClicked: Quickshell.execDetached(["pkexec", Theme.lumenRoot + "/scripts/power-admin.sh", "dgpu-pm-reset"])
+                    Rectangle { anchors.fill: parent; radius: 17; z: -1; color: Theme.accent }
+                    LText { anchors.centerIn: parent; role: "bodyStrong"; color: Theme.onAccent; text: "Fix" }
+                }
+            }
+
             // The numbers
             Flow {
                 width: parent.width
@@ -272,7 +296,10 @@ Item {
                             return [["Receive", SystemMonitor.bits(x.rx ?? 0)], ["Send", SystemMonitor.bits(x.tx ?? 0)],
                                     ["Received since boot", SystemMonitor.bytes(x.rxTotal)], ["Sent since boot", SystemMonitor.bytes(x.txTotal)],
                                     ["Network", x.ssid ?? c.net], ["IPv4", (x.v4 ?? []).join(", ") || "–"], ["IPv6", (x.v6 ?? []).join(", ") || "–"],
-                                    ["Link speed", x.speed ? x.speed + " Mbps" : "–"], ["Hardware address", x.mac ?? "–"]];
+                                    ["Link speed", x.speed ? x.speed + " Mbps" : "–"],
+                                    ...(x.signal !== undefined ? [["Signal", x.signal + " dBm · " + (x.signal >= -55 ? "excellent" : x.signal >= -67 ? "good" : x.signal >= -75 ? "fair" : "weak")]] : []),
+                                    ...(x.band ? [["Band", x.band]] : []),
+                                    ["Hardware address", x.mac ?? "–"]];
                         }
                         if (c.gpu) {
                             const g = (S.gpus ?? []).find(x => x.card === c.gpu.card) ?? c.gpu;

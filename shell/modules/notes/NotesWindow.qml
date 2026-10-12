@@ -5,7 +5,8 @@
 // if you were both editing it, you choose which to keep.
 //   Ctrl+N new · Ctrl+F search · Ctrl+E write/read · Ctrl+P pin · Ctrl+W close
 //   in a note: Ctrl+B bold · Ctrl+I italic · Ctrl+K link · Ctrl+L checkbox ·
-//   Enter continues a list · Tab / Shift+Tab indent a list item
+//   Enter continues a list · Tab / Shift+Tab indent a list item · Ctrl+V pastes images too
+//   [[Note title]] links notes · #tags gather them (click a tag under the search)
 import QtQuick
 import QtQuick.Controls.Basic as QQC
 import Quickshell
@@ -178,6 +179,59 @@ FloatingWindow {
         return true;
     }
 
+    // ── pasting an image: saved next to the notes (attachments/), linked in Markdown ──
+    function smartPaste() {
+        const name = "attachments/" + Qt.formatDateTime(new Date(), "yyyyMMdd-HHmmss") + ".png";
+        pasteProc.name = name;
+        pasteProc.command = ["sh", "-c", 'wl-paste -l 2>/dev/null | grep -qx "image/png" || exit 3; mkdir -p "$1/attachments" && wl-paste -t image/png > "$1/$2"', "sh", Notes.dir, name];
+        pasteProc.running = true;
+    }
+    Process {
+        id: pasteProc
+        property string name: ""
+        onExited: code => {
+            if (code === 0) { editor.insert(editor.cursorPosition, "![](" + name + ")\n"); }
+            else editor.paste();                 // not an image: an ordinary paste
+        }
+    }
+
+    // ── PDF: Qt turns the Markdown into HTML, a headless browser prints it ──
+    property string exporting: ""
+    function exportPdf() {
+        const title = titleInput.current || "Note";
+        const html = "<!doctype html><meta charset=utf-8><title>" + title.replace(/</g, "&lt;") + "</title>"
+                   + "<style>body{font-family:sans-serif;max-width:720px;margin:40px auto;line-height:1.5;color:#111}img{max-width:100%}"
+                   + "code{background:#f3f3f3;padding:1px 4px;border-radius:3px}blockquote{border-left:3px solid #ccc;margin:0;padding-left:12px;color:#555}</style>"
+                   + "<base href=\"file://" + Notes.dir + "/\">" + mdToHtml.getFormattedText(0, mdToHtml.length);
+        exportHtml.setText(html);
+        const dir = Quickshell.env("HOME") + "/Documents/Notes PDFs";
+        const out = dir + "/" + title.replace(/[\/:*?"<>|]/g, " ").trim() + ".pdf";
+        exporting = out;
+        pdfProc.command = ["sh", "-c", 'mkdir -p "$1" && for b in chromium-browser chromium brave-browser brave-origin google-chrome-stable; do command -v "$b" >/dev/null && exec "$b" --headless=new --disable-gpu --no-pdf-header-footer --print-to-pdf="$2" "file://$3"; done; exit 9',
+                           "sh", dir, out, exportHtml.path];
+        Qt.callLater(() => pdfProc.running = true);
+    }
+    TextEdit { id: mdToHtml; visible: false; textFormat: TextEdit.MarkdownText; text: editor.text }
+    FileView { id: exportHtml; path: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/lumen-notes-export.html"; printErrors: false }
+    Process {
+        id: pdfProc
+        onExited: code => {
+            if (code === 0) Quickshell.execDetached(["notify-send", "-a", "Notes", "-i", "picture_as_pdf", "Saved as PDF", win.exporting.replace(Quickshell.env("HOME"), "~")]);
+            else Quickshell.execDetached(["notify-send", "-a", "Notes", "Couldn't make the PDF", code === 9 ? "No Chromium-based browser found" : "The browser failed"]);
+            win.exporting = "";
+        }
+    }
+
+    // [[Note title]] → a link to that note in the read view
+    function wikiLinks(t) {
+        return t.replace(/\[\[([^\]\n]{1,80})\]\]/g, (m, name) => "[" + name + "](note:" + encodeURIComponent(name) + ")");
+    }
+    function openByTitle(name) {
+        const n = name.trim().toLowerCase();
+        const hit = Notes.all.find(x => x.title.toLowerCase() === n) ?? Notes.all.find(x => x.file.toLowerCase() === n + ".md");
+        if (hit) openNote(hit.file); else Notes.create(name.trim());   // a link to nothing yet makes it
+    }
+
     // ── small helpers ──
     function whenLabel(ms) {
         const d = new Date(ms), now = clock.date;
@@ -257,6 +311,26 @@ FloatingWindow {
                     onAccepted: t => { const first = (Notes.query ? Notes.hits : Notes.sorted)[0]; if (first) win.openNote(first.file); }
                     input.Keys.onEscapePressed: { search.text = ""; rootItem.forceActiveFocus(); }
                     input.Keys.onDownPressed: { list.forceActiveFocus(); list.currentIndex = 0; }
+                }
+                // #tags across your notes: click one to see its notes
+                Flow {
+                    readonly property var tags: { const c = {}; for (const n of Notes.all) for (const t of n.tags ?? []) c[t] = (c[t] ?? 0) + 1;
+                                                  return Object.keys(c).sort((a, b) => c[b] - c[a] || a.localeCompare(b)).slice(0, 12); }
+                    visible: tags.length > 0
+                    width: parent.width
+                    spacing: 4
+                    Repeater {
+                        model: parent.tags
+                        delegate: HoverTarget {
+                            required property string modelData
+                            readonly property bool on: search.text.trim().toLowerCase() === "#" + modelData
+                            width: tagText.implicitWidth + 16; height: 24; radius: 12
+                            onClicked: search.text = on ? "" : "#" + modelData
+                            Rectangle { anchors.fill: parent; radius: 12; z: -1; color: parent.on ? Theme.withAlpha(Theme.accent, 0.18) : Theme.withAlpha(Theme.text, 0.05)
+                                        border.width: 1; border.color: parent.on ? Theme.withAlpha(Theme.accent, 0.45) : Theme.border }
+                            LText { id: tagText; anchors.centerIn: parent; role: "caption"; color: parent.on ? Theme.accent : Theme.textSecondary; text: "#" + modelData }
+                        }
+                    }
                 }
             }
 
@@ -449,6 +523,7 @@ FloatingWindow {
                     IconButton { icon: "keep"; tone: Notes.isPinned(win.current) ? Theme.accent : Theme.textSecondary; onActivated: Notes.togglePin(win.current) }
                     IconButton { icon: "send_to_mobile"; visible: Link.connected; onActivated: Link.sendFiles([Notes.pathOf(win.current)]) }
                     IconButton { icon: "content_copy"; onActivated: { Quickshell.execDetached(["wl-copy", editor.text]); copied.restart(); } }
+                    IconButton { icon: win.exporting ? "hourglass_top" : "picture_as_pdf"; enabled: !win.exporting; onActivated: win.exportPdf() }
                     IconButton {
                         id: del
                         property bool armed: false
@@ -545,6 +620,7 @@ FloatingWindow {
                         else if (ctrl && e.key === Qt.Key_I) { win.wrap("*", "*"); e.accepted = true; }
                         else if (ctrl && e.key === Qt.Key_K) { win.insertLink(); e.accepted = true; }
                         else if (ctrl && e.key === Qt.Key_L) { win.toggleCheck(); e.accepted = true; }
+                        else if (ctrl && e.key === Qt.Key_V && !(e.modifiers & Qt.ShiftModifier)) { win.smartPaste(); e.accepted = true; }
                     }
                 }
             }
@@ -562,7 +638,7 @@ FloatingWindow {
                     bottomPadding: Theme.space.s8
                     textFormat: Text.MarkdownText
                     // The title bar already shows a leading "# Title"
-                    text: (editor.text.replace(/^\s*#\s+(.*)\n/, (m, t) => t.trim() === titleInput.current ? "" : m) || "*Empty note.*")
+                    text: win.wikiLinks(editor.text.replace(/^\s*#\s+(.*)\n/, (m, t) => t.trim() === titleInput.current ? "" : m) || "*Empty note.*")
                           // Qt's Markdown ignores linkColor: colour the labels ourselves
                           .replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, (m, label, url) => "[<font color=\"" + Theme.accent + "\">" + label + "</font>](" + url + ")")
                     wrapMode: Text.Wrap
@@ -573,7 +649,8 @@ FloatingWindow {
                     font.family: Theme.fontUi
                     font.pixelSize: 15
                     lineHeight: 1.15
-                    onLinkActivated: link => Qt.openUrlExternally(link)
+                    baseUrl: "file://" + Notes.dir + "/"
+                    onLinkActivated: link => link.startsWith("note:") ? win.openByTitle(decodeURIComponent(link.slice(5))) : Qt.openUrlExternally(link)
                     HoverHandler { cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor }
                 }
             }

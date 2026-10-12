@@ -24,6 +24,15 @@ Item {
             color: Theme.textMuted
             text: Battery.formatDuration(Battery.timeToEmpty) ? "· " + Battery.formatDuration(Battery.timeToEmpty) + " left" : ""
         }
+        // An exam within the week (AmazeCC)
+        Row {
+            visible: Amazecc.cfg.enabled && Amazecc.cfg.islandNext && Amazecc.examCountdown !== "" && !(Amazecc.current ?? Amazecc.next)
+            spacing: 5
+            LText { role: "body"; color: Theme.textMuted; text: "·"; anchors.verticalCenter: parent.verticalCenter }
+            LIcon { icon: "edit_note"; size: 15; color: Theme.warning; anchors.verticalCenter: parent.verticalCenter }
+            LText { anchors.verticalCenter: parent.verticalCenter; role: "body"; color: Theme.textSecondary
+                    width: Math.min(implicitWidth, 300); elide: Text.ElideRight; text: Amazecc.examCountdown }
+        }
         // Your class (AmazeCC): the one you're in, else the next today
         Row {
             readonly property var cls: Amazecc.current ?? Amazecc.next

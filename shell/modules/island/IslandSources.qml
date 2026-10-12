@@ -20,6 +20,41 @@ Scope {
         value: Battery.available && !Battery.pluggedIn && Battery.percentage <= 0.05
     }
 
+    // ── Memory running low: what's using it, before the system starts to crawl ──
+    // Available under 10 % with swap over half full, two minutes running; then
+    // at most once an hour. Programs are summed by name (34 browser helpers = one line).
+    property int memLow: 0
+    property real memWarned: 0
+    Timer { interval: 60000; repeat: true; running: Persist.automates; onTriggered: if (!memProbe.running) memProbe.running = true }
+    Process {
+        id: memProbe
+        command: ["sh", "-c", 'awk \'/^MemTotal:/{t=$2} /^MemAvailable:/{a=$2} /^SwapTotal:/{st=$2} /^SwapFree:/{sf=$2} END{print t, a, st, sf}\' /proc/meminfo; ps -u "$(id -u)" -o rss=,comm= | awk \'{m[$2]+=$1} END{for (k in m) print m[k], k}\' | sort -rn | head -3']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const lines = text.trim().split("\n");
+                const [t, a, st, sf] = (lines[0] ?? "").split(" ").map(Number);
+                const low = t > 0 && a / t < 0.10 && st > 0 && (st - sf) / st > 0.5;
+                root.memLow = low ? root.memLow + 1 : 0;
+                if (root.memLow < 2 || Date.now() - root.memWarned < 3600000) return;
+                root.memWarned = Date.now();
+                const top = lines.slice(1).map(l => { const [kb, ...n] = l.trim().split(" "); return n.join(" ") + " " + (kb / 1048576).toFixed(1) + " GB"; });
+                Island.device("memory-low", {
+                    icon: "memory", badge: "",
+                    title: "Memory is running low — " + Math.round(100 * a / t) + "% free",
+                    detail: "Most used: " + top.join(" · "),
+                    actions: [{ icon: "monitor_heart", label: "See what's using it", cmd: [Theme.lumenRoot + "/bin/lumen-monitor", "processes"] }]
+                });
+            }
+        }
+    }
+    // App history for Lumen Monitor: CPU and GPU time per app, every 5 minutes (a /proc read)
+    Timer {
+        interval: 300000; repeat: true; triggeredOnStart: true; running: Persist.automates
+        onTriggered: Quickshell.execDetached([Theme.lumenRoot + "/scripts/monitor.py", "usage-snap"])
+    }
+    // The NVIDIA GPU stuck awake is watched by Power (it speaks for itself)
+    readonly property bool _dgpuWatch: Power.dgpuStuck || true
+
     // ── Now playing: announce briefly on play/track change, then back to the
     //    clock (which shows an equalizer while music plays) ──
     property string lastAnnounced: ""

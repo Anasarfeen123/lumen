@@ -302,15 +302,24 @@ Singleton {
         const now = new Date();
         const days = ["MON", "TUE", "WED", "THU", "FRI", "SAT"];
         const week = days.map(d => d + ": " + ((Amazecc.data.week ?? {})[d] ?? []).map(c => Amazecc.clockLabel(c.start) + "-" + Amazecc.clockLabel(c.end) + " " + c.title + (c.kind === "lab" ? " (lab)" : "") + (c.venue ? " @" + c.venue : "")).join("; ")).join("\n");
-        const att = Amazecc.courses.filter(c => c.total).map(c => "- " + c.title + " (" + c.code + ", " + c.kind + "): " + c.attended + "/" + c.total + " = " + c.pct + "% · can miss " + Amazecc.skippable(c) + (c.pct < Amazecc.cfg.threshold ? " · needs the next " + Amazecc.needed(c) : "")).join("\n");
-        const marks = Amazecc.marks.map(m => "- " + m.title + " (" + m.kind + "): " + (m.assessments.filter(a => a.scored !== null).map(a => a.title + " " + a.scored + "/" + a.max + (a.weightMark !== null ? " → " + a.weightMark + " of " + a.weight + "%" : "")).join(", ") || "no marks yet")).join("\n");
+        const att = Amazecc.courses.filter(c => c.total).map(c => "- " + c.title + " (" + c.code + ", " + c.kind + "): " + c.attended + "/" + c.total + " = " + c.pct + "% · can miss " + Amazecc.skippable(c) + (c.pct < Amazecc.cfg.threshold ? " · needs the next " + Amazecc.needed(c) : "") + Amazecc.trendText(c)).join("\n");
+        const marks = Amazecc.marks.map(m => {
+            const t = Amazecc.targets(m);
+            const tg = t && !t.done ? "\n  FAT (out of 100, worth " + Amazecc.fatWeight + "%) needed per grade, range = all remaining internals full … at the current rate (" + Math.round(t.rate * 100) + "%): "
+                + Amazecc.grades.map(([g, c]) => g + "(" + c + ") " + Amazecc.fatRange(t, g)).join(", ") : "";
+            return "- " + m.title + " (" + m.kind + "): " + (m.assessments.filter(a => a.scored !== null).map(a => a.title + " " + a.scored + "/" + a.max + (a.weightMark !== null ? " → " + a.weightMark + " of " + a.weight + "%" : "")).join(", ") || "no marks yet") + tg;
+        }).join("\n");
         const exams = Amazecc.exams.filter(e => e.when > Date.now() - 86400000).map(e => "- " + e.kind + " " + e.title + ": " + Planner.whenLabel(e.when, !e.timed) + (e.venue ? " @" + e.venue : "") + (e.seat ? " seat " + e.seat : "")).join("\n");
         const special = (Amazecc.data.days ?? []).filter(d => d.date >= Qt.formatDate(now, "yyyy-MM-dd") && (d.kind === "holiday" || d.order)).slice(0, 8)
             .map(d => "- " + d.date + ": " + (d.order ? "follows " + d.order + " timetable" : "holiday — " + d.text)).join("\n");
         root.pendingChips = root.pendingChips.concat(["college"]);
         return "The user's college data (VIT, from VTOP via AmazeCC; synced " + Qt.formatDateTime(new Date(Amazecc.updated), "d MMM h:mm AP") + "). "
             + "Today is " + Qt.formatDate(now, "dddd d MMMM yyyy") + ", " + Qt.formatTime(now, "h:mm AP") + ". Minimum attendance: " + Amazecc.cfg.threshold + "%. "
-            + "\"Can miss N\" keeps the course at or above the minimum after N more absences; skipping one class of a course counts once for that course.\n"
+            + "\"Can miss N\" keeps the course at or above the minimum after N more absences; skipping one class of a course counts once for that course. "
+            + "VIT rules (FFCS Academic Regulations v4.0): theory = CAT-I 15 + CAT-II 15 + digital assignments 30 + FAT 40 (paper out of 100); lab = 60 continuous + 40 FAT; an embedded course's grade combines theory and lab 3:1. "
+            + "To pass: at least 40/100 in the theory FAT itself AND a total of 50 (relative grading can only lower that pass mark). Grades above E are relative to the class when it has over 10 students "
+            + "(B centred on the class average; S ≥ mean+1.5σ and ≥90, A ≥ mean+0.5σ, B ≥ mean−0.5σ, C ≥ mean−σ, D ≥ mean−1.5σ, E ≥ mean−2σ); classes of 10 or fewer and all labs use absolute bands S 90, A 80, B 70, C 60, D 55, E 50 — so the targets below are a guide, say so. "
+            + "Attendance: below 75% (counted from registration to the day before each CAT, and to the last instructional day for the FAT) debars the student from that exam; debarred from the FAT means an N grade and re-registering the course. Students with CGPA ≥ 9 and no backlogs are exempt.\n"
             + "Weekly timetable:\n" + week + "\n\nAttendance:\n" + (att || "none") + "\n\nMarks:\n" + (marks || "none")
             + "\n\nUpcoming exams:\n" + (exams || "none scheduled") + (special ? "\n\nHolidays and day-order changes:\n" + special : "") + "\n\n";
     }

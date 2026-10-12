@@ -15,6 +15,7 @@ Options (any command): --api URL (default http://127.0.0.1:3000) · --semester I
 
 Files (all mode 600):
   $XDG_STATE_HOME/lumen/amazecc-data.json      the snapshot the shell reads
+  $XDG_STATE_HOME/lumen/amazecc-history.json   marks as they appeared, attendance per day
   $XDG_RUNTIME_DIR/lumen-amazecc-session.json  a VTOP session, reused for 20 minutes (RAM only)
 """
 import argparse
@@ -31,6 +32,7 @@ import urllib.request
 HERE = os.path.dirname(os.path.realpath(__file__))
 STATE = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "lumen")
 DATA = os.path.join(STATE, "amazecc-data.json")
+HISTORY = os.path.join(STATE, "amazecc-history.json")
 RUNTIME = os.environ.get("XDG_RUNTIME_DIR") or "/tmp"
 SESSION = os.path.join(RUNTIME, "lumen-amazecc-session.json")
 SECRET_ATTRS = ["service", "lumen-amazecc", "account", "vtop"]
@@ -345,6 +347,69 @@ def build_days(calendar_res):
     return days
 
 
+# ── calendar file (.ics) for the phone ──────────────────────────────────────
+
+def ics_escape(t):
+    return (t or "").replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+
+
+def ics_utc(day, minutes):
+    local = dt.datetime.combine(day, dt.time()) + dt.timedelta(minutes=minutes)
+    return local.astimezone(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
+def write_ics(path, snap):
+    """Every class as its own dated event (holidays skipped, day-order Saturdays
+    followed), exams, and holidays — from a week ago to the last instructional day."""
+    days = {d["date"]: d for d in snap["days"]}
+    instructional = [d["date"] for d in snap["days"] if d["kind"] == "instructional" or d["order"]]
+    exam_dates = [e["date"] for e in snap["exams"]]
+    today = dt.date.today()
+    start = today - dt.timedelta(days=7)
+    last = max(instructional + exam_dates + [today.isoformat()])
+    end = dt.date.fromisoformat(last)
+    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Lumen//AmazeCC//EN", "CALSCALE:GREGORIAN",
+           "X-WR-CALNAME:VIT — " + snap.get("semester", ""), "X-PUBLISHED-TTL:PT1H"]
+    def event(uid, summary, location, dtstart, dtend, desc="", allday=False):
+        out.extend(["BEGIN:VEVENT", "UID:" + uid, "DTSTAMP:" + stamp,
+                    ("DTSTART;VALUE=DATE:" if allday else "DTSTART:") + dtstart,
+                    ("DTEND;VALUE=DATE:" if allday else "DTEND:") + dtend,
+                    "SUMMARY:" + ics_escape(summary)]
+                   + (["LOCATION:" + ics_escape(location)] if location else [])
+                   + (["DESCRIPTION:" + ics_escape(desc)] if desc else []) + ["END:VEVENT"])
+    d = start
+    while d <= end:
+        info = days.get(d.isoformat())
+        if info and info["kind"] == "holiday" and not info["order"]:
+            if re.search(r"\(([^)]+)\)", info["text"]) or d.weekday() < 5:
+                name = (re.search(r"\(([^)]+)\)", info["text"]) or [None, "Holiday"])[1]
+                event("hol-%s@lumen-amazecc" % d.isoformat(), name + " — no classes", "", d.strftime("%Y%m%d"),
+                      (d + dt.timedelta(days=1)).strftime("%Y%m%d"), allday=True)
+        else:
+            order = (info or {}).get("order") or DAYS[d.weekday()]
+            if d.weekday() < 5 or (info and info.get("order")):
+                for c in snap["week"].get(order, []):
+                    event("cls-%s-%s-%d@lumen-amazecc" % (d.isoformat(), c["id"], c["start"]),
+                          c["title"] + (" (lab)" if c["kind"] == "lab" else ""), c["venue"],
+                          ics_utc(d, c["start"]), ics_utc(d, c["end"]), c["code"])
+        d += dt.timedelta(days=1)
+    for e in snap["exams"]:
+        day = dt.date.fromisoformat(e["date"])
+        start_min = (dt.datetime.fromtimestamp(e["when"] / 1000) - dt.datetime.combine(day, dt.time())).seconds // 60
+        end_min = (dt.datetime.fromtimestamp(e["end"] / 1000) - dt.datetime.combine(day, dt.time())).seconds // 60 if e.get("end") else start_min + 180
+        event("exam-%s-%s@lumen-amazecc" % (e["kind"], e["code"]), e["kind"] + " · " + e["title"], e["venue"],
+              ics_utc(day, start_min), ics_utc(day, end_min),
+              " · ".join(x for x in ["Report " + e["reporting"] if e.get("reporting") else "", "Seat " + e["seat"] if e.get("seat") else ""] if x))
+    out.append("END:VCALENDAR")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        f.write("\r\n".join(out) + "\r\n")
+    os.replace(tmp, path)
+    return sum(1 for l in out if l == "BEGIN:VEVENT")
+
+
 # ── what changed since last time ───────────────────────────────────────────
 
 def diff(prev, new, threshold):
@@ -391,6 +456,27 @@ def diff(prev, new, threshold):
         elif e["when"] != o.get("when"):
             changes.append(dict(e, kind="exam", examKind=e["kind"], what="moved"))
     return changes
+
+
+# ── history: when marks appeared, attendance day by day (kept 400 days) ─────
+
+def record_history(snap, changes):
+    h = read_json(HISTORY) or {"marks": [], "attendance": {}}
+    now = int(time.time() * 1000)
+    for c in changes:
+        if c["kind"] == "mark":
+            h["marks"].append({"t": now, "id": c["id"], "title": c["title"], "assessment": c["assessment"],
+                               "scored": c["scored"], "max": c["max"]})
+    today = dt.date.today().isoformat()
+    h["attendance"][today] = {c["id"]: [c["attended"], c["total"], c["pct"]] for c in snap["courses"] if c["total"]}
+    cutoff = (dt.date.today() - dt.timedelta(days=400)).isoformat()
+    h["attendance"] = {d: v for d, v in h["attendance"].items() if d >= cutoff}
+    h["marks"] = h["marks"][-2000:]
+    write_private(HISTORY, h)
+    # A week ago (the closest day on or before), for trends
+    week = (dt.date.today() - dt.timedelta(days=7)).isoformat()
+    past = [d for d in h["attendance"] if d <= week]
+    return h["attendance"][max(past)] if past else None
 
 
 # ── commands ───────────────────────────────────────────────────────────────
@@ -487,8 +573,18 @@ def cmd_sync(a):
         "days": build_days(cal) if cal is not None else (prev or {}).get("days", []),
     }
     changes = diff(prev, snap, a.threshold)
+    try:
+        snap["weekAgo"] = record_history(snap, changes)
+    except (OSError, ValueError, KeyError):
+        snap["weekAgo"] = (prev or {}).get("weekAgo")
     write_private(DATA, snap)
-    out({"ok": True, "updated": snap["updated"], "changes": changes,
+    events = 0
+    if a.ics:
+        try:
+            events = write_ics(os.path.expanduser(a.ics), snap)
+        except (OSError, ValueError, KeyError):
+            events = -1
+    out({"ok": True, "updated": snap["updated"], "changes": changes, "calendarEvents": events,
          "partial": [n for n, v in (("exams", sched), ("calendar", cal)) if v is None]})
 
 
@@ -497,6 +593,7 @@ def main():
     p.add_argument("--api", default=os.environ.get("LUMEN_AMAZECC_API") or "http://127.0.0.1:3000")
     p.add_argument("--semester", default="")
     p.add_argument("--threshold", type=float, default=75)
+    p.add_argument("--ics", default="", help="also write the timetable, exams and holidays as an .ics file here")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
     sl = sub.add_parser("set-login")

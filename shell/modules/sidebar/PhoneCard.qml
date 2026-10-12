@@ -1,6 +1,6 @@
 // Lumen Link in the control centre.
 //   linked      a battery ring around the phone · name · how it's connected
-//               Ring · Send file · Send clipboard · Screenshot → phone
+//               Ring · Send file · Send clipboard · Screenshot → phone · Unlink (one click)
 //   not linked  one slim row: "Link your phone" → Settings → Lumen Link
 import QtQuick
 import qs.theme
@@ -39,12 +39,14 @@ Rectangle {
         id: a
         property string icon
         property string label
-        width: (col.width - 3 * 6) / 4; height: 30
+        property bool danger: false
+        width: (col.width - 4 * 6) / 5; height: 30
         enabled: root.live
         opacity: enabled ? 1 : 0.4
-        Rectangle { anchors.fill: parent; radius: height / 2; z: -1; color: Theme.withAlpha(Theme.text, 0.05); border.width: 1; border.color: Theme.border }
+        Rectangle { anchors.fill: parent; radius: height / 2; z: -1; color: a.danger ? Theme.withAlpha(Theme.error, a.containsMouse ? 0.16 : 0.08) : Theme.withAlpha(Theme.text, 0.05)
+                    border.width: 1; border.color: a.danger ? Theme.withAlpha(Theme.error, 0.35) : Theme.border }
         Row { anchors.centerIn: parent; spacing: 5
-              LIcon { icon: a.icon; size: 15; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+              LIcon { icon: a.icon; size: 15; color: a.danger ? Theme.error : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
               LText { role: "caption"; text: a.label; anchors.verticalCenter: parent.verticalCenter } }
     }
 
@@ -103,6 +105,8 @@ Rectangle {
             Act { icon: "upload_file"; label: "File"; onClicked: { Sidebar.hide(); Link.pickAndSend(); } }
             Act { icon: "content_paste_go"; label: "Clip"; onClicked: Link.sendClipboard() }
             Act { icon: "screenshot_region"; label: "Shot"; onClicked: { Sidebar.hide(); Link.screenshotToPhone(); } }
+            // Unpair in one click (the island offers "Link again"); works even when it's away
+            Act { icon: "link_off"; label: "Unlink"; danger: true; enabled: !!root.d; onClicked: Link.unlink(root.d.id) }
         }
     }
 }

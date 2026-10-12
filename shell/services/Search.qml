@@ -221,6 +221,11 @@ Singleton {
             }
             // WhatsApp: "wa arya", "whatsapp unread" — chat names only, never message text
             if (WhatsApp.enabled && (m = /^(?:whatsapp|wa)(?:\s+(.*))?$/i.exec(q))) out.push(...root.chatResults((m[1] ?? "").trim()));
+            // Lumen Link: "unlink" (unpair the phone), "link" (Settings → Lumen Link)
+            if (/^(?:unlink|unpair|disconnect phone|unlink phone)$/i.test(q))
+                for (const d of Link.paired)
+                    out.push({ kind: "command", group: "Lumen Link", title: "Unlink " + d.name, subtitle: "Unpairs it — link again any time from the island or Settings",
+                               glyph: "link_off", badge: "Unlink", destructive: true, run: () => Link.unlink(d.id) });
             // Notes: "n dbms", "note lab", "notes" — titles and previews; Enter on the first line makes one
             if ((m = /^(?:n|note|notes)(?:\s+(.*))?$/i.exec(q))) {
                 const want = (m[1] ?? "").trim();
@@ -246,9 +251,36 @@ Singleton {
                 if (/^(?:att|attendance)$/i.test(q))
                     for (const c of Amazecc.courses.filter(c => c.pct !== null).sort((a, b) => a.pct - b.pct))
                         out.push({ kind: "command", group: "Attendance", title: Amazecc.courseName(c) + " · " + c.pct + "%", glyph: Amazecc.attendanceTone(c) === "error" ? "error" : Amazecc.attendanceTone(c) === "warning" ? "warning" : "check_circle",
-                                   subtitle: c.attended + " of " + c.total + " · " + (c.pct < Amazecc.cfg.threshold ? "attend the next " + Amazecc.needed(c) : "can miss " + Amazecc.skippable(c)),
+                                   subtitle: c.attended + " of " + c.total + " · " + (c.pct < Amazecc.cfg.threshold ? "attend the next " + Amazecc.needed(c) : "can miss " + Amazecc.skippable(c)) + Amazecc.trendText(c),
                                    badge: "", run: () => { Planner.open = true; } });
-                if (/^(?:exams?|cat|fat)$/i.test(q))
+                if ((m = /^(?:skip|bunk|miss)(?:\s+(.*))?$/i.exec(q))) {
+                    const day = Amazecc.parseDay(m[1] ?? "today");
+                    const impact = day ? Amazecc.skipImpact(day) : [];
+                    const label = day ? Qt.formatDate(day, "dddd d MMM") : "";
+                    for (const x of impact)
+                        out.push({ kind: "command", group: "If you skip " + label, title: Amazecc.courseName(x.course) + " · " + x.before + "% → " + x.after.toFixed(1) + "%",
+                                   glyph: x.below ? "error" : x.after < Amazecc.cfg.threshold + 5 ? "warning" : "check_circle", badge: x.below ? "Don't" : "",
+                                   subtitle: (x.n === 1 ? "1 class" : x.n + " classes") + " · " + (x.below ? (x.wasBelow ? "already under " : "drops under ") + Amazecc.cfg.threshold + "%"
+                                             : "stays above " + Amazecc.cfg.threshold + "% · could still miss " + Math.max(0, Amazecc.skippable(x.course) - x.n) + " more"),
+                                   run: () => { Planner.open = true; } });
+                    if (day && !impact.length) out.push({ kind: "command", group: "If you skip " + label, title: "No classes that day", glyph: "event_available", badge: "", run: () => {} });
+                    if (!day) out.push({ kind: "command", group: "Skip", title: "Which day? “skip fri”, “skip tomorrow”", glyph: "help", badge: "", run: () => {} });
+                }
+                if (/^(?:marks?|grades?|fat ?targets?|targets?)$/i.test(q))
+                    for (const m of Amazecc.marks) {
+                        const t = Amazecc.targets(m);
+                        if (!t) continue;
+                        out.push({ kind: "command", group: "FAT targets · pass: 40 in the FAT + 50 total · above E: relative to class", title: m.title + " · " + Amazecc.fmt(t.earned) + " / " + t.weighed,
+                                   glyph: "grading", badge: "",
+                                   subtitle: Amazecc.targetLine(m) + "  ·  " + Math.round(t.rate * 100) + "% so far",
+                                   run: () => { Ai.show(); Ai.send("What do I need in the " + m.title + " FAT for each grade?"); } });
+                    }
+                if (/^(?:revise|revision|study)$/i.test(q))
+                    for (const e of Amazecc.exams.filter(e => e.when > Date.now()).slice(0, 8))
+                        out.push({ kind: "command", group: "Make a revision note", title: e.kind + " · " + e.title, glyph: "checklist", badge: "Create",
+                                   subtitle: Planner.whenLabel(e.when, !e.timed) + " · modules, past papers, weak spots — in Notes, on your phone too",
+                                   run: () => Amazecc.revisionNote(e) });
+                if (/^(?:exams?|cat)$/i.test(q) || /^fat$/i.test(q))
                     for (const e of Amazecc.exams.filter(e => e.when > Date.now() - 3 * 3600000).slice(0, 8))
                         out.push({ kind: "command", group: "Exams", title: e.kind + " · " + e.title, glyph: "edit_note", badge: "",
                                    subtitle: Planner.whenLabel(e.when, !e.timed) + [e.venue, e.seat].filter(x => x).map(x => " · " + x).join(""), run: () => { Planner.open = true; } });

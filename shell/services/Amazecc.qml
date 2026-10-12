@@ -42,6 +42,7 @@ Singleton {
             property bool islandNext: true                // next class when you hover the island
             property bool lockScreen: true                // next class on the lock screen (no attendance details)
             property bool haloContext: true               // Halo may read this for questions about classes, attendance, marks, exams
+            property bool calendarFile: true              // ~/Notes/Calendar/VIT.ics: classes, exams, holidays for the phone's calendar
             property bool classReminders: true
             property int reminderMinutes: 10
             property bool examReminders: true
@@ -99,7 +100,12 @@ Singleton {
         if (hasLogin) requestSync();       // the new semester's timetable, now
     }
     function refreshStatus() { if (!statusProc.running) statusProc.running = true; }
-    function args() { return [script, "--api", cfg.api, "--semester", cfg.semester, "--threshold", String(cfg.threshold)]; }
+    function args() {
+        return [script, "--api", cfg.api, "--semester", cfg.semester, "--threshold", String(cfg.threshold)]
+            .concat(cfg.calendarFile ? ["--ics", calendarPath] : []);
+    }
+    // The timetable as a calendar file in the Notes folder, so Syncthing takes it to the phone
+    readonly property string calendarPath: Notes.dir + "/Calendar/VIT.ics"
     Process {
         id: statusProc
         running: true
@@ -207,7 +213,8 @@ Singleton {
         } else if (c.kind === "attendance" && cfg.attendanceAlerts) {
             const course = courses.find(x => x.id === c.id) ?? c;
             const body = c.state === "below"
-                ? c.pct + "% (" + c.attended + "/" + c.total + ") — under " + cfg.threshold + "%. Attend the next " + needed(course) + " to get back."
+                ? c.pct + "% (" + c.attended + "/" + c.total + ") — under " + cfg.threshold + "%. Attend the next " + needed(course) + " to get back"
+                  + (cfg.threshold <= 75 ? " — below 75% on the day before an exam means you're debarred from it." : ".")
                 : c.pct + "% (" + c.attended + "/" + c.total + ") — " + (skippable(course) === 0 ? "don't miss the next one" : "you can miss " + skippable(course) + " more");
             notify("warning", "Attendance · " + courseName(Object.assign({ kind: c.kindOf }, c)), body);
             toPhone("Attendance — " + courseName(Object.assign({ kind: c.kindOf }, c)) + ": " + body);
@@ -241,6 +248,153 @@ Singleton {
     }
     // Courses that need care, worst first
     readonly property var attention: courses.filter(c => c.pct !== null && c.pct < cfg.threshold + 5).sort((a, b) => a.pct - b.pct)
+
+    // ── attendance trend (from the history each sync keeps on this computer) ──
+    // Change since about a week ago, in points (null: no history yet)
+    function trend(c) {
+        const w = (data.weekAgo ?? {})[c?.id];
+        return w && c.pct !== null ? c.pct - w[2] : null;
+    }
+    function trendText(c) {
+        const t = trend(c);
+        return t === null || Math.abs(t) < 0.5 ? "" : (t > 0 ? " · ↑" : " · ↓") + Math.abs(t).toFixed(0) + " this week";
+    }
+
+    // ── exam countdown ──
+    readonly property var nextExam: { clock.date; return exams.find(e => e.when > Date.now()) ?? null; }
+    function daysTo(ms) {
+        const a = new Date(clock.date.getFullYear(), clock.date.getMonth(), clock.date.getDate()).getTime();
+        const d = new Date(ms); const b = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+        return Math.round((b - a) / 86400000);
+    }
+    // "FAT · Models of Computation in 4 days" — within a week
+    readonly property string examCountdown: {
+        const e = nextExam;
+        if (!e || !cfg.enabled) return "";
+        const n = daysTo(e.when);
+        if (n > 7) return "";
+        return e.kind + " · " + e.title + (n === 0 ? " today" : n === 1 ? " tomorrow" : " in " + n + " days");
+    }
+    // A revision checklist in Notes (and so on the phone)
+    function revisionNote(e) {
+        const title = "Revision — " + e.kind + " " + e.title;
+        const body = "**" + e.kind + " · " + Planner.whenLabel(e.when, !e.timed) + "**" + (e.venue ? " · " + e.venue : "") + (e.seat ? " · seat " + e.seat : "") + "\n\n"
+                   + "## Syllabus\n" + [1, 2, 3, 4, 5, 6, 7].map(i => "- [ ] Module " + i).join("\n") + "\n\n"
+                   + "## Past papers\n- [ ] \n\n## Weak spots\n- \n";
+        Quickshell.execDetached(["sh", "-c", 'f=$("$1" --dir "$2" new "$3") && printf "%s" "$4" >> "$2/$f" && exec "$5" notes note "$f"',
+                                 "sh", Theme.lumenRoot + "/scripts/notes.py", Notes.dir, title, body, Theme.lumenRoot + "/bin/lumen-shell-ipc"]);
+    }
+    // A week before each exam (from 6 pm, once): the island offers the note
+    Timer {
+        interval: 600000; repeat: true; triggeredOnStart: true
+        running: Persist.automates && root.cfg.enabled && root.cfg.examReminders && root.ready
+        onTriggered: {
+            if (new Date().getHours() < 18) return;
+            for (const e of root.exams) {
+                const n = root.daysTo(e.when);
+                if (n < 1 || n > 7 || !root.remindFlag("exam-week:" + e.kind + ":" + e.code)) continue;
+                Island.device("exam-week:" + e.code, {
+                    icon: "edit_note", badge: e.kind,
+                    title: e.title + " in " + n + (n === 1 ? " day" : " days"),
+                    detail: Planner.whenLabel(e.when, !e.timed) + (e.venue ? " · " + e.venue : ""),
+                    actions: [{ icon: "checklist", label: "Make revision note", cmd: ["sh", "-c", 'exec "$0" amazecc revise "$1"', Theme.lumenRoot + "/bin/lumen-shell-ipc", e.code + "|" + e.kind] }]
+                });
+                break;
+            }
+        }
+    }
+
+    // ── what if I skip a day ──
+    // Each slot is one class in VTOP's count, so a 2-hour lab (L1+L2) is two.
+    function slotsIn(c) { return Math.max(1, Math.round((c.end - c.start) / 50)); }
+    // [{ course, n, before, after, below, wasBelow }] for the classes on `date`
+    function skipImpact(date) {
+        const by = {};
+        for (const c of classesOn(date)) by[c.id] = (by[c.id] ?? 0) + slotsIn(c);
+        const t = cfg.threshold;
+        return Object.keys(by).map(id => {
+            const course = courses.find(x => x.id === id);
+            if (!course?.total) return null;
+            const n = by[id];
+            const after = 100 * course.attended / (course.total + n);
+            return { course, n, before: course.pct, after, below: after < t, wasBelow: course.pct < t };
+        }).filter(x => x).sort((a, b) => a.after - b.after);
+    }
+    // "today" · "tomorrow" · "fri" · "friday" · "2026-10-16" → a date with classes (within 7 days)
+    function parseDay(word) {
+        const w = (word ?? "").trim().toLowerCase(), now = clock.date;
+        const base = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (!w || w === "today") return base;
+        if (/^(tomorrow|tmr|tmrw)$/.test(w)) return new Date(base.getTime() + 86400000);
+        const i = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"].findIndex(d => w.startsWith(d));
+        if (i >= 0) { let k = (i - base.getDay() + 7) % 7; return new Date(base.getTime() + k * 86400000); }
+        const d = new Date(w + "T00:00");
+        return isNaN(d.getTime()) ? null : d;
+    }
+    // At 9 pm: would skipping tomorrow put a course under the minimum?
+    Timer {
+        interval: 60000; repeat: true
+        running: Persist.automates && root.cfg.enabled && root.cfg.attendanceAlerts && root.ready
+        onTriggered: {
+            const now = new Date();
+            if (now.getHours() !== 21) return;
+            const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+            const risky = root.skipImpact(tomorrow).filter(x => x.below);
+            if (!risky.length || !root.remindFlag("skipwarn:" + root.dateKey(tomorrow))) return;
+            const names = risky.map(x => root.courseName(x.course) + " (" + x.before + "% → " + x.after.toFixed(1) + "%)").join(", ");
+            root.notify("event_busy", "Tomorrow: don't skip " + (risky.length === 1 ? "this" : "these"), names);
+            if (root.cfg.phoneReminders) Link.notify("Tomorrow, don't skip: " + names);
+        }
+    }
+
+    // ── FAT targets ──
+    // VIT FFCS Academic Regulations v4.0 §9.1–9.5: a theory course is CAT-I 15 +
+    // CAT-II 15 + digital assignments 30 (3×10) + FAT 40 (the paper is out of 100).
+    // To pass: at least 40/100 in the FAT itself, and a total of 50 (relative
+    // grading may set the pass mark lower, never higher). Grades above E are
+    // relative to the class (B centred on the average) when it has more than 10
+    // students, so the absolute bands (90/80/70/60/55/50) here are a guide.
+    // Internals not yet posted count from "full" to "at your rate so far".
+    readonly property var grades: [["S", 90], ["A", 80], ["B", 70], ["C", 60], ["D", 55], ["E", 50]]
+    readonly property int fatWeight: 40
+    readonly property int fatMin: 40                 // marks out of 100 in the FAT itself, to pass
+    function targets(m) {
+        const posted = (m?.assessments ?? []).filter(a => a.scored !== null && a.weight);
+        if (!posted.length || m.kind === "lab") return null;
+        const fatDone = posted.find(a => /\bFAT\b|final assessment/i.test(a.title));
+        const internal = posted.filter(a => a !== fatDone);
+        const earned = internal.reduce((x, a) => x + (a.weightMark ?? 0), 0);
+        const weighed = internal.reduce((x, a) => x + a.weight, 0);
+        const rate = weighed ? earned / weighed : 0;                    // 0–1
+        const left = Math.max(0, 100 - fatWeight - weighed);              // internals still to come
+        const expected = earned + left * rate;
+        // Two ends: the internals still to come at your rate so far (need), or full (needFull)
+        const need = {}, needFull = {};
+        for (const [g, cut] of grades) {
+            need[g] = Math.ceil((cut - expected) / fatWeight * 100);
+            needFull[g] = Math.ceil((cut - earned - left) / fatWeight * 100);
+        }
+        // Whatever the internals, the FAT itself needs 40 / 100 (§9.4 a)
+        need.E = Math.max(fatMin, need.E);
+        needFull.E = Math.max(fatMin, needFull.E);
+        return { earned, weighed, rate, left, expected, need, needFull, done: !!fatDone,
+                 total: fatDone ? expected + (fatDone.weightMark ?? 0) : null };
+    }
+    // "Pass: FAT 14–53 · A in reach: 89+" — a range from full assignments to your rate so far
+    function fatRange(t, g) {
+        const lo = Math.max(0, t.needFull[g]), hi = t.need[g];
+        if (lo > 100) return "out of reach";
+        return lo === hi || t.left === 0 ? String(Math.min(lo, 100)) : lo + "–" + (hi > 100 ? "100+" : Math.max(0, hi));
+    }
+    function targetLine(m) {
+        const t = targets(m);
+        if (!t) return "";
+        if (t.done) return "Total " + fmt(t.total) + " / 100";
+        const best = grades.find(([g]) => t.needFull[g] <= 100);
+        if (!best) return "Even full marks miss 50 on the absolute scale — relative grading decides";
+        return "Pass: FAT " + fatRange(t, "E") + (best[0] !== "E" ? " · " + best[0] + ": " + fatRange(t, best[0]) : "");
+    }
+
 
     // ── the day ──
     SystemClock { id: clock; precision: SystemClock.Minutes }
@@ -289,11 +443,17 @@ Singleton {
     // ── the planner's Agenda: exams, holidays and changed day orders ──
     readonly property var agenda: {
         if (!cfg.enabled) return [];
+        const today = new Date(clock.date.getFullYear(), clock.date.getMonth(), clock.date.getDate()).getTime();
         const out = [];
         if (cfg.examsInAgenda)
             for (const e of exams)
+            {
+                // A FAT says what it needs: "Pass: FAT 14–53"
+                const m = /FAT/i.test(e.kind) ? marks.find(x => x.code === e.code && x.kind !== "lab") : null;
+                const need = m ? targetLine(m).replace(/ · .*$/, "") : "";
                 out.push({ title: e.kind + " · " + e.title, when: e.when, allDay: !e.timed,
-                           external: true, source: "amazecc", detail: [e.venue, e.seat].filter(x => x).join(" · ") });
+                           external: true, source: "amazecc", detail: [e.venue, e.seat, need].filter(x => x).join(" · ") });
+            }
         if (cfg.holidaysInAgenda) {
             // "Holiday · (Deepavali)" → "Deepavali"; a weekend with no name isn't news;
             // a run of the same holiday (an 8-day break) is one line
@@ -301,7 +461,10 @@ Singleton {
             const flush = () => {
                 if (!run) return;
                 const until = run.last !== run.first ? " · till " + Qt.formatDate(new Date(run.last + "T12:00"), "ddd d MMM") : "";
-                out.push({ title: run.name + " — no classes" + until, when: new Date(run.first + "T00:00").getTime(), allDay: true, external: true, source: "amazecc" });
+                // A break that has already begun shows from today, and stays until its last day
+                const first = new Date(run.first + "T00:00").getTime(), last = new Date(run.last + "T00:00").getTime();
+                out.push({ title: run.name + " — no classes" + until, when: Math.max(first, Math.min(last, today)), until: last,
+                           allDay: true, external: true, source: "amazecc" });
                 run = null;
             };
             for (const d of data.days ?? []) {
@@ -379,6 +542,12 @@ Singleton {
         target: "amazecc"
         function sync(): void { root.sync(true); }
         function next(): string { return root.headline; }
+        // "BACSE202|FAT" → a revision note for that exam
+        function revise(which: string): void {
+            const [code, kind] = which.split("|");
+            const e = root.exams.find(x => x.code === code && (!kind || x.kind === kind));
+            if (e) root.revisionNote(e);
+        }
         function state(): string {
             return JSON.stringify({ enabled: root.cfg.enabled, hasLogin: root.hasLogin, syncing: root.syncing, error: root.error,
                                     updated: root.updated, courses: root.courses.length, today: root.today.length, headline: root.headline });

@@ -7,7 +7,8 @@ its runtime PM status already says "active".
   monitor.py static                       JSON: CPU model, cores, caches, GPUs, disks, kernel…
   monitor.py stream [--interval 1.0]      one JSON sample per line, forever (processes + hardware).
                                           procs are rows: [pid, ppid, name, uid, state, nice, threads, start,
-                                          cpu %, private mem, rss, read B/s, write B/s, kernel]; "pinfo" carries
+                                          cpu %, private mem, rss, read B/s, write B/s, kernel, net B/s (TCP),
+                                          gpu %]; "pinfo" carries
                                           {cmd, exe, user, comm} the first time a process is seen
   monitor.py detail <pid>                 JSON: one process in depth (memory, files, ports, unit…)
   monitor.py signal <pid> TERM|KILL|STOP|CONT [--tree]
@@ -16,6 +17,8 @@ its runtime PM status already says "active".
   monitor.py startup-set <kind> <id> on|off
   monitor.py services                     JSON: user services, and running system services
   monitor.py service <unit> start|stop|restart     (user services only)
+  monitor.py usage-snap                   add CPU/GPU time per app since the last snapshot (run every few minutes)
+  monitor.py usage                        JSON: {date: {app: [cpu seconds, gpu seconds]}}, 35 days
 """
 import argparse
 import glob
@@ -329,8 +332,22 @@ def net_meta():
                    "speed": speed if speed and speed > 0 else None}
     ssid = run(["sh", "-c", "nmcli -t -f ACTIVE,SSID dev wifi 2>/dev/null | grep '^yes:' | head -1 | cut -d: -f2-"]).strip()
     for n, m in meta.items():
-        if m["kind"] == "wifi" and ssid:
+        if m["kind"] != "wifi":
+            continue
+        if ssid:
             m["ssid"] = ssid
+        # Wi-Fi cards don't report /sys/class/net/*/speed; iw knows the link
+        link = run(["iw", "dev", n, "link"])
+        rate = re.search(r"tx bitrate:\s*([\d.]+)\s*MBit/s", link)
+        sig = re.search(r"signal:\s*(-?\d+)\s*dBm", link)
+        freq = re.search(r"freq:\s*([\d.]+)", link)
+        if rate:
+            m["speed"] = round(float(rate.group(1)))
+        if sig:
+            m["signal"] = int(sig.group(1))
+        if freq:
+            f = float(freq.group(1))
+            m["band"] = "6 GHz" if f >= 5925 else "5 GHz" if f >= 4900 else "2.4 GHz"
     return meta
 
 
@@ -347,6 +364,48 @@ def windows():
     return res
 
 
+def socket_bytes():
+    """pid → bytes sent + received on its TCP sockets (your own processes; no root)."""
+    out_, pid = {}, None
+    for line in run(["ss", "-tinpH"], timeout=3).splitlines():
+        if not line.startswith(("\t", " ")):
+            m = re.search(r"pid=(\d+)", line)
+            pid = int(m.group(1)) if m else None
+            continue
+        if pid is None:
+            continue
+        tx = re.search(r"bytes_sent:(\d+)", line)
+        rx = re.search(r"bytes_received:(\d+)", line)
+        out_[pid] = out_.get(pid, 0) + (int(tx.group(1)) if tx else 0) + (int(rx.group(1)) if rx else 0)
+    return out_
+
+
+def gpu_time(pids):
+    """pid → nanoseconds of GPU engine time (amdgpu/i915/xe fdinfo), one count per DRM client."""
+    res = {}
+    for pid in pids:
+        seen, total = set(), 0
+        try:
+            fds = os.listdir("/proc/%d/fd" % pid)
+        except OSError:
+            continue
+        for fd in fds:
+            try:
+                if not os.readlink("/proc/%d/fd/%s" % (pid, fd)).startswith("/dev/dri/"):
+                    continue
+            except OSError:
+                continue
+            info = read("/proc/%d/fdinfo/%s" % (pid, fd))
+            cid = re.search(r"drm-client-id:\s*(\d+)", info)
+            if not cid or cid.group(1) in seen:
+                continue
+            seen.add(cid.group(1))
+            total += sum(int(n) for n in re.findall(r"drm-engine-[\w-]+:\s*(\d+)\s*ns", info))
+        if seen:
+            res[pid] = total
+    return res
+
+
 class Procs:
     """Per-process sampling, with the state needed for rates."""
 
@@ -356,8 +415,10 @@ class Procs:
         self.sent = set()     # processes whose details the reader already has
         self.new = {}         # pid → details, sent once
 
-    def sample(self, now):
+    def sample(self, now, net=None, gpu=None):
         res, seen = [], {}
+        prev_net, prev_gpu = getattr(self, "net", {}), getattr(self, "gpu", {})
+        dt_side = max(1e-3, now - getattr(self, "side_t", now - 1))
         for e in os.scandir("/proc"):
             if not e.name.isdigit():
                 continue
@@ -410,11 +471,19 @@ class Procs:
                 if first and first.startswith(comm[:15]) and len(first) > len(comm):
                     name = first
             # Compact rows (the list is sent every tick): see ROW in the docstring
+            nrate = grate = 0
+            if net is not None and pid in net and pid in prev_net:
+                nrate = max(0, net[pid] - prev_net[pid]) / dt_side
+            if gpu is not None and pid in gpu and pid in prev_gpu:
+                grate = max(0.0, (gpu[pid] - prev_gpu[pid]) / (dt_side * 1e9) * 100)
             res.append([pid, ppid, name, uid, state, nice, threads, round(BOOT + start / HZ),
-                        round(cpu, 2), max(0, resident - shared), resident, round(rd), round(wr), 1 if kernel else 0])
+                        round(cpu, 2), max(0, resident - shared), resident, round(rd), round(wr), 1 if kernel else 0,
+                        round(nrate), round(min(100.0, grate), 1)])
             if key not in self.sent:
                 self.new[pid] = {"cmd": cmd, "exe": exe, "user": user(uid), "comm": comm}
         self.prev = seen
+        if net is not None:
+            self.net, self.gpu, self.side_t = net, gpu or {}, now
         live = set(seen)
         self.static = {k: v for k, v in self.static.items() if k in live}
         self.sent = live
@@ -472,7 +541,15 @@ def cmd_stream(a):
         for g in static_gpus:
             v = amd_gpu(g["card"]) if g["kind"] == "amd" else nvidia_gpu(g["card"]) if g["kind"] == "nvidia" else {"state": "active"}
             gpu_out.append(dict(g, **v))
-        plist = procs.sample(now)
+        side = tick % 2 == 0
+        mine = [r[0] for r in getattr(procs, "last", []) if r[3] == ME] if side else []
+        plist = procs.sample(now, socket_bytes() if side else None, gpu_time(mine) if side else None)
+        if not side:   # keep the last rates between measurements
+            last = {r[0]: r for r in getattr(procs, "last", [])}
+            for r in plist:
+                if r[0] in last:
+                    r[14], r[15] = last[r[0]][14], last[r[0]][15]
+        procs.last = plist
         sample = {
             "t": int(now * 1000),
             "uptime": float(read("/proc/uptime").split()[0] or 0),
@@ -495,6 +572,118 @@ def cmd_stream(a):
         prev_cpu, prev_disk, prev_net, prev_t = cpu, disk, net, now
         tick += 1
         time.sleep(max(0.1, a.interval - (time.time() - now)))
+
+
+# ── app history: CPU and GPU time per app, day by day ───────────────────────
+# `usage-snap` runs every few minutes from the shell; each process's time since
+# the last snapshot goes to its app — the window it belongs to (a browser's helpers
+# count as the browser), else its own name. Kept 35 days, on this computer.
+
+USAGE = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "lumen", "app-usage.json")
+
+
+def app_names():
+    """pid → app name, through the window each process descends from."""
+    parent, names = {}, {}
+    for e in os.scandir("/proc"):
+        if e.name.isdigit():
+            r = read("/proc/%s/stat" % e.name)
+            q = r[r.rfind(")") + 2:].split()
+            if len(q) > 1:
+                parent[int(e.name)] = int(q[1])
+                names[int(e.name)] = r[r.find("(") + 1:r.rfind(")")]
+    wins = {pid: w["class"] for pid, w in windows().items()}
+    # Window class → the app's own name, from installed .desktop files
+    wm = {}
+    dirs = [os.path.expanduser("~/.local/share/applications"), "/usr/share/applications",
+            "/var/lib/flatpak/exports/share/applications", os.path.expanduser("~/.local/share/flatpak/exports/share/applications")]
+    for d in dirs:
+        for path in glob.glob(d + "/*.desktop"):
+            f = desktop_fields(path)
+            if f.get("Name"):
+                for k in (f.get("StartupWMClass", ""), os.path.basename(path)[:-8]):
+                    if k:
+                        wm.setdefault(k.lower(), f["Name"])
+    def pretty(c):
+        if c == "org.quickshell":
+            return "Lumen"
+        hit = wm.get(c.lower())
+        if hit:
+            return hit
+        site = re.match(r"^(?:brave|chrome|chromium|msedge|vivaldi)-(.+?)__.*$", c)
+        if site:                                   # a browser web app: its site
+            return site.group(1)
+        last = c.split(".")[-1]
+        return last[:1].upper() + last[1:]
+    res = {}
+    for pid in parent:
+        p, hops = pid, 0
+        while p > 1 and hops < 64:
+            if p in wins:
+                res[pid] = pretty(wins[p])
+                break
+            p, hops = parent.get(p, 0), hops + 1
+        else:
+            res[pid] = names[pid]
+        res.setdefault(pid, names[pid])
+        if parent.get(pid) == 2:                   # kernel workers by kind: "kworker/u48:6-btrfs" → "kworker"
+            res[pid] = re.sub(r"[/:].*$", "", names[pid])
+    return res
+
+
+def cmd_usage_snap(a):
+    st = read_json_file(USAGE) or {"last": {}, "days": {}}
+    names = app_names()
+    mine = []
+    for pid in names:
+        try:
+            if os.stat("/proc/%d" % pid).st_uid == ME:
+                mine.append(pid)
+        except OSError:
+            pass
+    gpu = gpu_time([p for p in mine if os.path.exists("/proc/%d" % p)])
+    now_last, today = {}, time.strftime("%Y-%m-%d")
+    day = st["days"].setdefault(today, {})
+    for pid, app in names.items():
+        raw = read("/proc/%d/stat" % pid)
+        q = raw[raw.rfind(")") + 2:].split()
+        if len(q) < 20:
+            continue
+        key = "%d:%s" % (pid, q[19])               # pid + start time: a reused pid starts over
+        ticks = int(q[11]) + int(q[12])
+        g = gpu.get(pid, 0)
+        prev = st["last"].get(key)
+        now_last[key] = [ticks, g]
+        if prev is None:
+            continue
+        cpu = max(0, ticks - prev[0]) / HZ
+        gsec = max(0, g - prev[1]) / 1e9
+        if cpu or gsec:
+            rec = day.setdefault(app, [0.0, 0.0])
+            rec[0] = round(rec[0] + cpu, 1)
+            rec[1] = round(rec[1] + gsec, 1)
+    st["last"] = now_last
+    keep = sorted(st["days"])[-35:]
+    st["days"] = {d: st["days"][d] for d in keep}
+    os.makedirs(os.path.dirname(USAGE), exist_ok=True)
+    tmp = USAGE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(st, f, separators=(",", ":"))
+    os.replace(tmp, USAGE)
+    out({"ok": True, "apps": len(day)})
+
+
+def cmd_usage(a):
+    st = read_json_file(USAGE) or {"days": {}}
+    out(st.get("days", {}))
+
+
+def read_json_file(path):
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
 
 
 # ── one process in depth ────────────────────────────────────────────────────
@@ -717,6 +906,8 @@ def main():
     sub.add_parser("startup")
     s = sub.add_parser("startup-set"); s.add_argument("kind", choices=["autostart", "service"]); s.add_argument("id"); s.add_argument("state", choices=["on", "off"])
     sub.add_parser("services")
+    sub.add_parser("usage-snap")
+    sub.add_parser("usage")
     s = sub.add_parser("service"); s.add_argument("unit"); s.add_argument("action")
     a = p.parse_args()
     try:

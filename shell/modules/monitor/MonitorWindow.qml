@@ -1,7 +1,7 @@
 // Lumen Monitor — the window (Ctrl+Shift+Esc). A rail of views on the left
 // (Processes · Performance · Startup · Services), the view on the right, and
 // one header: search (Processes), how often to sample, pause.
-//   Ctrl+1…4 views · Ctrl+F search · Space pause · Ctrl+W close
+//   Ctrl+1…5 views · Ctrl+F search · Space pause · Ctrl+W close
 import QtQuick
 import Quickshell
 import qs.theme
@@ -26,6 +26,7 @@ FloatingWindow {
     readonly property var tabs: [
         { id: "processes",   icon: "list_alt",       label: "Processes" },
         { id: "performance", icon: "monitoring",     label: "Performance" },
+        { id: "history",     icon: "history",        label: "App history" },
         { id: "startup",     icon: "rocket_launch",  label: "Startup" },
         { id: "services",    icon: "settings_applications", label: "Services" },
     ]
@@ -47,7 +48,7 @@ FloatingWindow {
         focus: true
         Keys.onPressed: e => {
             const ctrl = e.modifiers & Qt.ControlModifier;
-            if (ctrl && e.key >= Qt.Key_1 && e.key <= Qt.Key_4) win.tab = win.tabs[e.key - Qt.Key_1].id;
+            if (ctrl && e.key >= Qt.Key_1 && e.key <= Qt.Key_5) win.tab = win.tabs[e.key - Qt.Key_1].id;
             else if (ctrl && e.key === Qt.Key_W) win.visible = false;
             else if (ctrl && e.key === Qt.Key_F) { win.tab = "processes"; search.input.forceActiveFocus(); }
             else if (e.key === Qt.Key_Space && !search.input.activeFocus) SystemMonitor.paused = !SystemMonitor.paused;
@@ -139,10 +140,11 @@ FloatingWindow {
         // ── the view ──
         Loader {
             anchors { top: header.bottom; topMargin: Theme.space.s3; bottom: footer.top; left: rail.right; right: parent.right }
-            sourceComponent: ({ processes: processesC, performance: performanceC, startup: startupC, services: servicesC })[win.tab]
+            sourceComponent: ({ processes: processesC, performance: performanceC, history: historyC, startup: startupC, services: servicesC })[win.tab]
         }
         Component { id: processesC; ProcessesView { query: search.text } }
         Component { id: performanceC; PerformanceView { pick: win.resource || "cpu" } }
+        Component { id: historyC; AppHistoryView {} }
         Component { id: startupC; StartupView { query: search.text } }
         Component { id: servicesC; ServicesView { query: search.text } }
 

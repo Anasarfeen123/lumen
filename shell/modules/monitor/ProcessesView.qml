@@ -27,11 +27,28 @@ Item {
         { key: "cpu", label: "CPU", w: 76, total: () => Math.round(SystemMonitor.s.cpu ?? 0) + "%" },
         { key: "mem", label: "Memory", w: 96, total: () => { const m = SystemMonitor.s.mem ?? {}; return m.total ? Math.round(100 * (m.total - m.available) / m.total) + "%" : ""; } },
         { key: "disk", label: "Disk", w: 96, total: () => { let a = 0; for (const d in SystemMonitor.s.disks ?? {}) a = Math.max(a, SystemMonitor.s.disks[d].active); return Math.round(a) + "%"; } },
+        { key: "net", label: "Network", w: 96, total: () => { let t = 0; for (const n in SystemMonitor.s.net ?? {}) t += SystemMonitor.s.net[n].rx + SystemMonitor.s.net[n].tx; return SystemMonitor.bits(t); } },
+        { key: "gpu", label: "GPU", w: 70, total: () => { const g = (SystemMonitor.s.gpus ?? []).find(x => x.kind === "amd" || x.state === "active"); return g?.util !== undefined && g?.util !== null ? Math.round(g.util) + "%" : ""; } },
         { key: "pid", label: "PID", w: 86 },
         { key: "user", label: "User", w: 96 },
         { key: "threads", label: "Threads", w: 70 },
     ]
-    readonly property real fixedW: cols.reduce((a, c) => a + (c.w > 0 ? c.w : 0), 0)
+    // On a narrow window the least useful columns step aside, in this order
+    readonly property var dropOrder: ["threads", "user", "status", "pid", "disk", "gpu"]
+    readonly property var hidden: {
+        const avail = table.width - 216;                     // the name keeps at least 200 px
+        let used = cols.reduce((a, c) => a + (c.w > 0 ? c.w : 0), 0);
+        const out = [];
+        for (const k of dropOrder) {
+            if (used <= avail) break;
+            used -= cols.find(c => c.key === k).w;
+            out.push(k);
+        }
+        return out;
+    }
+    function shown(k) { return !hidden.includes(k); }
+    readonly property var visibleCols: cols.filter(c => shown(c.key))
+    readonly property real fixedW: visibleCols.reduce((a, c) => a + (c.w > 0 ? c.w : 0), 0)
 
     function matches(g) {
         const q = query.trim().toLowerCase();
@@ -40,7 +57,7 @@ Item {
     }
     function sortVal(g) {
         return ({ name: g.name.toLowerCase(), status: g.suspended ? 1 : 0, cpu: g.cpu, mem: g.mem, disk: g.rd + g.wr,
-                  pid: g.pid, user: g.user, threads: g.threads })[sortKey];
+                  pid: g.pid, user: g.user, threads: g.threads, net: g.net, gpu: g.gpu })[sortKey];
     }
     function sorted(list) {
         const d = desc ? -1 : 1;
@@ -117,13 +134,13 @@ Item {
             id: head
             width: parent.width; height: 46
             Repeater {
-                model: view.cols
+                model: view.visibleCols
                 delegate: HoverTarget {
                     required property var modelData
                     width: modelData.w > 0 ? modelData.w : table.nameW
                     height: head.height; radius: Theme.radius.sm
                     onClicked: view.sortBy(modelData.key)
-                    readonly property bool numeric: ["cpu", "mem", "disk", "pid", "threads"].includes(modelData.key)
+                    readonly property bool numeric: ["cpu", "mem", "disk", "net", "gpu", "pid", "threads"].includes(modelData.key)
                     Column {
                         anchors { verticalCenter: parent.verticalCenter; left: parent.numeric ? undefined : parent.left; right: parent.numeric ? parent.right : undefined; leftMargin: Theme.space.s3; rightMargin: Theme.space.s2 }
                         LText { anchors.right: parent.parent.numeric ? parent.right : undefined; role: "title"; font.pixelSize: 15
@@ -220,13 +237,15 @@ Item {
                             }
                         }
                     }
-                    Cell { w: 96; text: r.g.suspended ? "Suspended" : ""; tone: Theme.warning; alignLeft: true }
+                    Cell { visible: view.shown("status"); w: 96; text: r.g.suspended ? "Suspended" : ""; tone: Theme.warning; alignLeft: true }
                     Cell { w: 76; text: r.g.cpu >= 0.05 ? r.g.cpu.toFixed(1) + "%" : "0%"; bg: view.heat(r.g.cpu, 0.5, 40) }
                     Cell { w: 96; text: SystemMonitor.bytes(r.g.mem); bg: view.heat(r.g.mem, 200 * 1048576, 3 * 1073741824) }
-                    Cell { w: 96; text: r.g.rd + r.g.wr > 0 ? SystemMonitor.rate(r.g.rd + r.g.wr) : "0"; bg: view.heat(r.g.rd + r.g.wr, 100 * 1024, 60 * 1048576) }
-                    Cell { w: 86; text: String(r.g.pid); muted: true }
-                    Cell { w: 96; text: r.g.user; muted: true; alignLeft: true }
-                    Cell { w: 70; text: String(r.g.threads); muted: true }
+                    Cell { visible: view.shown("disk"); w: 96; text: r.g.rd + r.g.wr > 0 ? SystemMonitor.rate(r.g.rd + r.g.wr) : "0"; bg: view.heat(r.g.rd + r.g.wr, 100 * 1024, 60 * 1048576) }
+                    Cell { w: 96; text: r.g.net > 0 ? SystemMonitor.bits(r.g.net) : "0"; bg: view.heat(r.g.net, 20 * 1024, 4 * 1048576) }
+                    Cell { visible: view.shown("gpu"); w: 70; text: r.g.gpu >= 0.1 ? r.g.gpu.toFixed(1) + "%" : "0%"; bg: view.heat(r.g.gpu, 1, 50) }
+                    Cell { visible: view.shown("pid"); w: 86; text: String(r.g.pid); muted: true }
+                    Cell { visible: view.shown("user"); w: 96; text: r.g.user; muted: true; alignLeft: true }
+                    Cell { visible: view.shown("threads"); w: 70; text: String(r.g.threads); muted: true }
                 }
             }
         }

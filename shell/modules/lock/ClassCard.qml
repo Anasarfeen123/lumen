@@ -41,6 +41,12 @@ FrostPane {
             role: "body"; color: Theme.textSecondary
             text: root.cls ? (root.cls.venue + (Amazecc.isCurrent(root.cls) ? "" : " · " + Amazecc.inLabel(root.cls.start))).replace(/^ · /, "") : (Amazecc.nextDay?.first.venue ?? "")
         }
+        LText {
+            visible: Amazecc.examCountdown !== ""
+            width: parent.width; elide: Text.ElideRight
+            role: "caption"; color: Theme.accent
+            text: Amazecc.examCountdown
+        }
         Row {
             visible: root.behind > 0
             spacing: 5
