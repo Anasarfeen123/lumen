@@ -1,5 +1,6 @@
 // Power: mode, battery, idle behaviour.
 import QtQuick
+import Quickshell
 import Quickshell.Services.UPower
 import Quickshell.Io
 import qs.theme
@@ -85,6 +86,59 @@ Page {
                     limitSet.command = ["pkexec", Theme.lumenRoot + "/scripts/power-admin.sh", "charge-limit", id];
                     limitSet.running = true;
                 }
+            }
+        }
+    }
+
+    // ── The NVIDIA GPU and the HDMI port ──
+    // On this kind of laptop the HDMI port is wired to the NVIDIA GPU, so the
+    // session opens that GPU to drive it — and it then wakes every few seconds.
+    // LUMEN_DGPU=off in session.env (bin/lumen-session) leaves it out at the next
+    // login: the GPU sleeps, the HDMI port is off. lumen-dgpu <app> still works.
+    readonly property string sessionEnv: Theme.lumenRoot + "/session.env"
+    property string envText: ""
+    property bool dgpuInSession: false            // this session was started with it
+    property bool dgpuPresent: false
+    readonly property bool hdmiOff: /^\s*LUMEN_DGPU=off\s*$/m.test(envText)
+    FileView { id: envFile; path: page.sessionEnv; watchChanges: true; printErrors: false
+               onFileChanged: reload(); onLoaded: page.envText = text(); onLoadFailed: page.envText = "" }
+    Process {
+        running: true
+        command: ["sh", "-c", 'for d in /sys/bus/pci/devices/*; do [ "$(cat $d/vendor)" = 0x10de ] && case $(cat $d/class) in 0x03*) echo present;; esac; done; '
+                 + 'p=$(pgrep -u "$(id -u)" -x Hyprland | head -1); [ -n "$p" ] && tr "\\0" "\\n" < /proc/$p/environ | grep "^AQ_DRM_DEVICES="']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                page.dgpuPresent = /present/.test(text);
+                const m = /AQ_DRM_DEVICES=(.*)/.exec(text);
+                page.dgpuInSession = !!m && m[1].split(":").filter(x => x).length > 1;
+            }
+        }
+    }
+    Component.onCompleted: Power.checkDgpu()
+    function setHdmi(on) {
+        Quickshell.execDetached(["sh", "-c", 'f="$1"; touch "$f"; sed -i "/^[[:space:]]*LUMEN_DGPU=/d" "$f"; [ "$2" = off ] && printf "LUMEN_DGPU=off\\n" >> "$f"; true',
+                                 "sh", sessionEnv, on ? "on" : "off"]);
+    }
+    Group {
+        title: "NVIDIA GPU"
+        visible: page.dgpuPresent
+        SetRow {
+            icon: Power.dgpu === "suspended" ? "bedtime" : Power.dgpu === "error" ? "battery_alert" : "bolt"
+            title: Power.dgpu === "suspended" ? "Asleep — saving battery" : Power.dgpu === "error" ? "Stuck awake — restart to recover" : "Awake"
+            description: page.dgpuInSession
+                ? "This session drives the HDMI port with it, which wakes it every few seconds even when nothing is plugged in"
+                : "Not used by the desktop this session (HDMI port off); apps you start with lumen-dgpu still use it"
+        }
+        SetRow {
+            icon: "settings_input_hdmi"
+            title: "HDMI port"
+            description: (page.hdmiOff ? "Off from the next login — the NVIDIA GPU can sleep. "
+                                       : "On — needed for an external monitor or projector. ")
+                         + (page.hdmiOff === !page.dgpuInSession ? "" : "Log out and back in to apply.")
+            Row {
+                spacing: Theme.space.s2
+                Button { visible: page.hdmiOff === page.dgpuInSession; text: "Log out…"; onActivated: SettingsState.shellCall("session", "menu") }
+                LSwitch { checked: !page.hdmiOff; onToggled: page.setHdmi(!checked ? true : false) }
             }
         }
     }
