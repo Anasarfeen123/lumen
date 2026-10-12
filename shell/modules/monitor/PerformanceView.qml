@@ -248,7 +248,7 @@ Item {
                 HoverTarget {
                     anchors { right: parent.right; rightMargin: Theme.space.s3; verticalCenter: parent.verticalCenter }
                     width: 92; height: 34; radius: 17
-                    onClicked: Quickshell.execDetached(["pkexec", Theme.lumenRoot + "/scripts/power-admin.sh", "dgpu-pm-reset"])
+                    onClicked: Quickshell.execDetached([Theme.lumenRoot + "/bin/lumen-shell-ipc", "gpu", "fix"])   // the shell checks the result
                     Rectangle { anchors.fill: parent; radius: 17; z: -1; color: Theme.accent }
                     LText { anchors.centerIn: parent; role: "bodyStrong"; color: Theme.onAccent; text: "Fix" }
                 }

@@ -6,8 +6,10 @@ pragma Singleton
 //
 // Also watches the NVIDIA GPU's runtime power management (sysfs only — reading
 // it never wakes the GPU): when the driver gets stuck ("error"), the GPU stays
-// fully awake and drains the battery, so the island offers a one-click fix
-// (scripts/power-admin.sh dgpu-pm-reset, through pkexec).
+// fully awake and drains the battery, so the island offers a fix
+// (scripts/power-admin.sh dgpu-pm-reset, through pkexec) and checks it took;
+// when the driver keeps the error (it can only be cleared by re-initialising
+// the GPU), it says a restart is needed.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -58,7 +60,7 @@ Singleton {
                         icon: "battery_alert", badge: "",
                         title: "NVIDIA GPU is stuck awake",
                         detail: "Its power management failed, so it's using the battery for nothing",
-                        actions: [{ icon: "build", label: "Fix", cmd: ["pkexec", Theme.lumenRoot + "/scripts/power-admin.sh", "dgpu-pm-reset"] },
+                        actions: [{ icon: "build", label: "Fix", cmd: [Theme.lumenRoot + "/bin/lumen-shell-ipc", "gpu", "fix"] },
                                   { icon: "monitor_heart", label: "Details", cmd: [Theme.lumenRoot + "/bin/lumen-monitor", "performance/gpu:card0"] }]
                     });
                 }
@@ -66,6 +68,30 @@ Singleton {
         }
     }
     Timer { interval: 300000; repeat: true; triggeredOnStart: true; running: Persist.automates; onTriggered: root.checkDgpu() }
-    function fixDgpu() { Quickshell.execDetached(["pkexec", Theme.lumenRoot + "/scripts/power-admin.sh", "dgpu-pm-reset"]); dgpuErrors = 0; recheck.restart(); }
-    Timer { id: recheck; interval: 8000; onTriggered: root.checkDgpu() }
+    // Try the reset (password); if the driver still reports the error, only a
+    // restart re-initialises the GPU — say so instead of pretending it worked.
+    property bool dgpuFixTried: false
+    function fixDgpu() { if (!fixProc.running) fixProc.running = true; }
+    Process {
+        id: fixProc
+        command: ["pkexec", Theme.lumenRoot + "/scripts/power-admin.sh", "dgpu-pm-reset"]
+        onExited: code => { if (code === 0) { root.dgpuFixTried = true; recheck.restart(); } }
+    }
+    Timer {
+        id: recheck; interval: 6000
+        onTriggered: { root.dgpuErrors = 0; root.checkDgpu(); after.restart(); }
+    }
+    Timer {
+        id: after; interval: 1500
+        onTriggered: {
+            if (root.dgpu !== "error") Island.system("check_circle", "NVIDIA GPU can sleep again", "Its power management is working");
+            else Island.device("dgpu-restart", {
+                icon: "restart_alt", badge: "",
+                title: "The NVIDIA GPU needs a restart to recover",
+                detail: "Its driver keeps the error until the computer restarts — until then it stays awake",
+                actions: [{ icon: "restart_alt", label: "Restart now", cmd: ["systemctl", "reboot"] }]
+            });
+        }
+    }
+    IpcHandler { target: "gpu"; function fix(): void { root.fixDgpu(); } function state(): string { return root.dgpu; } }
 }
