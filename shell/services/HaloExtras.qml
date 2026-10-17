@@ -47,6 +47,8 @@ Singleton {
             return { glyph: "history", title: "What changed", own: () => root.whatChanged() };
         if (/^what('?s| is) (draining|eating|using) (my |the )?battery$|^battery (hogs|drain)$|^why is (my )?battery (draining|dying)( so fast)?$/.test(l))
             return { glyph: "battery_alert", title: "Battery", own: () => root.batteryCoach() };
+        if (/\b(resource|memory|ram|cpu|processor)\b.*\b(consumption|usage|use|using|hog|eating|full)\b|^(investigate|check|show)( the| my)? (resource|memory|ram|cpu)|^what('?s| is) (using|eating|hogging) (my |the )?(memory|ram|cpu|processor)|^why is (my )?(computer|laptop|pc|system) (slow|lagging|laggy)/.test(l))
+            return { glyph: "memory", title: "What's using the computer", own: () => root.resources() };
         if (/^(what('?s| is) in|tell me about|explain) (the |my )?updates$|^should i update$|^any (important )?updates$/.test(l))
             return { glyph: "system_update", title: "Updates", own: () => root.updateButler() };
         if ((m = /^play (?:some(?:thing)?|music|songs?)(?: music)?(?: (?:for|to) )?(studying|study|focus|focusing|coding|code|chill|relaxing|relax|sleep|sleeping|workout|gym|running|happy|sad|party|rain|piano)?$/.exec(l)) && m[1])
@@ -155,6 +157,26 @@ Singleton {
             + (Power.saver || Battery.pluggedIn ? "" : "\nBattery saver would stretch it."),
             { actions: [Power.saver || Battery.pluggedIn ? null : { label: "Battery saver", icon: "energy_savings_leaf", run: () => Power.saverOn() },
                         apps[0]?.window ? { label: "Close " + apps[0].name, icon: "close", run: () => Quickshell.execDetached([root.scripts + "/monitor.py", "signal", String(apps[0].pid), "TERM", "--tree"]) } : null].filter(a => a) });
+    }
+
+    // ── what's using memory and the processor (Doctor's look, fresh if needed) ──
+    property bool resWaiting: false
+    Connections { target: Doctor; function onLastChanged() { if (root.resWaiting) { root.resWaiting = false; root.resources(); } } }
+    function resources() {
+        const d = Doctor.last;
+        if (!d || Date.now() - (d.t ?? 0) > 3 * 60000) { resWaiting = true; Doctor.look(); say("hourglass_top", "Taking a look…", "", { duration: 3000, speak: false }); return; }
+        const m = d.mem ?? {}, usedPct = m.total ? Math.round(100 * (m.total - m.available) / m.total) : 0;
+        const byMem = [...(d.apps ?? [])].sort((a, b) => b.mem - a.mem).slice(0, 4);
+        const byCpu = (d.apps ?? []).filter(g => g.cores > 0.1).slice(0, 3);
+        const swap = m.swapTotal ? Math.round(100 * (m.swapTotal - m.swapFree) / m.swapTotal) : 0;
+        const top = byMem.find(g => g.window && !Doctor.exempt.test(g.name));
+        say("memory", "Memory " + usedPct + "% used" + (swap > 20 ? " · swap " + swap + "%" : ""),
+            "Memory: " + byMem.map(g => g.name + " " + Doctor.bytes(g.mem) + (g.tabs > 1 ? " (" + g.tabs + " tabs)" : "")).join(", ")
+            + (byCpu.length ? "\nProcessor: " + byCpu.map(g => g.name + " " + Math.round(100 * g.cores / d.ncpu) + "%").join(", ") : "\nThe processor is quiet.")
+            + (usedPct > 85 ? "\nClosing " + (top ? top.name : "the biggest app") + " would free the most." : ""),
+            { tone: usedPct > 85 ? "concerned" : "normal", duration: 16000,
+              actions: [top ? { label: "Close " + top.name, icon: "close", run: () => Quickshell.execDetached([root.scripts + "/monitor.py", "signal", String(top.pid), "TERM", "--tree"]) } : null,
+                        { label: "Open Monitor", icon: "monitor_heart", run: () => Quickshell.execDetached([Theme.lumenRoot + "/bin/lumen-monitor", "processes"]) }].filter(a => a) });
     }
 
     // ── update butler ──

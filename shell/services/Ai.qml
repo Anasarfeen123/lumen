@@ -516,8 +516,16 @@ Singleton {
         streamText = ""; _pendingTokens = ""; slow = false;
         askStarted = Date.now();
         slowTimer.restart();
-        const req = { provider, model: modelFor(!!image), system,
-                      messages: messages.slice(0, -1).filter(m => m.kind !== "wa" && m.kind !== "act" && m.kind !== "agent" && m.kind !== "term" && !m.local).map(m => Object.assign({ role: m.role, text: m.text }, m.image ? { image: m.image } : {})) };
+        const history = messages.slice(0, -1).filter(m => m.kind !== "wa" && m.kind !== "act" && m.kind !== "agent" && m.kind !== "term" && !m.local);
+        // A conversation with a picture in it stays on the model that can see
+        // (Automatic: the vision model); a model that can't see never gets
+        // pictures — it's told one was there instead (a 400 otherwise).
+        const hasImage = history.some(m => m.image);
+        const chosen = modelFor(hasImage);
+        const sees = hasImage ? (auto ? !!visionModel : vision) : true;
+        const req = { provider, model: chosen, system,
+                      messages: history.map(m => Object.assign({ role: m.role, text: m.image && !sees ? m.text + "\n\n(A picture was attached here; this model can't see it.)" : m.text },
+                                                               m.image && sees ? { image: m.image } : {})) };
         reqFile.setText(JSON.stringify(req));
         ask.command = [Theme.lumenRoot + "/scripts/ai.sh", "ask", reqFile.path];
         ask.running = true;
