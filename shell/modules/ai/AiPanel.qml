@@ -541,7 +541,7 @@ PanelWindow {
                         width: parent.width
                         spacing: Theme.space.s2
                         Rectangle {
-                            visible: !msg.modelData.renames && msg.modelData.kind !== "wa" && msg.modelData.kind !== "act" && msg.modelData.kind !== "agent"
+                            visible: !msg.modelData.renames && msg.modelData.kind !== "wa" && msg.modelData.kind !== "act" && msg.modelData.kind !== "agent" && msg.modelData.kind !== "term"
                             width: parent.width
                             radius: Theme.radius.md
                             color: Theme.withAlpha(Theme.surfaceElevated, 0.7)
@@ -680,6 +680,8 @@ PanelWindow {
                                 }
                             }
                         }
+                        // Your own command in Halo's terminal
+                        TermBlock { visible: msg.modelData.kind === "term"; width: answerCol.width; termId: msg.modelData.termId ?? "" }
                         // Halo acting on a goal: each step as it happens, then the answer
                         Rectangle {
                             id: agentCard
@@ -755,8 +757,9 @@ PanelWindow {
                                                     color: stepRow.modelData.state === "skipped" ? Theme.textMuted : Theme.text; text: stepRow.modelData.say }
                                             LText { visible: text !== ""; width: parent.width; elide: Text.ElideRight; role: "caption"; color: Theme.textMuted; textFormat: Text.PlainText
                                                     text: stepRow.modelData.result ?? "" }
+                                            TermBlock { visible: !!stepRow.modelData.termId; compact: true; width: parent.width; termId: stepRow.modelData.termId ?? "" }
                                             Row {
-                                                visible: stepRow.modelData.state === "waiting" && Agent.current === msg.modelData.runId
+                                                visible: stepRow.modelData.state === "waiting" && Agent.current === msg.modelData.runId && !stepRow.modelData.termId
                                                 spacing: 6; topPadding: 4
                                                 ActionPill { outlined: true; icon: "check"; text: "Allow"; onClicked: Agent.approve(true) }
                                                 ActionPill { outlined: true; icon: "close"; text: "Skip"; onClicked: Agent.approve(false) }
@@ -1160,6 +1163,87 @@ PanelWindow {
         width: pbl.implicitWidth + 28; height: 32
         Rectangle { anchors.fill: parent; radius: height / 2; z: -1; color: pb.primary ? Theme.accent : "transparent"; border.width: pb.primary ? 0 : 1; border.color: Theme.border }
         LText { id: pbl; anchors.centerIn: parent; role: "bodyStrong"; color: pb.primary ? Theme.onAccent : Theme.text; text: pb.text }
+    }
+    // A command in Halo's terminal: the line, what it looks like it does, Allow/Deny
+    // while it waits, then its output live (dark, monospace, scrolls)
+    component TermBlock: Rectangle {
+        id: tb
+        property string termId: ""
+        property bool compact: false
+        readonly property var e: HaloTerm.entries.find(x => x.id === termId) ?? null
+        readonly property bool waiting: e?.state === "waiting"
+        readonly property color hint: e?.kind === "read" ? Theme.success : e?.kind === "secret" || e?.kind === "root" ? Theme.error : Theme.warning
+        visible: e !== null
+        height: visible ? tbCol.implicitHeight + 16 : 0
+        radius: Theme.radius.sm
+        color: Qt.tint(Theme.bg, Theme.withAlpha("#000000", 0.35))
+        border.width: 1; border.color: waiting ? Theme.withAlpha(hint, 0.6) : Theme.withAlpha(Theme.text, 0.08)
+        Column {
+            id: tbCol
+            x: 10; y: 8
+            width: parent.width - 20
+            spacing: 6
+            Row {
+                width: parent.width
+                spacing: 8
+                LText { id: dollar; text: "$"; color: Theme.accent; font.family: Theme.fontMono; font.pixelSize: 13 }
+                LText { width: parent.width - dollar.width - status.width - 16; text: tb.e?.cmd ?? ""; color: Theme.text; font.family: Theme.fontMono; font.pixelSize: 13
+                        wrapMode: Text.WrapAnywhere; textFormat: Text.PlainText }
+                Row {
+                    id: status
+                    spacing: 4
+                    LIcon { anchors.verticalCenter: parent.verticalCenter; size: 13; fill: 1
+                            icon: tb.e?.state === "done" ? "check_circle" : tb.e?.state === "failed" ? "error" : tb.e?.state === "running" ? "progress_activity"
+                                : tb.e?.state === "waiting" ? "front_hand" : tb.e?.state === "denied" ? "block" : "stop_circle"
+                            color: tb.e?.state === "done" ? Theme.success : tb.e?.state === "failed" || tb.e?.state === "denied" ? Theme.error : tb.e?.state === "waiting" ? tb.hint : Theme.textMuted
+                            RotationAnimation on rotation { running: tb.e?.state === "running" && !Theme.reducedMotion; from: 0; to: 360; duration: 1000; loops: Animation.Infinite } }
+                    LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"; color: Theme.textMuted
+                            text: tb.e?.state === "running" ? "running" : tb.e?.state === "waiting" ? "needs your OK" : tb.e?.code !== null && tb.e?.code !== undefined && tb.e.code >= 0 ? "exit " + tb.e.code + " · " + (tb.e.ms / 1000).toFixed(1) + " s" : (tb.e?.state ?? "") }
+                }
+            }
+            // what it looks like it does (a hint, not a permission)
+            Row {
+                visible: tb.waiting
+                spacing: 6
+                Rectangle { width: hintText.implicitWidth + 14; height: 20; radius: 10; color: Theme.withAlpha(tb.hint, 0.15)
+                            LText { id: hintText; anchors.centerIn: parent; role: "caption"; color: tb.hint
+                                    text: tb.e?.kind === "read" ? "looks read-only" : tb.e?.kind === "secret" ? "touches private files" : "may change things" } }
+                LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"; color: Theme.textMuted; text: tb.e?.why ? "· " + tb.e.why : ""; elide: Text.ElideRight; width: Math.min(implicitWidth, 300) }
+            }
+            Row {
+                visible: tb.waiting
+                spacing: 6
+                ActionPill { outlined: true; icon: "check"; text: "Run it"; onClicked: { if (Agent.termWaiting === tb.termId) Agent.approve(true); else HaloTerm.allow(tb.termId); } }
+                ActionPill { outlined: true; icon: "close"; text: "Don't"; onClicked: { if (Agent.termWaiting === tb.termId) Agent.approve(false); else HaloTerm.deny(tb.termId); } }
+                ActionPill { outlined: true; icon: "open_in_new"; text: "Run in a terminal"; onClicked: HaloTerm.inTerminal(tb.termId) }
+            }
+            Flickable {
+                visible: (tb.e?.out ?? "") !== ""
+                width: parent.width
+                height: Math.min(outText.implicitHeight, tb.compact ? 110 : 260)
+                contentHeight: outText.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                onContentHeightChanged: if (tb.e?.state === "running") contentY = Math.max(0, contentHeight - height)
+                TextEdit {
+                    id: outText
+                    width: parent.width
+                    readOnly: true; selectByMouse: true
+                    text: (tb.e?.out ?? "").replace(/\n$/, "")
+                    color: Theme.textSecondary; selectionColor: Theme.withAlpha(Theme.accent, 0.4)
+                    font.family: Theme.fontMono; font.pixelSize: 12
+                    wrapMode: Text.WrapAnywhere; textFormat: TextEdit.PlainText
+                }
+            }
+            Row {
+                visible: !tb.compact && (tb.e?.state === "done" || tb.e?.state === "failed" || tb.e?.state === "running")
+                spacing: 4
+                ActionPill { visible: tb.e?.state === "running"; icon: "stop"; text: "Stop"; onClicked: HaloTerm.stop() }
+                ActionPill { visible: tb.e?.state !== "running"; icon: "content_copy"; text: "Copy output"; onClicked: Ai.copy(tb.e?.out ?? "") }
+                ActionPill { visible: tb.e?.state !== "running" && Ai.configured; icon: "auto_awesome"; text: "Explain"
+                             onClicked: Ai.send("Explain this command's output briefly, and what (if anything) I should do:\n$ " + tb.e.cmd + "\n```\n" + (tb.e.out ?? "").slice(-4000) + "\n```") }
+            }
+        }
     }
     component ActionPill: HoverTarget {
         id: ap

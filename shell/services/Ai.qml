@@ -390,6 +390,13 @@ Singleton {
     function send(raw) {
         raw = raw.trim();
         if (!raw || busy) return;
+        // "$ df -h": your own command in Halo's terminal (it runs — you typed it)
+        if (/^\$\s+\S/.test(raw)) {
+            history = history.filter(h => h !== raw).concat([raw]).slice(-30);
+            const id = HaloTerm.request(raw.replace(/^\$\s+/, ""), "you", null);
+            messages = messages.concat([{ role: "assistant", kind: "term", text: "", termId: id }]);
+            return;
+        }
         // Not sure yet what's set up (just started): wait for that, then decide
         if (!statusKnown && provider !== "off") { queued = raw; refreshStatus(); return; }
         if (whatsappDraft(raw)) return;
@@ -510,7 +517,7 @@ Singleton {
         askStarted = Date.now();
         slowTimer.restart();
         const req = { provider, model: modelFor(!!image), system,
-                      messages: messages.slice(0, -1).filter(m => m.kind !== "wa" && m.kind !== "act" && m.kind !== "agent" && !m.local).map(m => Object.assign({ role: m.role, text: m.text }, m.image ? { image: m.image } : {})) };
+                      messages: messages.slice(0, -1).filter(m => m.kind !== "wa" && m.kind !== "act" && m.kind !== "agent" && m.kind !== "term" && !m.local).map(m => Object.assign({ role: m.role, text: m.text }, m.image ? { image: m.image } : {})) };
         reqFile.setText(JSON.stringify(req));
         ask.command = [Theme.lumenRoot + "/scripts/ai.sh", "ask", reqFile.path];
         ask.running = true;

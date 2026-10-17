@@ -302,7 +302,6 @@ Singleton {
         target: "hands"
         function point(text: string): void { root.pointAt(text); }
         function click(text: string): void { root.clickText(text, "left"); }
-        function allow(): void { root.allow(false); }
         function cancel(): void { root.cancel(); }
         function state(): string { return JSON.stringify({ target: root.target, asking: root.asking, driving: root.driving, trusted: root.trusted, canClick: root.canClick }); }
     }

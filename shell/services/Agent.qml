@@ -114,6 +114,8 @@ Singleton {
     }
 
     function stop() {
+        if (termWaiting) { HaloTerm.deny(termWaiting); termWaiting = ""; }
+        HaloTerm.stop();
         replaying = false; replayQueue = [];
         if (brain.running) brain.running = false;
         if (waitTimer.running) waitTimer.stop();
@@ -203,7 +205,9 @@ Singleton {
             if (++blocked >= 2) finish(fallbackAnswer()); else think();
             return;
         }
-        const sig = tool.name + JSON.stringify(args);
+        // the same step again (a different "why" doesn't make it new)
+        const core = Object.assign({}, args); delete core.why; delete core.say;
+        const sig = tool.name + JSON.stringify(core);
         if (calls.includes(sig)) {
             history = history.concat([{ role: "user", text: "You already did exactly that. Use what you found and reply with {\"answer\": …} now." }]);
             if (++blocked >= 2) finish(fallbackAnswer()); else think();
@@ -225,7 +229,9 @@ Singleton {
         return (found.length ? "Here's what I found:\n" + found.join("\n") : "I couldn't do that.") + "\n\n(I stopped there rather than guess.)";
     }
     property var pending: null
+    property string termWaiting: ""     // a command of this run waiting in Halo's terminal
     function approve(yes) {
+        if (termWaiting) { const id = termWaiting; termWaiting = ""; if (yes) { HaloTerm.allow(id); update(r => { r.state = "running"; const s = r.steps[r.steps.length - 1]; if (s) s.state = "running"; }); } else HaloTerm.deny(id); return; }
         if (!pending) return;
         const p = pending; pending = null;
         update(r => { r.state = "running"; });
@@ -407,16 +413,26 @@ Singleton {
           run: (a, done) => done((Planner.upcoming ?? []).slice(0, 10).map(e => "- " + e.title + ": " + Planner.whenLabel(e.when, e.allDay)).join("\n") || "Nothing coming up.") },
         { name: "notifications", args: "{}", icon: "notifications", desc: "notifications from the last few hours", label: a => "Reading notifications",
           run: (a, done) => { const s = Brief.since(Date.now() - 6 * 3600000); done(s.texts.slice(-25).join("\n") || "No notifications."); } },
-        { name: "shell", needs: /command|terminal|run|install|update|shell|script/, args: "{\"command\": \"…\"}", icon: "terminal", desc: "run a shell command in a visible terminal (the user approves; you won't see the output)", label: a => "Run: " + (a.command ?? ""),
-          ask: a => true,
-          run: (a, done) => { Ai.run(String(a.command ?? "")); done("Opened in a terminal."); } },
+        { name: "run", args: "{\"command\": \"…\", \"why\": \"…\"}", icon: "terminal",
+          desc: "run a shell command in Halo's terminal and read its output (the user approves every command first; never sudo). Good for disk space, logs, services, packages, git, processes",
+          label: a => "$ " + String(a.command ?? "").slice(0, 60),
+          run: (a, done) => {
+              const id = HaloTerm.request(String(a.command ?? ""), "halo", (out, code) => {
+                  root.termWaiting = "";
+                  root.update(r => { if (r.state === "waiting") r.state = "running"; });
+                  done(code === -1 ? (out || "The user didn't allow it.") : "exit code " + code + "\n" + out.slice(-3500), code === 0);
+              }, String(a.why ?? ""));
+              const e = HaloTerm.entries.find(x => x.id === id);
+              root.update(r => { const s = r.steps[r.steps.length - 1]; if (s) { s.termId = id; if (e?.state === "waiting") { s.state = "waiting"; r.state = "waiting"; } } });
+              if (e?.state === "waiting") root.termWaiting = id;
+          } },
     ]
 
     IpcHandler {
         target: "agent"
         function run(goal: string): void { root.start(goal, Ai.open ? "panel" : "island"); }
         function stop(): void { root.stop(); }
-        function approve(): void { root.approve(true); }
+        // (no "approve" here: only you can allow a step, in Halo or the island)
         function deny(): void { root.approve(false); }
         function state(): string { return JSON.stringify(root.active); }
     }
