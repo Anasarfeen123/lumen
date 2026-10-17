@@ -18,6 +18,12 @@ Page {
             LSwitch { checked: Persist.data.islandDate; onToggled: Persist.data.islandDate = !checked }
         }
         SetRow {
+            icon: "picture_in_picture"
+            title: "Video follows you"
+            description: "Leave the workspace with a playing video and it continues in a small corner player — just the video. Go back and it steps away. Ctrl+Super+P or ⧉ in the player does it by hand."
+            LSwitch { checked: Persist.data.pipAuto ?? true; onToggled: Persist.data.pipAuto = !checked }
+        }
+        SetRow {
             icon: "view_carousel"
             title: "Announce workspace changes"
             description: "Briefly shows the workspace name when you switch"

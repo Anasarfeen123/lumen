@@ -29,6 +29,7 @@ import qs.modules.inbox
 import qs.modules.welcome
 import qs.modules.lens
 import qs.modules.hands
+import qs.modules.pip
 
 ShellRoot {
     id: root
@@ -203,6 +204,13 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: DrawOverlay {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    Variants {
+        model: Quickshell.screens
+        delegate: VideoPip {
             required property var modelData
             screen: modelData
         }

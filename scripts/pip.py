@@ -8,6 +8,9 @@
   pip.py corner <tl|tr|bl|br|next>   move the PiP window to a corner
   pip.py size <small|medium|large|bigger|smaller>
   pip.py state                  JSON: {address, title, class, corner, size} or {}
+  pip.py video-rect <address>   where the video is inside that window, from what moves over
+                                ~0.6 s: {"x","y","w","h"} as fractions of the window, or {}
+                                (paused, nothing moving, or the window isn't on screen)
 Browser picture-in-picture windows are already floated and pinned by
 hypr/rules.lua; this works on them too (corners, sizes). State lives in
 $XDG_RUNTIME_DIR/lumen-pip.json for this session only.
@@ -140,6 +143,83 @@ def current():
     return {}
 
 
+def video_rect(addr):
+    """The moving part of a visible window — the video in a browser tab. Six
+    quick captures; pixels that change between them are the video. The longest
+    run of busy columns, then of busy rows inside them, is its rectangle."""
+    c = client(addr)
+    if not c or c["size"][0] < 80 or c["size"][1] < 60:
+        return {}
+    ws = {m["activeWorkspace"]["id"] for m in (j("monitors") or [])}
+    if c["workspace"]["id"] not in ws or c.get("hidden"):
+        return {}
+    try:
+        import io, time
+        import numpy as np
+        from PIL import Image
+    except ImportError:
+        return {}
+    geom = "%d,%d %dx%d" % (c["at"][0], c["at"][1], c["size"][0], c["size"][1])
+    frames = []
+    for i in range(6):
+        raw = subprocess.run(["grim", "-g", geom, "-t", "ppm", "-"], capture_output=True, timeout=5).stdout
+        if not raw:
+            return {}
+        im = Image.open(io.BytesIO(raw)).convert("L")
+        W, H = im.size
+        frames.append(np.asarray(im.resize((W // 4, H // 4)), dtype=np.int16))
+        if i < 5:
+            time.sleep(0.18)
+    moved = np.zeros(frames[0].shape, dtype=bool)
+    for a, b in zip(frames, frames[1:]):
+        moved |= np.abs(a - b) > 10
+    h, w = moved.shape
+    if moved.mean() < 0.01:
+        return {}
+
+    def run(profile, minimum, gap):
+        """The longest stretch where profile >= minimum, bridging gaps up to `gap`."""
+        on = [i for i, v in enumerate(profile) if v >= minimum]
+        if not on:
+            return 0, 0
+        best, start, last = (on[0], on[0] + 1), on[0], on[0]
+        for i in on[1:] + [None]:
+            if i is not None and i - last <= gap:
+                last = i
+                continue
+            if last + 1 - start > best[1] - best[0]:
+                best = (start, last + 1)
+            if i is not None:
+                start = last = i
+        return best
+
+    c0, c1 = run(moved.mean(axis=0), 0.01, w // 12)
+    r0, r1 = run(moved[:, c0:c1].mean(axis=1), 0.01, h // 12)
+    if (c1 - c0) * (r1 - r0) < 0.04 * w * h or c1 - c0 < 20 or r1 - r0 < 12:
+        return {}
+    # Snap each side outwards to the video's edge: the nearest line (within a
+    # little) where the picture changes sharply along most of that side.
+    img = frames[-1]
+    def edge_rows(lo, hi, cols):
+        d = np.abs(np.diff(img[:, cols[0]:cols[1]], axis=0)) > 18      # between row i and i+1
+        return d.mean(axis=1)
+    def edge_cols(lo, hi, rows):
+        d = np.abs(np.diff(img[rows[0]:rows[1], :], axis=1)) > 18
+        return d.mean(axis=0)
+    reach_y, reach_x = max(3, h // 10), max(3, w // 10)
+    er = edge_rows(0, h, (c0, c1))
+    top = [i + 1 for i in range(max(0, r0 - reach_y), r0) if er[i] > 0.6]
+    bot = [i + 1 for i in range(r1 - 1, min(h - 1, r1 + reach_y)) if er[i] > 0.6]
+    r0 = top[-1] if top else r0
+    r1 = bot[0] if bot else r1
+    ec = edge_cols(0, w, (r0, r1))
+    left = [i + 1 for i in range(max(0, c0 - reach_x), c0) if ec[i] > 0.6]
+    right = [i + 1 for i in range(c1 - 1, min(w - 1, c1 + reach_x)) if ec[i] > 0.6]
+    c0 = left[-1] if left else c0
+    c1 = right[0] if right else c1
+    return {"x": round(c0 / w, 4), "y": round(r0 / h, 4), "w": round((c1 - c0) / w, 4), "h": round((r1 - r0) / h, 4)}
+
+
 def main():
     a = sys.argv[1:]
     cmd = a[0] if a else "state"
@@ -166,6 +246,8 @@ def main():
         if not s.get("browser"):
             save(s)
         print(json.dumps({"ok": True, "corner": s["corner"], "size": s["size"]}))
+    elif cmd == "video-rect" and len(a) > 1:
+        print(json.dumps(video_rect(a[1])))
     elif cmd == "state":
         print(json.dumps(current()))
     else:

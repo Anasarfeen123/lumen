@@ -47,7 +47,10 @@ Singleton {
             property string phoneNotifications: "calls"  // KDE Connect mirrors: "calls" | "all" | "none"
             property bool linkBluetoothAuto: true     // Lumen Link: bring the phone's Bluetooth network up by itself
             property string islandClock: "roll"       // the island's clock: "roll" (digits slide) | "flip" (split-flap cards)
-            property string islandScroll: "timeline"   // scroll on the island: "timeline" | "volume"
+            property string islandScroll: "timeline"
+            property bool pipAuto: true               // a playing video follows you when you leave its workspace
+            property string pipCorner: "br"           // video PiP corner: br | bl | tl | tr
+            property real pipSize: 0.26               // video PiP width, a fraction of the screen   // scroll on the island: "timeline" | "volume"
             property bool hotCornerLeft: true
             property bool hotCornerRight: true
             // Look & sound (Lumen Settings → Appearance)

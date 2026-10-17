@@ -1,8 +1,12 @@
 pragma Singleton
-// Picture-in-picture for any window (scripts/pip.py): pop the video you're
-// watching — or the music player, or a call — into a pinned corner that
-// follows you across workspaces; move it round the corners, make it bigger or
-// smaller, put it back exactly where it was. Browser PiP windows count too.
+// Picture-in-picture, two ways:
+//  • Video PiP (modules/pip/VideoPip.qml): just the video you're watching —
+//    found inside its window by what moves (scripts/pip.py video-rect) — shown
+//    live in a small corner player with its own controls. The browser stays
+//    where it is. Auto: leave the workspace with a playing video and it
+//    follows you; go back and it steps away (Settings → Bar & Island).
+//  • Window PiP (scripts/pip.py): any other window — a call, a chat — floats,
+//    pinned in a corner across workspaces, and goes back exactly as it was.
 //   Ctrl+Super+P · the island's player (⧉) · Halo: "picture in picture",
 //   "move the pip to the top left", "make it bigger", "put it back"
 import QtQuick
@@ -15,7 +19,108 @@ Singleton {
     id: root
     readonly property string script: Theme.lumenRoot + "/scripts/pip.py"
     property var state: ({})            // { address, title, class, corner, size, browser? }
-    readonly property bool active: !!state.address
+    readonly property bool active: !!state.address || !!video
+    readonly property bool windowActive: !!state.address
+
+    // ── Video PiP ──
+    property var video: null             // { address, player, auto }
+    property var crops: ({})             // window address → { x, y, w, h (fractions), size: [w, h] }
+    property string dismissed: ""        // auto: closed for this video — it won't follow you again until you go back
+    readonly property string vCorner: Persist.data.pipCorner ?? "br"
+    readonly property real vSize: Persist.data.pipSize ?? 0.26
+    function norm(a) { return String(a ?? "").replace(/^0x/, ""); }
+    function toplevelOf(addr) { return addr ? (Hyprland.toplevels.values.find(t => norm(t.lastIpcObject?.address ?? t.address) === norm(addr)) ?? null) : null; }
+    function visible_(t) { return !!t && !!t.workspace && (t.workspace.active || (t.workspace.name ?? "").startsWith("special") && t.workspace.monitor?.lastIpcObject?.specialWorkspace?.name === t.workspace.name); }
+    readonly property var videoTop: toplevelOf(video?.address)
+    readonly property var videoCrop: {
+        const c = crops[norm(video?.address)], s = videoTop?.lastIpcObject?.size;
+        return c && s && Math.abs(c.size[0] - s[0]) < 4 && Math.abs(c.size[1] - s[1]) < 4 ? c : null;    // stale after a resize
+    }
+    readonly property bool sourceVisible: visible_(videoTop)
+    readonly property bool videoShown: !!videoTop && !!video && (!video.auto || !sourceVisible)
+    onVideoTopChanged: if (video && !videoTop) video = null          // its window closed
+
+    function popVideo(address, auto) {
+        if (!address) return;
+        if (!auto) {
+            dismissed = "";
+            // on screen and not measured yet: find the video first, then show it
+            // (measuring with the PiP already on top would count the PiP as video)
+            video = null;                                 // one at a time (and out of the way of the measuring)
+            const c = crops[norm(address)], t = toplevelOf(address);
+            if (visible_(t) && !(c && t?.lastIpcObject?.size && c.size[0] === t.lastIpcObject.size[0] && c.size[1] === t.lastIpcObject.size[1])) {
+                pending = { address, player: Media.active };
+                findCrop(address);
+                return;
+            }
+        }
+        video = { address, player: Media.active, auto: !!auto };
+    }
+    property var pending: null        // a manual pop waiting for its video to be found
+    function closeVideo() {
+        if (video?.auto) dismissed = Media.title;
+        video = null;
+    }
+    function backToVideo() {
+        if (!video) return;
+        const a = video.address;
+        video = null;
+        Hypr.focusWindow(a.startsWith("0x") ? a : "0x" + a);
+    }
+    function moveVideo(c) { Persist.data.pipCorner = c; }
+    function resizeVideo(f) { Persist.data.pipSize = Math.max(0.16, Math.min(0.5, f)); }
+
+    // Where the video is inside its window — looked for while it's on screen
+    function findCrop(address) {
+        if (cropProc.running || videoShown) return;      // never measure with the PiP on screen
+        cropProc.address = address;
+        cropProc.command = [script, "video-rect", address.startsWith("0x") ? address : "0x" + address];
+        cropProc.running = true;
+    }
+    Process {
+        id: cropProc
+        property string address: ""
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {}; try { r = JSON.parse(text); } catch (e) {}
+                const t = root.toplevelOf(cropProc.address);
+                if (r.w && t?.lastIpcObject?.size) {
+                    const c = Object.assign({}, root.crops);
+                    c[root.norm(cropProc.address)] = Object.assign(r, { size: t.lastIpcObject.size.slice() });
+                    root.crops = c;
+                }
+                if (root.pending) { root.video = Object.assign(root.pending, { auto: false }); root.pending = null; }
+            }
+        }
+    }
+
+    // ── Auto: the playing video's window, if it's a browser or a video player
+    // and something in it moves (so music in a tab doesn't follow you) ──
+    readonly property var candidate: {
+        if (!Media.playing) return null;
+        const w = playerWindow();
+        return w && /brave|firefox|zen|chrom|vivaldi|librewolf|floorp|edge|vlc|mpv|haruna|celluloid|totem|showtime|clapper|freetube|smplayer/i.test(w.class ?? "")
+                 && !/music|spotify/i.test((w.class ?? "") + " " + (w.title ?? "").slice(-40)) ? w : null;
+    }
+    readonly property var candidateTop: toplevelOf(candidate?.address)
+    readonly property bool candidateVisible: visible_(candidateTop)
+    property bool wasVisible: false
+    onCandidateVisibleChanged: {
+        if (candidateVisible) {
+            if (video?.auto && norm(video.address) === norm(candidate?.address)) video = null;   // back at it
+            dismissed = "";
+            lookSoon.restart();
+        } else if (wasVisible && candidate && (Persist.data.pipAuto ?? true) && !video && Media.title !== dismissed
+                   && crops[norm(candidate.address)]) {
+            popVideo(candidate.address, true);
+        }
+        wasVisible = candidateVisible;
+    }
+    onCandidateChanged: { wasVisible = candidateVisible; if (candidate) lookSoon.restart(); }
+    Connections { target: Media; function onTitleChanged() { if (root.candidate) lookSoon.restart(); } }
+    // look while it plays on screen (and again now and then: a resize, theatre mode)
+    Timer { id: lookSoon; interval: 2500; onTriggered: if (root.candidate && root.candidateVisible) root.findCrop(root.candidate.address) }
+    Timer { interval: 25000; repeat: true; running: !!root.candidate && root.candidateVisible; onTriggered: root.findCrop(root.candidate.address) }
 
     function refresh() { if (!stateProc.running) stateProc.running = true; }
     Process { id: stateProc; running: true; command: [root.script, "state"]
@@ -48,10 +153,24 @@ Singleton {
         }
     }
     function pop(address) { run(["pop"].concat(address ? [address] : []), "Picture in picture"); }
-    function back() { run(["back"], "Back in its place"); }
-    function toggle() { if (active && !state.browser) back(); else pop(""); }
-    function corner(c) { run(["corner", c ?? "next"], ""); }
-    function size(s) { run(["size", s], ""); }
+    function back() { if (video) closeVideo(); else run(["back"], "Back in its place"); }
+    // Ctrl+Super+P: the video if you're looking at the one playing, else the focused window
+    function toggle() {
+        if (video) { closeVideo(); return; }
+        if (windowActive && !state.browser) { back(); return; }
+        const f = Hyprland.activeToplevel?.lastIpcObject?.address ?? "", w = playerWindow();
+        if (Media.playing && w && norm(w.address) === norm(f)) popVideo(w.address, false);
+        else pop("");
+    }
+    function corner(c) {
+        if (!video) { run(["corner", c ?? "next"], ""); return; }
+        const order = ["br", "bl", "tl", "tr"];
+        moveVideo(!c || c === "next" ? order[(order.indexOf(vCorner) + 1) % 4] : c);
+    }
+    function size(s) {
+        if (!video) { run(["size", s], ""); return; }
+        resizeVideo(s === "bigger" ? vSize + 0.06 : s === "smaller" ? vSize - 0.06 : ({ small: 0.2, medium: 0.28, large: 0.4 })[s] ?? vSize);
+    }
 
     // The music/video player's own window (for "pop it out" from the island)
     function playerWindow() {
@@ -63,7 +182,7 @@ Singleton {
             return keys.some(k => c.includes(k) || k.includes(c) && c.length > 3) || (Media.title && t.includes(Media.title.toLowerCase().slice(0, 24)));
         }) ?? null;
     }
-    function popPlayer() { const w = playerWindow(); if (w?.address) pop(w.address); else Island.system("picture_in_picture_alt", "No window for this player", "It may be playing in the background"); }
+    function popPlayer() { const w = playerWindow(); if (w?.address) popVideo(w.address, false); else Island.system("picture_in_picture_alt", "No window for this player", "It may be playing in the background"); }
 
     GlobalShortcut { appid: "lumen"; name: "pip"; description: "Picture in picture (the focused window)"; onPressed: root.toggle() }
     IpcHandler {
@@ -71,6 +190,7 @@ Singleton {
         function toggle(): void { root.toggle(); }
         function corner(c: string): void { root.corner(c); }
         function size(s: string): void { root.size(s); }
-        function state(): string { return JSON.stringify(root.state); }
+        function state(): string { return JSON.stringify({ window: root.state, video: root.video ? { address: root.video.address, auto: root.video.auto, shown: root.videoShown, crop: root.videoCrop } : null, candidate: root.candidate?.address ?? "", crops: root.crops }); }
+        function video(address: string): void { root.popVideo(address, false); }
     }
 }
