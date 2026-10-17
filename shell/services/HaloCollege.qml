@@ -62,12 +62,48 @@ Singleton {
     // ── what Halo can answer (returns an intent for Halo.handle, or null) ──
     function intent(q) {
         const l = q.toLowerCase().replace(/[?.!]+$/, "").trim();
-        const collegey = /\b(class(es)?|lecture|lab|attendance|bunk|skip|marks?|grades?|fat|cat|exams?|timetable|semester|revision|study plan)\b/.test(l);
+        const collegey = /\b(class(es)?|lecture|lab|attendance|bunk|skip|marks?|grades?|fat|cat|exams?|timetable|semester|revision|study plan|c?gpa|sgpa|proctor|circulars?|fees?|library|dues?|faculty)\b/.test(l);
         if (!collegey) return null;
         if (!on) return needsSetup();
         let m;
         if (/\b(study|revision) (plan|schedule|timetable)\b|^plan (my )?(study|studies|revision|exam prep)|^(make|build|create) (me )?a (study|revision) (plan|schedule)/.test(l)) return studyPlanCard();
         if (/\bbunk budget\b|^how many (classes )?can i (bunk|skip|miss)( this week)?$/.test(l)) return budgetCard();
+        const ex = Amazecc.extra ?? {};
+        // CGPA, and what this semester needs for a target
+        if ((m = /\b(?:need|get|reach|for)\b.*?\b(\d{1,2}(?:\.\d{1,2})?)\s*(?:c?gpa|pointer)\b|\bc?gpa\b.*\bto (?:reach|get|be)\s+(\d{1,2}(?:\.\d{1,2})?)/.exec(l)) && ex.cgpa) {
+            const target = +(m[1] ?? m[2]), cur = +ex.cgpa.cgpa, done = +ex.cgpa.creditsEarned || +ex.cgpa.creditsRegistered;
+            const sem = 22;                         // a typical semester's credits (not on VTOP's page)
+            const need = (target * (done + sem) - cur * done) / sem;
+            return card(need > 10 ? "block" : "target", "For a " + target.toFixed(2) + " CGPA",
+                        need > 10 ? "Not reachable this semester — even a perfect 10 SGPA takes you to " + ((cur * done + 10 * sem) / (done + sem)).toFixed(2) + ". It would take a few semesters."
+                        : need <= 0 ? "You're already there (" + cur.toFixed(2) + ")."
+                        : "You'd need an SGPA of about " + need.toFixed(2) + " this semester (assuming ~" + sem + " credits; now " + cur.toFixed(2) + " over " + done + " credits).",
+                        [], need > 10 ? "concerned" : "normal");
+        }
+        if (/\b(my )?c?gpa\b|\bcumulative\b|\bgrade (distribution|history)\b|^my grades$/.test(l) && ex.cgpa) {
+            const g = ex.cgpa.grades ?? {};
+            return card("school", "CGPA " + ex.cgpa.cgpa + " · " + Number(ex.cgpa.creditsEarned) + " credits",
+                        "Grades so far: " + Object.keys(g).filter(k => g[k]).map(k => k + " ×" + g[k]).join(" · ")
+                        + ((ex.grades ?? []).length ? "\n" + ex.grades.slice(0, 8).map(x => x.grade + " — " + x.title).join("\n") : ""));
+        }
+        // your proctor
+        if (/\bproctor\b/.test(l) && ex.proctor) {
+            const p = ex.proctor;
+            return card("person", p.name + (p.designation ? " · " + p.designation : ""), [p.cabin, p.email, p.phone ? "☎ " + p.phone : "", p.facultyIntercom ? "intercom " + p.facultyIntercom : ""].filter(x => x).join("\n"),
+                        [p.email ? { label: "Email", icon: "mail", run: () => Accounts.compose(p.email, "", "") } : null,
+                         p.phone ? { label: "Copy number", icon: "content_copy", run: () => Ai.copy(p.phone) } : null].filter(a => a));
+        }
+        // circulars
+        if (/\bcirculars?\b/.test(l) && ex.circulars) {
+            const list = ex.circulars.slice(0, 6);
+            return card("campaign", list.length ? "Latest circulars" : "No circulars", list.map(c => (c.date ? Qt.formatDate(new Date(c.date), "d MMM") + " — " : "") + c.title).join("\n"));
+        }
+        // fees and dues
+        if (/\b(fees?|dues?|library)\b/.test(l) && (ex.fees || ex.library)) {
+            const f = ex.fees ?? {}, lib = ex.library ?? {};
+            return card("payments", "Fees & dues", [f.tuitionFee ? "Tuition ₹" + Number(f.tuitionFee).toLocaleString(Qt.locale("en_IN"), "f", 0) + (f.dueDateWithoutLateFee ? " · due " + f.dueDateWithoutLateFee + (f.dueDateWithLateFee ? " (with late fee till " + f.dueDateWithLateFee + ")" : "") : "") : "",
+                                                        "Library: " + (lib.due ? "₹" + lib.due + " due" : "nothing due")].filter(x => x).join("\n"));
+        }
 
         // next class
         if (/\b(next|upcoming) (class|lecture|lab)\b|^where('?s| is) my (next )?class|what('?s| is) next\b/.test(l)) {

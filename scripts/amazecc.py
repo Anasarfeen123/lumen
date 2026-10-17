@@ -10,6 +10,8 @@ VTOP. Standard library only.
   amazecc.py forget                     removes the login, the session and the synced data
   amazecc.py sync [--threshold 75]      fetch everything, write the snapshot, print what changed:
                                         JSON {ok, error?, updated, changes: [...]}
+  amazecc.py extras                     grades/CGPA, circulars, class messages, fees, library dues and
+                                        your proctor → amazecc-extra.json (600); JSON {ok, new: {circulars, messages}}
   amazecc.py extra <route> [--body {}]  one read-only VTOP page (grades, class-messages, circulars,
                                         fees-intimation, library-due, proctor, faculty-info…) as JSON
 
@@ -622,6 +624,76 @@ def cmd_extra(a):
     out({"ok": True, "data": r})
 
 
+EXTRA = os.path.join(STATE, "amazecc-extra.json")
+
+
+def flatten_circulars(nodes, path=()):
+    out = []
+    for n in nodes or []:
+        if n.get("id"):
+            t = n.get("title", "")
+            m = re.search(r"\[\s*(\d{1,2}-[A-Z]{3}-\d{4})\s*\]", t)
+            when = 0
+            if m:
+                try:
+                    when = int(dt.datetime.strptime(m.group(1), "%d-%b-%Y").timestamp() * 1000)
+                except ValueError:
+                    pass
+            title = re.sub(r"\.pdf\s*\[.*?\]\s*$", "", t, flags=re.I).strip()
+            out.append({"id": n["id"], "title": title, "office": path[0] if path else "", "date": when})
+        out += flatten_circulars(n.get("children"), path + ((n.get("name") or ""),))
+    return out
+
+
+def cmd_extras(a):
+    """Grades/CGPA, circulars, class messages, fees, library dues and your proctor —
+    one snapshot (600) the shell reads; prints what's new since the last one."""
+    creds = secret_get()
+    if not creds:
+        out({"ok": False, "error": "nologin"})
+        return
+    prev = read_json(EXTRA) or {}
+    snap = {"updated": int(time.time() * 1000)}
+    try:
+        s = session(a.api, creds)
+    except ApiError as e:
+        out({"ok": False, "error": str(e)})
+        return
+    base = {"cookies": s["cookies"], "csrf": s["csrf"], "authorizedID": s["authorizedID"], "semesterId": a.semester or default_semester()}
+
+    def get(route, keep=None):
+        try:
+            return post(a.api, route, base, timeout=180) or {}
+        except ApiError:
+            return keep if keep is not None else {}
+    g = get("grades")
+    if g.get("cgpa"):
+        snap["cgpa"] = g["cgpa"]
+        snap["grades"] = [{"title": x.get("basketTitle", ""), "grade": x.get("grade", ""), "credits": num(x.get("creditsEarned")), "type": x.get("courseType", "")}
+                          for x in g.get("effectiveGrades") or []]
+    else:
+        for k in ("cgpa", "grades"):
+            if k in prev:
+                snap[k] = prev[k]
+    c = get("circulars")
+    snap["circulars"] = sorted(flatten_circulars(c.get("circulars")), key=lambda x: -x["date"])[:40] if c.get("circulars") is not None else prev.get("circulars", [])
+    m = get("class-messages")
+    snap["messages"] = m.get("messages") if isinstance(m.get("messages"), list) else prev.get("messages", [])
+    f = get("fees-intimation")
+    snap["fees"] = {k: f.get(k) for k in ("tuitionFee", "dueDateWithoutLateFee", "dueDateWithLateFee", "lateFeePerDay")} if f.get("success") else prev.get("fees")
+    lib = get("library-due")
+    due = ((lib.get("keyValuePairs") or {}).get("kohaDueAmount") or "")
+    snap["library"] = {"due": num(re.sub(r"[^0-9.]", "", due)) or 0} if lib.get("success") else prev.get("library")
+    pr = get("proctor")
+    snap["proctor"] = pr.get("details") if pr.get("details") else prev.get("proctor")
+    write_private(EXTRA, snap)
+    old_c = {x["id"] for x in prev.get("circulars", [])}
+    old_m = {json.dumps(x, sort_keys=True) for x in prev.get("messages", [])}
+    out({"ok": True, "updated": snap["updated"],
+         "new": {"circulars": [x for x in snap["circulars"] if prev and x["id"] not in old_c][:5],
+                 "messages": [x for x in snap["messages"] if prev and json.dumps(x, sort_keys=True) not in old_m][:5]}})
+
+
 def main():
     p = argparse.ArgumentParser(description="AmazeCC for Lumen")
     p.add_argument("--api", default=os.environ.get("LUMEN_AMAZECC_API") or "http://127.0.0.1:3000")
@@ -634,11 +706,12 @@ def main():
     sl.add_argument("username")
     sub.add_parser("forget")
     sub.add_parser("sync")
+    sub.add_parser("extras", help="grades/CGPA, circulars, class messages, fees, library, proctor → amazecc-extra.json")
     ex = sub.add_parser("extra", help="one read-only VTOP page (grades, class-messages, circulars…) as JSON")
     ex.add_argument("route")
     ex.add_argument("--body", default="", help="extra JSON fields for the route")
     a = p.parse_args()
-    {"status": cmd_status, "set-login": cmd_set_login, "forget": cmd_forget, "sync": cmd_sync, "extra": cmd_extra}[a.cmd](a)
+    {"status": cmd_status, "set-login": cmd_set_login, "forget": cmd_forget, "sync": cmd_sync, "extra": cmd_extra, "extras": cmd_extras}[a.cmd](a)
 
 
 if __name__ == "__main__":

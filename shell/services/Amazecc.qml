@@ -149,6 +149,40 @@ Singleton {
     function signOut() { Quickshell.execDetached(args().concat(["forget"])); hasLogin = false; username = ""; data = ({}); statusSoon.restart(); }
     Timer { id: statusSoon; interval: 1500; onTriggered: root.refreshStatus() }
 
+    // ── extras: grades/CGPA, circulars, class messages, fees, library, proctor ──
+    // (amazecc.py extras, at most every 6 hours, after a sync)
+    property var extra: ({})
+    FileView {
+        id: extraFile
+        path: Persist.dir + "/amazecc-extra.json"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: { try { root.extra = JSON.parse(text()); } catch (e) {} }
+        onLoadFailed: root.extra = ({})
+    }
+    function syncExtras() {
+        if (extrasProc.running || !cfg.enabled || !hasLogin) return;
+        extrasProc.command = args().concat(["extras"]);
+        extrasProc.running = true;
+    }
+    Process {
+        id: extrasProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {}; try { r = JSON.parse(text); } catch (e) { return; }
+                if (!r.ok || !Persist.automates) return;
+                extraFile.reload();
+                for (const c of r.new?.circulars ?? [])
+                    Halo.say({ key: "circular:" + c.id, icon: "campaign", title: "New circular", text: c.title + (c.office ? "\n" + c.office : ""), level: "important", duration: 14000 });
+                for (const m of r.new?.messages ?? []) {
+                    const vals = Object.values(m).filter(v => typeof v === "string" && v.trim());
+                    Halo.say({ key: "classmsg:" + vals.join("|").slice(0, 60), icon: "forum", title: "Message from your faculty", text: vals.join(" · ").slice(0, 300), level: "important", duration: 20000 });
+                }
+            }
+        }
+    }
+
     // ── sync ──
     // From the Settings app (a separate process), ask the shell, so it's the
     // shell that announces what changed.
@@ -181,6 +215,7 @@ Singleton {
         }
         error = "";
         dataFile.reload();
+        if (Date.now() - (extra.updated ?? 0) > 6 * 3600000) syncExtras();
         if (manual) Island.system("cloud_done", "AmazeCC is up to date",
                                   r.partial?.length ? "Couldn't get " + r.partial.join(" or ") + " this time" : "Timetable, attendance, marks and exams");
         if (Persist.automates) for (const c of r.changes ?? []) announce(c);
