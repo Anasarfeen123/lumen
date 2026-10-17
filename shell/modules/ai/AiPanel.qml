@@ -271,6 +271,22 @@ PanelWindow {
                 // Follow the answer as it grows (once per batch, not per token)
                 Connections { target: Ai; function onStreamTextChanged() { if (!transcript.moving) transcript.positionViewAtEnd(); } }
                 QQC.ScrollBar.vertical: QQC.ScrollBar { policy: transcript.contentHeight > transcript.height ? QQC.ScrollBar.AsNeeded : QQC.ScrollBar.AlwaysOff }
+                // Scrolled up while it writes: a way back to the latest
+                HoverTarget {
+                    parent: transcript
+                    z: 10
+                    readonly property bool want: !transcript.atYEnd && transcript.contentHeight > transcript.height + 40
+                    opacity: want ? 1 : 0
+                    visible: opacity > 0.01
+                    Behavior on opacity { NumberAnimation { duration: Theme.motion.micro } }
+                    anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 8 }
+                    width: jumpRow.implicitWidth + 22; height: 28
+                    onClicked: transcript.positionViewAtEnd()
+                    Rectangle { anchors.fill: parent; radius: height / 2; z: -1; color: Theme.surfaceElevated; border.width: 1; border.color: Theme.border }
+                    Row { id: jumpRow; anchors.centerIn: parent; spacing: 4
+                          LIcon { icon: "arrow_downward"; size: 14; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                          LText { role: "caption"; text: Ai.busy ? "Latest" : "Jump to the end"; anchors.verticalCenter: parent.verticalCenter } }
+                }
                 delegate: Item {
                     id: msg
                     required property var modelData
@@ -283,8 +299,25 @@ PanelWindow {
                     readonly property var blocks: mine || live ? [] : Ai.codeBlocks(modelData.text)
                     width: transcript.width
                     height: mine ? userBubble.height : answerCol.height
+                    // Arrives with a small rise and fade (only when it's new)
+                    opacity: 0
+                    transform: Translate { id: rise; y: 10 }
+                    Component.onCompleted: if (Theme.reducedMotion || index < Ai.messages.length - 2) { opacity = 1; rise.y = 0; } else enter.start()
+                    ParallelAnimation {
+                        id: enter
+                        NumberAnimation { target: msg; property: "opacity"; to: 1; duration: Theme.motion.normal }
+                        NumberAnimation { target: rise; property: "y"; to: 0; duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
+                    }
 
-                    // You
+                    // You: hover for Edit (back into the prompt) and Copy
+                    HoverHandler { id: msgHover }
+                    Row {
+                        visible: msg.mine && msgHover.hovered && !Ai.busy
+                        anchors { right: userBubble.left; rightMargin: 4; verticalCenter: userBubble.verticalCenter }
+                        spacing: 2
+                        HeadButton { icon: "edit"; onClicked: { prompt.text = msg.modelData.shown ?? msg.modelData.text; prompt.cursorPosition = prompt.length; prompt.forceActiveFocus(); } }
+                        HeadButton { icon: "content_copy"; onClicked: Ai.copy(msg.modelData.shown ?? msg.modelData.text) }
+                    }
                     Rectangle {
                         id: userBubble
                         visible: msg.mine
@@ -347,23 +380,42 @@ PanelWindow {
                             radius: Theme.radius.md
                             color: Theme.withAlpha(Theme.surfaceElevated, 0.7)
                             border.width: 1; border.color: Theme.border
-                            readonly property Item shown: msg.live ? liveAnswer : answer
+                            readonly property Item shown: waiting.visible ? waiting : msg.live ? liveAnswer : answer
                             height: visible ? Math.max(40, shown.implicitHeight + Theme.space.s3 * 2) : 0
-                            TextEdit {
+                            Behavior on height { enabled: msg.live; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard } }
+                            // The finished answer: text, with code blocks as cards (Copy / Run)
+                            Column {
                                 id: answer
                                 x: Theme.space.s3; y: Theme.space.s3
                                 width: parent.width - Theme.space.s3 * 2
-                                readOnly: true
-                                selectByMouse: true
-                                wrapMode: Text.Wrap
-                                textFormat: TextEdit.RichText
-                                text: msg.live ? "" : Md.toHtml(msg.modelData.text, win.mdColors)
-                                onLinkActivated: link => Qt.openUrlExternally(link)
-                                color: Theme.text
-                                selectionColor: Theme.withAlpha(Theme.accent, 0.4)
-                                font.family: Theme.fontUi
-                                font.pixelSize: 14
-                                visible: !msg.live && text !== ""
+                                spacing: 2
+                                visible: !msg.live && msg.modelData.text !== ""
+                                Repeater {
+                                    model: msg.live || msg.mine ? [] : Md.segments(msg.modelData.text)
+                                    delegate: Loader {
+                                        id: seg
+                                        required property var modelData
+                                        width: answer.width
+                                        sourceComponent: modelData.code ? codeSeg : textSeg
+                                        Component {
+                                            id: textSeg
+                                            TextEdit {
+                                                readOnly: true
+                                                selectByMouse: true
+                                                wrapMode: Text.Wrap
+                                                textFormat: TextEdit.RichText
+                                                width: seg.width
+                                                text: Md.toHtml(seg.modelData.text.replace(/^\n+|\n+$/g, ""), win.mdColors)
+                                                onLinkActivated: link => Qt.openUrlExternally(link)
+                                                color: Theme.text
+                                                selectionColor: Theme.withAlpha(Theme.accent, 0.4)
+                                                font.family: Theme.fontUi
+                                                font.pixelSize: 14
+                                            }
+                                        }
+                                        Component { id: codeSeg; CodeActions { width: seg.width; block: ({ lang: seg.modelData.lang, code: seg.modelData.text }) } }
+                                    }
+                                }
                             }
                             // While it's being written: plain text and a soft cursor
                             Text {
@@ -378,18 +430,47 @@ PanelWindow {
                                 font.family: Theme.fontUi
                                 font.pixelSize: 14
                             }
-                            // Before the first words: what Halo is doing
-                            Row {
+                            // Before the first words: what Halo is doing, over three shimmering
+                            // lines where the answer will appear
+                            Column {
+                                id: waiting
                                 visible: msg.live ? Ai.streamText === "" : msg.modelData.text === ""
-                                x: Theme.space.s3; anchors.verticalCenter: parent.verticalCenter
-                                spacing: Theme.space.s2
-                                HaloMark { size: 14; active: true; anchors.verticalCenter: parent.verticalCenter }
-                                LText {
-                                    role: "caption"; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter
-                                    text: Ai.phase === "reading" ? "Reading what you attached…"
-                                        : Ai.phase === "looking" ? "Looking at your screen…"
-                                        : Ai.slow ? (Ai.local ? "Still working — the first answer loads the model (images take longer on this computer)…" : "Still waiting for " + Ai.providerLabel + "…")
-                                        : Ai.local && !Ai.modelLoaded ? "Loading " + Ai.model + "…" : "Thinking…"
+                                x: Theme.space.s3; y: Theme.space.s3
+                                width: parent.width - Theme.space.s3 * 2
+                                spacing: 8
+                                Row {
+                                    spacing: Theme.space.s2
+                                    HaloMark { size: 14; active: true; anchors.verticalCenter: parent.verticalCenter }
+                                    LText {
+                                        role: "caption"; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter
+                                        text: Ai.phase === "reading" ? "Reading what you attached…"
+                                            : Ai.phase === "looking" ? "Looking at your screen…"
+                                            : Ai.slow ? (Ai.local ? "Still working — the first answer loads the model (images take longer on this computer)…" : "Still waiting for " + Ai.providerLabel + "…")
+                                            : Ai.local && !Ai.modelLoaded ? "Loading " + Ai.model + "…" : "Thinking…"
+                                    }
+                                }
+                                Repeater {
+                                    model: [0.92, 0.78, 0.55]
+                                    delegate: Rectangle {
+                                        required property real modelData
+                                        required property int index
+                                        width: waiting.width * modelData; height: 9; radius: 4.5
+                                        color: Theme.withAlpha(Theme.text, 0.07)
+                                        clip: true
+                                        Rectangle {
+                                            width: parent.width * 0.45; height: parent.height
+                                            gradient: Gradient {
+                                                orientation: Gradient.Horizontal
+                                                GradientStop { position: 0; color: "transparent" }
+                                                GradientStop { position: 0.5; color: Theme.withAlpha(Theme.accent, 0.22) }
+                                                GradientStop { position: 1; color: "transparent" }
+                                            }
+                                            NumberAnimation on x {
+                                                running: waiting.visible && win.visible && !Theme.reducedMotion
+                                                from: -waiting.width * 0.45; to: waiting.width; duration: 1400; loops: Animation.Infinite
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -445,11 +526,6 @@ PanelWindow {
                                 }
                             }
                         }
-                        // Code blocks: copy or run
-                        Repeater {
-                            model: msg.live || msg.modelData.renames ? [] : msg.blocks
-                            delegate: CodeActions { required property var modelData; width: answerCol.width; block: modelData }
-                        }
                         // Answer actions
                         Row {
                             visible: msg.modelData.text !== "" && !msg.live
@@ -458,7 +534,8 @@ PanelWindow {
                             ActionPill { icon: "keyboard_return"; text: "Insert"; onClicked: Ai.insert(msg.blocks.length === 1 && msg.modelData.text.trim().startsWith("```") ? msg.blocks[0].code : msg.modelData.text) }
                             ActionPill { icon: "note_add"; text: "Save to notes"; onClicked: Ai.saveToNotes(msg.modelData.text) }
                             ActionPill { visible: msg.last; icon: "refresh"; text: "Retry"; onClicked: Ai.retry() }
-                            LText { visible: msg.last && Ai.speed > 0; role: "caption"; color: Theme.textMuted; text: "  " + Ai.speed + " tokens/s"; anchors.verticalCenter: parent.verticalCenter }
+                            LText { visible: msg.last; role: "caption"; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
+                                    text: "  " + Ai.model.replace(/:latest$/, "") + (Ai.speed > 0 ? " · " + Ai.speed + " tokens/s" : "") }
                         }
                     }
                 }
@@ -644,7 +721,7 @@ PanelWindow {
                                 if (box.histIdx >= Ai.history.length) { box.histIdx = -1; text = ""; } else { text = Ai.history[box.histIdx]; cursorPosition = length; }
                                 event.accepted = true;
                             } else if (event.key === Qt.Key_Escape) {
-                                if (text !== "") text = ""; else Ai.open = false;
+                                if (Ai.busy) Ai.stop(); else if (text !== "") text = ""; else Ai.open = false;
                                 event.accepted = true;
                             } else if (event.key === Qt.Key_L && ctrl) { Ai.clear(); event.accepted = true; }
                             else if (event.key === Qt.Key_R && ctrl) { Ai.retry(); event.accepted = true; }
@@ -797,35 +874,61 @@ PanelWindow {
                 icon: "check"; size: 16; color: Theme.accent; visible: mr.current }
     }
     // A code block's actions: Copy, and Run for shell (a second press confirms)
+    // A code block in an answer: a card with its language, Copy, and Run for
+    // short shell commands (a second press runs; risky ones say so in red)
     component CodeActions: Rectangle {
         id: ca
         property var block
         property bool confirming: false
         readonly property bool shell: Ai.isShell(block.lang) && block.code.split("\n").length <= 12
         readonly property bool risky: Ai.risky(block.code)
-        height: 34
+        implicitHeight: caHead.height + caBody.implicitHeight + 16
+        height: implicitHeight
         radius: Theme.radius.sm
-        color: ca.confirming ? Theme.withAlpha(ca.risky ? Theme.error : Theme.accent, 0.12) : Theme.withAlpha(Theme.text, 0.04)
-        border.width: 1; border.color: ca.confirming ? Theme.withAlpha(ca.risky ? Theme.error : Theme.accent, 0.4) : Theme.border
+        color: Theme.withAlpha(Theme.bg, 0.55)
+        border.width: 1
+        border.color: ca.confirming ? Theme.withAlpha(ca.risky ? Theme.error : Theme.accent, 0.5) : Theme.border
+        Behavior on border.color { ColorAnimation { duration: Theme.motion.micro } }
         Timer { id: confirmTimer; interval: 5000; onTriggered: ca.confirming = false }
-        LIcon { id: caIcon; x: 10; anchors.verticalCenter: parent.verticalCenter; icon: ca.shell ? "terminal" : "code"; size: 15; color: Theme.textMuted }
-        LText {
-            anchors { left: caIcon.right; leftMargin: 8; right: caBtns.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
-            elide: Text.ElideRight
-            font.family: Theme.fontMono; font.pixelSize: 12
-            color: ca.confirming && ca.risky ? Theme.error : Theme.textSecondary
-            text: ca.confirming ? (ca.risky ? "This can delete or change things. Run anyway?" : "Run in a terminal?") : block.code.split("\n")[0]
-        }
-        Row {
-            id: caBtns
-            anchors { right: parent.right; rightMargin: 4; verticalCenter: parent.verticalCenter }
-            spacing: 2
-            ActionPill { icon: caCopied.running ? "check" : "content_copy"; text: caCopied.running ? "Copied" : "Copy"; onClicked: { Ai.copy(ca.block.code); caCopied.restart(); } Timer { id: caCopied; interval: 1400 } }
-            ActionPill {
-                visible: ca.shell
-                icon: "play_arrow"; text: ca.confirming ? "Run" : "Run…"
-                onClicked: { if (ca.confirming) { ca.confirming = false; Ai.run(ca.block.code); } else { ca.confirming = true; confirmTimer.restart(); } }
+        Item {
+            id: caHead
+            width: parent.width; height: 30
+            Row {
+                anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
+                spacing: 6
+                LIcon { icon: ca.shell ? "terminal" : "code"; size: 14; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
+                LText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    role: "caption"
+                    color: ca.confirming ? (ca.risky ? Theme.error : Theme.accent) : Theme.textMuted
+                    text: ca.confirming ? (ca.risky ? "This can delete or change things — run anyway?" : "Run it in a terminal?")
+                                        : (ca.block.lang || (ca.shell ? "shell" : "code"))
+                }
             }
+            Row {
+                anchors { right: parent.right; rightMargin: 4; verticalCenter: parent.verticalCenter }
+                spacing: 2
+                ActionPill { icon: caCopied.running ? "check" : "content_copy"; text: caCopied.running ? "Copied" : "Copy"; onClicked: { Ai.copy(ca.block.code); caCopied.restart(); } Timer { id: caCopied; interval: 1400 } }
+                ActionPill {
+                    visible: ca.shell
+                    icon: "play_arrow"; text: ca.confirming ? "Run" : "Run…"
+                    onClicked: { if (ca.confirming) { ca.confirming = false; Ai.run(ca.block.code); } else { ca.confirming = true; confirmTimer.restart(); } }
+                }
+            }
+            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.border }
+        }
+        TextEdit {
+            id: caBody
+            x: 12; y: caHead.height + 8
+            width: parent.width - 24
+            readOnly: true
+            selectByMouse: true
+            wrapMode: TextEdit.WrapAnywhere
+            text: ca.block.code
+            color: Theme.text
+            selectionColor: Theme.withAlpha(Theme.accent, 0.4)
+            font.family: Theme.fontMono
+            font.pixelSize: 13
         }
     }
 

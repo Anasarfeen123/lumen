@@ -38,9 +38,34 @@ function toHtml(src, c) {
         let para = [], list = null;
         const flushPara = () => { if (para.length) { out.push('<p style="margin-top:0;margin-bottom:8px;">' + para.map(l => inline(l, c)).join(" ") + "</p>"); para = []; } };
         const flushList = () => { if (list) { out.push("<" + list.tag + ' style="margin-top:0;margin-bottom:8px;margin-left:-14px;">' + list.items.map(i => '<li style="margin-bottom:3px;">' + inline(i, c) + "</li>").join("") + "</" + list.tag + ">"); list = null; } };
-        for (const raw of lines) {
-            const line = raw.replace(/\s+$/, "");
+        for (let li = 0; li < lines.length; li++) {
+            const line = lines[li].replace(/\s+$/, "");
+            const next = (lines[li + 1] ?? "").trim();
             let m;
+            // "Title\n=====" or "Title\n-----": a heading (setext style)
+            if (line.trim() !== "" && !list && /^(=+|-+)$/.test(next) && next.length >= 3) {
+                flushPara(); flushList();
+                out.push('<p style="margin-top:6px;margin-bottom:6px;"><span style="font-size:' + (next[0] === "=" ? 16 : 14.5) + 'px;font-weight:600;">' + inline(line.trim(), c) + "</span></p>");
+                li++;
+                continue;
+            }
+            // --- / *** on its own: a quiet divider
+            if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(line)) {
+                flushPara(); flushList();
+                out.push('<p style="margin-top:2px;margin-bottom:8px;color:' + c.muted + ';">· · ·</p>');
+                continue;
+            }
+            // | a | b | tables
+            if (/^\s*\|.*\|\s*$/.test(line)) {
+                flushPara(); flushList();
+                const rows = [];
+                while (li < lines.length && /^\s*\|.*\|\s*$/.test(lines[li])) { rows.push(lines[li].trim().slice(1, -1).split("|").map(x => x.trim())); li++; }
+                li--;
+                const body = rows.filter(r => !r.every(x => /^:?-{2,}:?$/.test(x)));
+                out.push('<table cellpadding="5" cellspacing="0" style="margin-bottom:8px;">' + body.map((r, ri) =>
+                    "<tr>" + r.map(x => '<td style="border-bottom:1px solid ' + c.codeBg + ';' + (ri === 0 ? "font-weight:600;" : "") + '">' + inline(x, c) + "</td>").join("") + "</tr>").join("") + "</table>");
+                continue;
+            }
             if ((m = /^(#{1,6})\s+(.*)$/.exec(line))) {
                 flushPara(); flushList();
                 const size = m[1].length <= 2 ? 16 : 14.5;
@@ -66,4 +91,22 @@ function toHtml(src, c) {
         flushPara(); flushList();
     }
     return out.join("");
+}
+
+
+// A finished answer as text and code pieces, so code blocks can be drawn as
+// cards with their own Copy / Run (an unclosed ``` stays text).
+function segments(src) {
+    const out = [];
+    const re = /```([\w+-]*)[^\n]*\n([\s\S]*?)```/g;
+    let last = 0, m;
+    while ((m = re.exec(src)) !== null) {
+        const before = src.slice(last, m.index);
+        if (before.trim() !== "") out.push({ code: false, text: before });
+        out.push({ code: true, lang: m[1].toLowerCase(), text: m[2].replace(/\n$/, "") });
+        last = re.lastIndex;
+    }
+    const rest = src.slice(last);
+    if (rest.trim() !== "" || out.length === 0) out.push({ code: false, text: rest });
+    return out;
 }
