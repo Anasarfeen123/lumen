@@ -67,6 +67,7 @@ Item {
 
         RollingClock {
             anchors.verticalCenter: parent.verticalCenter
+            style: Persist.data.islandClock ?? "roll"
             pixelSize: 16
             weight: 650
         }
@@ -91,6 +92,9 @@ Item {
             size: 17
             breathes: false             // the resting island spends nothing: blinks and glances only
             accessory: HaloExtras.accessory
+            // bobbing along with the bass while music plays (the island's equalizer is already listening)
+            beat: Media.playing && !Theme.reducedMotion ? Math.min(1, (Visualizer.levels.slice(0, 4).reduce((a, b) => a + b, 0) / 4) * 1.4) : 0
+            Behavior on beat { NumberAnimation { duration: 90 } }
             face: Persist.data.haloFace ?? true
             mood: Halo.mood
             level: Voice.level
@@ -105,7 +109,7 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 onContainsMouseChanged: Island.orbHovered = containsMouse
-                onClicked: m => { if (m.button === Qt.RightButton) Halo.talk(); else Ai.toggle(); }
+                onClicked: m => { if (m.button === Qt.RightButton) Halo.talk(); else { orb.wink(); Ai.toggle(); } }
             }
             Component.onDestruction: Island.orbHovered = false
             // looks up at you when you come close; back from a card, it hops into its seat

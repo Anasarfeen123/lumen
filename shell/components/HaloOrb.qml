@@ -34,6 +34,10 @@ Item {
     property real lookY: 0
     property bool breathes: true        // a slow breath at rest (off in the island)
     property string accessory: ""       // "headphones" (music) · "party" (your birthday) · "scarf" (winter)
+    property real beat: 0               // 0–1: the music's bass — Halo bobs along (the island)
+    function wink() { if (still) return; winkLeft = true; winkTimer.restart(); }
+    property bool winkLeft: false
+    Timer { id: winkTimer; interval: 260; onTriggered: root.winkLeft = false }
     width: size; height: size
 
     readonly property bool still: Theme.reducedMotion
@@ -111,7 +115,7 @@ Item {
         property real bounce: 1             // pop / wake
         property real hop: 0                // px up
         property real shakeX: 0
-        transform: Translate { x: body.shakeX; y: -body.hop }
+        transform: Translate { x: body.shakeX; y: -body.hop - root.beat * root.size * 0.09 }
         // the head tilts a little toward where it looks
         rotation: root.still ? 0 : faceBox.fx * 7
         scale: breath * bounce * (root.mood === "listening" ? 1 + Math.min(1, root.level) * 0.14 : 1)
@@ -430,7 +434,7 @@ Item {
             anchors.centerIn: parent
             width: parent.width * (root.mood === "listening" ? 1.2 : 1) * (eye.turn < -0.3 ? 0.82 : 1)
             height: eye.closed ? Math.max(1.2, root.size * 0.045)
-                  : root.blink ? Math.max(1, parent.height * 0.1)
+                  : root.blink || (root.winkLeft && eye.side < 0) ? Math.max(1, parent.height * 0.1)
                   : root.mood === "concerned" ? parent.height * 0.48
                   : root.mood === "listening" ? parent.height * 0.86 : parent.height * 0.7
             radius: Math.min(width, height) / 2

@@ -24,6 +24,17 @@ Page {
             LSwitch { checked: Persist.data.islandWorkspace; onToggled: Persist.data.islandWorkspace = !checked }
         }
         SetRow {
+            icon: "schedule"
+            title: "Island clock"
+            description: (Persist.data.islandClock ?? "roll") === "flip" ? "Flip: each digit on a small card that flips over when it changes." : "Roll: changed digits slide up like a counter."
+            Segmented {
+                width: 220
+                options: [{ id: "roll", label: "Roll" }, { id: "flip", label: "Flip" }]
+                current: Persist.data.islandClock ?? "roll"
+                onPicked: id => Persist.data.islandClock = id
+            }
+        }
+        SetRow {
             icon: "swipe_vertical"
             title: "Scroll on the island"
             description: Persist.data.islandScroll === "volume"

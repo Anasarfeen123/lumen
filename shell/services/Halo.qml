@@ -25,6 +25,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import Quickshell.Wayland
 import qs.theme
 
 Singleton {
@@ -71,7 +72,9 @@ Singleton {
         : Voice.speaking || (Ai.busy && Ai.phase === "writing") ? "speaking"
         : flash !== "" ? flash
         : Doctor.worried ? "concerned"
-        : (Focus.mode === "sleep" || Notifications.dnd || lateNight) ? "sleeping" : "rest"
+        : (Focus.mode === "sleep" || Notifications.dnd || lateNight || idleMon.isIdle) ? "sleeping" : "rest"
+    // dozes off when you've been away from the keyboard a few minutes
+    IdleMonitor { id: idleMon; timeout: 180; respectInhibitors: true; enabled: root.present }
 
     // When a Halo card leaves the island, the ring hops back into its seat by the clock
     property real cardClosedAt: 0

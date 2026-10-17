@@ -46,6 +46,7 @@ Singleton {
             property bool islandWorkspace: true
             property string phoneNotifications: "calls"  // KDE Connect mirrors: "calls" | "all" | "none"
             property bool linkBluetoothAuto: true     // Lumen Link: bring the phone's Bluetooth network up by itself
+            property string islandClock: "roll"       // the island's clock: "roll" (digits slide) | "flip" (split-flap cards)
             property string islandScroll: "timeline"   // scroll on the island: "timeline" | "volume"
             property bool hotCornerLeft: true
             property bool hotCornerRight: true

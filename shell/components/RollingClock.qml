@@ -14,11 +14,15 @@ Row {
     property int weight: 650
     property color color: Theme.text
     property bool showPeriod: Theme.clock12h           // small AM/PM after the digits
+    // "roll": digits slide up like a counter · "flip": each digit on a small card
+    // that flips over when it changes (a split-flap clock)
+    property string style: "roll"
+    readonly property bool flip: style === "flip"
 
     SystemClock { id: clock; precision: SystemClock.Minutes }
     readonly property string value: Theme.timeDigits(clock.date)   // 12h/24h from tokens [locale]
 
-    spacing: 0
+    spacing: flip ? 2 : 0
 
     Repeater {
         model: root.value.length
@@ -30,9 +34,19 @@ Row {
             property string shown: ch
             property string leaving: ""
 
-            width: metrics.advanceWidth
-            height: metrics.height
-            clip: true
+            width: metrics.advanceWidth + (root.flip && cell.isDigit ? 6 : 0)
+            height: metrics.height + (root.flip ? 2 : 0)
+            clip: !root.flip
+
+            // flip: the card behind a digit, with the hairline across its middle
+            Rectangle {
+                visible: root.flip && cell.isDigit
+                anchors.fill: parent
+                radius: 4
+                color: Theme.withAlpha(Theme.text, 0.08)
+                border.width: 1; border.color: Theme.withAlpha(Theme.text, 0.06)
+                Rectangle { anchors.verticalCenter: parent.verticalCenter; width: parent.width; height: 1; color: Theme.withAlpha(Theme.bg, 0.22) }
+            }
 
             TextMetrics {
                 id: metrics
@@ -44,7 +58,7 @@ Row {
                 if (ch === shown) return;
                 leaving = shown;
                 shown = ch;
-                roll.restart();
+                if (root.flip) flipAnim.restart(); else roll.restart();
             }
 
             component Glyph: Text {
@@ -61,13 +75,24 @@ Row {
             Glyph {
                 id: back
                 text: cell.leaving
-                y: 0
+                y: root.flip ? 1 : 0
                 opacity: 0
+                transform: Rotation { id: backTurn; origin.x: cell.width / 2; origin.y: cell.height / 2; axis { x: 1; y: 0; z: 0 } angle: 0 }
             }
             Glyph {
                 id: front
                 text: cell.shown
+                y: root.flip ? 1 : 0
                 opacity: cell.isDigit ? 1 : 0.55        // soften the colon
+                transform: Rotation { id: frontTurn; origin.x: cell.width / 2; origin.y: cell.height / 2; axis { x: 1; y: 0; z: 0 } angle: 0 }
+            }
+            // flip: the old digit tips away, the new one falls into place
+            SequentialAnimation {
+                id: flipAnim
+                ScriptAction { script: { back.opacity = 1; front.opacity = 0; backTurn.angle = 0; frontTurn.angle = -90; } }
+                NumberAnimation { target: backTurn; property: "angle"; to: 90; duration: Theme.motion.normal; easing.type: Easing.InQuad }
+                ScriptAction { script: { back.opacity = 0; front.opacity = cell.isDigit ? 1 : 0.55; } }
+                NumberAnimation { target: frontTurn; property: "angle"; to: 0; duration: Theme.motion.normal; easing.type: Easing.OutBack }
             }
 
             ParallelAnimation {
