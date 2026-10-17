@@ -182,6 +182,8 @@ Singleton {
             return { glyph: "wb_sunny", title: "Today", own: () => Brief.morning(true) };
         if (/^(how'?s|how is|check|is) (my |the )?(computer|laptop|system|pc|machine|battery)\b|^(is anything|what'?s) (wrong|slowing)|^why is (it|my (computer|laptop)) (slow|hot|loud)|^health check/i.test(lower))
             return { glyph: "stethoscope", title: "Checking", own: () => Doctor.checkNow(true) };
+        if (/^(let me |i want to |can i )?(draw|annotate|scribble) (on|over) (the |my )?screen|^(screen )?(pen|marker|ink)( mode)?$/i.test(lower))
+            return { glyph: "draw", title: "Draw on the screen", own: () => { DrawState.open = true; } };
         if (/^(circle|search) (to search|my screen|the screen|this)|^what'?s this on (my|the) screen|^lens$/i.test(lower))
             return { glyph: "gesture", title: "Circle to search", own: () => Lens.start() };
         // "Watch me" → a workflow from how you set things up

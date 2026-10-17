@@ -26,6 +26,7 @@ Singleton {
         { title: "Log out", glyph: "logout", keys: "logout log out exit sign out", cmd: ["hyprctl", "dispatch", "hl.dsp.exit()"], destructive: true },
         { title: "Restart", glyph: "restart_alt", keys: "restart reboot", cmd: ["systemctl", "reboot"], destructive: true },
         { title: "Shut down", glyph: "power_settings_new", keys: "shutdown shut down power off poweroff", cmd: ["systemctl", "poweroff"], destructive: true },
+        { title: "Draw on the screen", glyph: "draw", keys: "draw on screen annotate ink pen marker highlight presentation scribble", fn: () => DrawState.open = true },
         { title: "Circle to search", glyph: "gesture", keys: "circle to search lens look up what is this screen google lens ocr", fn: () => Lens.start() },
         { title: "Talk to Halo", glyph: "mic", keys: "talk voice speak halo jarvis listen", fn: () => Halo.talk() },
         { title: "Screenshot (region)", glyph: "screenshot_region", keys: "screenshot capture snip", cmd: [Theme.lumenRoot + "/scripts/screenshot.sh", "region"], delay: true },

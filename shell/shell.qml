@@ -200,6 +200,13 @@ ShellRoot {
             screen: modelData
         }
     }
+    Variants {
+        model: Quickshell.screens
+        delegate: DrawOverlay {
+            required property var modelData
+            screen: modelData
+        }
+    }
     // Alt+Tab window switcher
     Variants {
         model: Quickshell.screens
