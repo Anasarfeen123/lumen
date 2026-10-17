@@ -71,7 +71,8 @@ def wake_model():
 
 def piper_voice(hint=""):
     """A Piper voice: British for "uk" (Jarvis), American otherwise, else any."""
-    v = sorted(glob.glob(DATA + "/voices/*.onnx"))
+    # only complete voices: the model and its .json (a download in progress has no .json yet)
+    v = sorted(x for x in glob.glob(DATA + "/voices/*.onnx") if os.path.exists(x + ".json"))
     want = "en_GB" if hint == "uk" else "en_US"
     pick = [x for x in v if os.path.basename(x).startswith(want)]
     return (pick or v or [""])[0]
