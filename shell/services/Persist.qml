@@ -101,6 +101,7 @@ Singleton {
             property string haloLastMorning: ""   // the day the morning brief last ran (yyyy-MM-dd)
             property string haloLastWrap: ""      // … and the evening wrap-up
             property var haloReminders: []
+            property var alarms: []               // services/Alarms.qml: [{ id, time "HH:mm", days [0–6], label, on }]
             property var haloMemory: []           // [{ text, at }] — what you asked Halo to remember (Settings → Halo lists it)
             property bool haloUseMemory: true
             property var haloRoutines: []         // services/Routines.qml

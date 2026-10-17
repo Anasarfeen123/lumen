@@ -229,6 +229,43 @@ Singleton {
                 Ai.send("/quiz " + topic + (note ? " (from my note “" + note.title + "”)" : ""));
             } };
         }
+        // Alarms and the world clock (services/Alarms.qml)
+        {
+            const l = lower;
+            if (/^(snooze|snooze (it|the alarm)|5 more minutes|ten more minutes)$/.test(l) && Alarms.ringing)
+                return { glyph: "snooze", title: "Snoozed", plain: true, run: () => Alarms.snooze() };
+            if (/^(stop|stop (it|the alarm)|turn (it|the alarm) off|i'?m up|i'?m awake)$/.test(l) && Alarms.ringing)
+                return { glyph: "alarm_off", title: "Alarm stopped", plain: true, run: () => Alarms.stop() };
+            if (/^(turn off|cancel|delete|clear|disable|remove) (all )?(my |the )?alarms?$|^no alarms?( tomorrow)?$/.test(l))
+                return Alarms.list.some(a => a.on) ? { glyph: "alarm_off", title: "Alarms off", plain: true, run: () => Alarms.allOff() } : { glyph: "alarm_off", title: "No alarms are on", already: true };
+            if (/^(my |what |which |show (me )?(my )?|list (my )?)?alarms?( do i have| are (set|on))?$|^(when('?s| is)|what time is) my (next )?alarm$/.test(l)) {
+                const up = Alarms.upcoming;
+                return { glyph: "alarm", title: up.length ? "Next alarm " + Alarms.inText(up[0].at) : "No alarms on", own: () => say({ key: "alarms", icon: "alarm", level: "asked", duration: 14000,
+                         title: up.length ? "Next alarm " + Alarms.inText(up[0].at) : "No alarms on",
+                         text: Alarms.list.length ? Alarms.list.map(a => (a.on ? "● " : "○ ") + Alarms.describe(a)).join("\n") : "Say “wake me up at 7” or “alarm every weekday at 6:30”.",
+                         actions: up.length ? [{ label: "All off", icon: "alarm_off", run: () => Alarms.allOff() }] : [] }) };
+            }
+            let am;
+            if ((am = /^(?:set (?:an |my |the )?alarm|alarm|wake me(?: up)?|get me up)\b(.*)$/.exec(l)) && Alarms.parseTime(am[1])) {
+                const t = Alarms.parseTime(am[1]), days = Alarms.parseDays(am[1]);
+                // what's left once the time and the days are taken out: "to go to the gym" → "go to the gym"
+                const label = am[1].replace(/\b\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm|a\.m\.|p\.m\.)?/g, "")
+                                   .replace(/\b(every\s*)?(day|daily|weekdays?|weekends?|((mon|tues?|wed(nes)?|thu(rs)?|fri|sat(ur)?|sun)(day)?s?(,|\s|and)*)+)\b|\b((in the )?(morning|evening)|tonight|tomorrow)\b/g, "")
+                                   .replace(/^\s*((at|for|on|o'?clock)\s+)*/, "").replace(/^(for|to|called|labell?ed)\s+/, "").replace(/\s+/g, " ").trim();
+                const a = { time: t, days, label, on: true };
+                const at = Alarms.nextAt(a);
+                return { glyph: "alarm_add", title: "Alarm " + Alarms.timeText(t) + " · " + Alarms.daysText(days) + (at ? " (" + Alarms.inText(at) + ")" : ""), plain: true,
+                         run: () => Alarms.add(t, days, label) };
+            }
+            let wc;
+            if ((wc = /^(?:what(?:'?s| is) the )?time (?:is it )?(?:now )?in ([a-z .]+)$|^what time is it in ([a-z .]+)$/.exec(l))) {
+                const place = (wc[1] ?? wc[2]).trim();
+                return { glyph: "public", title: "Time in " + place, own: () => Alarms.timeIn(place, r => say({ key: "worldclock", icon: "public", level: "asked",
+                         title: r ? Alarms.timeText(r.time) + " in " + place.replace(/\b\w/g, c => c.toUpperCase()) : "I don't know that place",
+                         text: r ? r.day + " · " + (r.diff === 0 ? "same time as here" : Math.abs(r.diff) + " h " + (r.diff > 0 ? "ahead of" : "behind") + " you") + " · " + r.zone.replace(/_/g, " ")
+                                 : "Try a city or a country, like “Tokyo” or “Germany”." })) };
+            }
+        }
         // Calendars and email
         const acc = Accounts.intent(q);
         if (acc) return acc;
