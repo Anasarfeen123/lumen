@@ -31,7 +31,65 @@ Item {
         onTriggered: Media.active?.positionChanged()
     }
 
+    // ── Art, with a record sliding out from behind it while it plays (scroll: this player's volume) ──
+    Item {
+        id: vinyl
+        anchors { left: art.left; verticalCenter: art.verticalCenter }
+        width: 58; height: 58
+        anchors.leftMargin: Media.playing && !Theme.reducedMotion ? 28 : 4
+        Behavior on anchors.leftMargin { NumberAnimation { duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+        Rectangle {
+            id: disc
+            anchors.fill: parent
+            radius: width / 2
+            gradient: Gradient { orientation: Gradient.Horizontal
+                GradientStop { position: 0; color: "#1c1d21" } GradientStop { position: 0.55; color: "#2a2b31" } GradientStop { position: 1; color: "#141518" } }
+            border.width: 1; border.color: Theme.withAlpha("#ffffff", 0.18)
+            // grooves
+            Repeater { model: 4
+                Rectangle { required property int index; anchors.centerIn: parent
+                            width: disc.width * (0.86 - index * 0.13); height: width; radius: width / 2
+                            color: "transparent"; border.width: 1; border.color: Theme.withAlpha("#ffffff", 0.1 + index * 0.03) } }
+            // the label, in the album's colour, with a sheen so the turn shows
+            Rectangle { anchors.centerIn: parent; width: disc.width * 0.34; height: width; radius: width / 2
+                        color: Media.hasTint ? Media.tint : Theme.accent
+                        Rectangle { anchors.centerIn: parent; width: 4; height: 4; radius: 2; color: "#111214" } }
+            Rectangle { anchors.centerIn: parent; width: 2; height: disc.height * 0.94; color: Theme.withAlpha("#ffffff", 0.16) }
+            RotationAnimation on rotation { running: Media.playing && root.visible && !Theme.reducedMotion; from: 0; to: 360; duration: 3600; loops: Animation.Infinite }
+        }
+    }
     Art { id: art; source: Media.artUrl; size: 64 }
+    MouseArea {
+        anchors.fill: art
+        acceptedButtons: Qt.NoButton
+        onWheel: w => {
+            const p = Media.active;
+            if (!p?.volumeSupported || !p.canControl) return;
+            p.volume = Math.max(0, Math.min(1, p.volume + (w.angleDelta.y > 0 ? 0.05 : -0.05)));
+            Island.system("volume_up", Media.playerName(p) + " · " + Math.round(p.volume * 100) + "%", "");
+        }
+    }
+
+    // a small live spectrum while it plays, top right
+    Binding { target: Visualizer; property: "wanted"; value: true; when: root.visible && Media.playing }
+    Row {
+        anchors { right: parent.right; top: parent.top; topMargin: -2 }
+        spacing: 2
+        opacity: Media.playing && Visualizer.levels.length > 0 ? 0.85 : 0
+        Behavior on opacity { NumberAnimation { duration: Theme.motion.normal } }
+        Repeater {
+            model: Math.min(10, Visualizer.levels.length)
+            Rectangle {
+                required property int index
+                anchors.bottom: parent.bottom
+                width: 3; radius: 1.5
+                height: 12
+                color: Media.hasTint ? Qt.lighter(Media.tint, 1.3) : Theme.accent
+                transform: Scale { origin.y: 12; yScale: Math.max(0.18, Visualizer.levels[Math.floor(index * Visualizer.levels.length / 20)] ?? 0)
+                                   Behavior on yScale { NumberAnimation { duration: 70 } } }
+            }
+        }
+    }
 
     // Several players → pick which one this controls; shuffle / repeat when supported
     // Players: a strip that stops before the controls on the right and
@@ -122,7 +180,7 @@ Item {
     }
 
     Column {
-        anchors { left: art.right; leftMargin: Theme.space.s3; right: controls.left; rightMargin: Theme.space.s2; verticalCenter: art.verticalCenter }
+        anchors { left: vinyl.right; leftMargin: Theme.space.s3; right: controls.left; rightMargin: Theme.space.s2; verticalCenter: art.verticalCenter }
         spacing: 2
         LText { width: parent.width; role: "heading"; text: Media.title || "Nothing playing"; elide: Text.ElideRight }
         LText { width: parent.width; role: "body"; color: Theme.textSecondary; text: Media.artist; elide: Text.ElideRight; visible: text !== "" }
@@ -241,13 +299,51 @@ Item {
             anchors { left: pos.right; right: len.left; leftMargin: Theme.space.s2; rightMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
             height: seek.containsMouse ? 6 : 4
             radius: height / 2
-            color: Theme.surfaceHover
+            color: "transparent"
             Behavior on height { NumberAnimation { duration: Theme.motion.micro } }
+            property real played: width * parent.frac
+            Behavior on played { NumberAnimation { duration: 1000; easing.type: Easing.Linear } }
+            // the rest of the song: a quiet straight line
+            Rectangle { x: track.played + 4; width: Math.max(0, track.width - track.played - 4); height: track.height; radius: track.radius
+                        anchors.verticalCenter: parent.verticalCenter; color: Theme.surfaceHover }
+            // what's played: a line that ripples while it plays and lies flat when paused
+            Canvas {
+                id: wave
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.max(0, track.played) + 2; height: 14
+                property real amp: Media.playing && !Theme.reducedMotion && !seek.containsMouse ? 2.4 : 0
+                Behavior on amp { NumberAnimation { duration: Theme.motion.large } }
+                property real phase: 0
+                NumberAnimation on phase { running: wave.amp > 0 && root.visible; from: 0; to: 2 * Math.PI; duration: 1400; loops: Animation.Infinite }
+                onPhaseChanged: requestPaint()
+                onAmpChanged: requestPaint()
+                onWidthChanged: requestPaint()
+                onPaint: {
+                    const g = getContext("2d");
+                    g.reset();
+                    g.lineWidth = track.height;
+                    g.lineCap = "round";
+                    g.strokeStyle = Media.hasTint ? Qt.lighter(Media.tint, 1.35) : Theme.text;
+                    g.beginPath();
+                    const mid = height / 2, end = width - track.height / 2;
+                    for (let x = track.height / 2; x <= end; x += 2) {
+                        const y = mid + amp * Math.sin(x / 5.5 - phase);
+                        if (x === track.height / 2) g.moveTo(x, y); else g.lineTo(x, y);
+                    }
+                    g.stroke();
+                }
+            }
+            // the playhead
+            Rectangle { x: track.played - width / 2 + 1; anchors.verticalCenter: parent.verticalCenter; width: 4; height: 12; radius: 2
+                        color: Media.hasTint ? Qt.lighter(Media.tint, 1.35) : Theme.text; visible: track.parent.frac > 0 }
+            // hover: the time you'd jump to
             Rectangle {
-                width: parent.width * parent.parent.frac
-                height: parent.height; radius: parent.radius
-                color: Theme.text
-                Behavior on width { NumberAnimation { duration: 1000; easing.type: Easing.Linear } }
+                visible: seek.containsMouse && Media.canSeek
+                x: Math.max(0, Math.min(track.width - width, seek.mouseX - 6 - width / 2)); y: -24
+                width: tip.implicitWidth + 10; height: 18; radius: 9
+                color: Theme.surfaceElevated; border.width: 1; border.color: Theme.border
+                LText { id: tip; anchors.centerIn: parent; role: "caption"
+                        text: Media.formatTime(Media.length * Math.max(0, Math.min(1, (seek.mouseX - 6) / track.width))) }
             }
             MouseArea {
                 id: seek
