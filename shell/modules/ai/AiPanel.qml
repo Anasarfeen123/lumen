@@ -127,24 +127,32 @@ PanelWindow {
     GlassSurface {
         id: panel
         level: "panel"
-        radius: win.panelRadius
-        width: Math.min(760, win.width - 64)
-        height: Math.min(content.implicitHeight + Theme.space.s4 * 2, win.height * 0.82)
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: Theme.edgeGap + Theme.barHeight + Theme.space.s3
-        transformOrigin: Item.Top
-        opacity: win.showing ? 1 : 0
-        scale: win.showing ? 1 : 0.9
-        Behavior on opacity { NumberAnimation { duration: Theme.reducedMotion ? 0 : (win.showing ? Theme.motion.normal : Theme.motion.micro) } }
-        // arrives with a soft spring past full size; leaves quickly and quietly
-        Behavior on scale {
+        // ── Arriving and leaving: the panel grows out of the island ──
+        // It starts as the island's own pill, then stretches down and out on a
+        // spring (a touch past full size); the words fade in once there's room.
+        // Leaving, it pulls back up into the island and is gone.
+        readonly property real fullW: Math.min(760, win.width - 64)
+        property real fullH: Math.min(content.implicitHeight + Theme.space.s4 * 2, win.height * 0.82)
+        Behavior on fullH { enabled: panel.grow >= 1; NumberAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard } }
+        readonly property real startW: Math.max(120, Island.shapeWidth)
+        readonly property real startH: Theme.island.height
+        readonly property real startY: Island.shapeY
+        readonly property real targetY: Theme.edgeGap + Theme.barHeight + Theme.space.s3
+        property real grow: win.showing ? 1 : 0
+        Behavior on grow {
             NumberAnimation {
-                duration: Theme.reducedMotion ? 0 : (win.showing ? 420 : Theme.motion.micro + 30)
+                duration: Theme.reducedMotion ? 0 : (win.showing ? 520 : 230)
                 easing.type: win.showing ? Easing.OutBack : Easing.InCubic
-                easing.overshoot: 1.4
+                easing.overshoot: 1.15
             }
         }
-        Behavior on height { NumberAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard } }
+        readonly property real g: Math.max(0, grow)
+        radius: Math.min(height / 2, win.panelRadius + (1 - Math.min(1, g)) * 20)
+        width: startW + (fullW - startW) * g
+        height: Math.max(startH, startH + (fullH - startH) * g)
+        x: (win.width - width) / 2
+        y: startY + (targetY - startY) * Math.min(1, g)
+        opacity: Math.min(1, g * 4)
         Rectangle { anchors.fill: parent; radius: parent.radius; color: Theme.withAlpha(Theme.bg, 0.55) }
         MouseArea { anchors.fill: parent; onClicked: modelMenu.visible = false }   // swallow clicks so they don't reach the catcher
         // Where Halo looks: at the pointer (anywhere on this screen), else down at
@@ -188,11 +196,18 @@ PanelWindow {
             }
         }
 
+        // keeps the words inside the glass while it grows and shrinks
+        Item { id: clipper; anchors.fill: parent; anchors.margins: 1; clip: panel.g < 0.999 }
         Column {
             id: content
-            x: Theme.space.s4; y: Theme.space.s4
-            width: parent.width - Theme.space.s4 * 2
+            parent: clipper
+            // laid out at full width from the start (no reflowing while it grows)
+            x: (clipper.width - width) / 2; y: Theme.space.s4 - 1
+            width: panel.fullW - Theme.space.s4 * 2
             spacing: Theme.space.s3
+            // the words arrive once there's room, rising a little
+            opacity: win.showing ? Math.max(0, Math.min(1, (panel.g - 0.55) / 0.4)) : Math.max(0, (panel.g - 0.75) / 0.25)
+            transform: Translate { y: (1 - Math.min(1, panel.g)) * -14 }
 
             // ── Header ──
             Item {
@@ -296,7 +311,7 @@ PanelWindow {
                             width: parent.width; wrapMode: Text.Wrap; color: Theme.textMuted
                             text: Voice.listening ? "Listening — I'll stop when you pause."
                                 : Ai.selection ? "You've selected " + Ai.selection.split(/\s+/).length + " words — ask about them, or pick a skill."
-                                : "Ask anything, tell me to do something (“dark mode on”, “remind me at 9 to…”), or type / for skills."
+                                : "Ask anything, or tell me to do something — “dark mode on”, “click Download”, “remind me at 9 to…” — or type / for skills."
                         }
                     }
                 }

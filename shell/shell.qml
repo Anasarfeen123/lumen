@@ -28,6 +28,7 @@ import qs.modules.dropzone
 import qs.modules.inbox
 import qs.modules.welcome
 import qs.modules.lens
+import qs.modules.hands
 
 ShellRoot {
     id: root
@@ -171,6 +172,14 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: AiPanel {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    // Halo's hands: the spot, the ride, "Click this?" (services/Hands.qml)
+    Variants {
+        model: Quickshell.screens
+        delegate: HandsOverlay {
             required property var modelData
             screen: modelData
         }

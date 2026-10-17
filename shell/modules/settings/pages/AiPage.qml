@@ -160,6 +160,23 @@ Page {
     }
 
     Group {
+        title: "Hands"
+        SetRow {
+            icon: "pan_tool_alt"
+            title: "Let " + Halo.name + " use the mouse and keyboard"
+            description: "Ask “click Download”, “point at the settings”, “scroll down”, “press ctrl+s”, “type …”, “close this window”. It finds things by reading the screen on this computer. Pointing and scrolling just happen; every click, key and bit of typing asks first, right where it will happen (Enter allows, Esc cancels, or allow it for 2 minutes). Move the mouse and it lets go. Never on the lock screen or over a password prompt."
+            LSwitch { checked: Persist.data.haloHands ?? true; onToggled: Persist.data.haloHands = checked }
+        }
+        SetRow {
+            icon: Hands.canClick ? "check_circle" : "info"
+            title: Hands.canClick ? "Clicks and scrolling are ready" : "Clicks need ydotool"
+            description: Hands.canClick ? "Through your ydotool service (its socket in your runtime folder). Typing and keys use wtype."
+                : "Pointing and typing work already. For clicks and the scroll wheel, start the ydotool service: systemctl --user enable --now ydotool"
+            Button { text: "Check again"; onActivated: Hands.refresh() }
+        }
+    }
+
+    Group {
         title: "Wrap-ups"
         SetRow {
             icon: "wb_sunny"

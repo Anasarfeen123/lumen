@@ -179,6 +179,9 @@ Singleton {
             if (at > Date.now()) return { glyph: "alarm", title: "I'll remind you " + whenText(at) + " — " + what, plain: true,
                                           run: () => addReminder(at, what) };
         }
+        // Hands, windows, music, quick answers, files, reading aloud
+        const extra = more(q, lower);
+        if (extra) return extra;
         // Everything Lumen's search can do (actions, settings, timers, volume, apps, windows…)
         if (!/^(turn|switch|set|open|launch|start|stop|show|hide|lock|mute|unmute|enable|disable|toggle|play|pause|resume|next|previous|skip|take|record|go|put|make|close|end|kill|restore|save|dim|brighten|raise|lower|increase|decrease|change|run|timer|volume|vol|brightness|bright|caffeine|awake|stay awake|keep awake|screenshot|night light|dark mode|light mode|wifi|wi-fi|bluetooth|airplane|do not disturb|dnd|focus|sleep|suspend|restart|reboot|shut ?down|power off|log ?out)\b/i.test(lower))
             return null;
@@ -197,6 +200,131 @@ Singleton {
         if (r.kind === "action" && want !== null && r.badge !== "On" && r.badge !== "Off" && r.group === "Settings") return null;
         return { glyph: r.glyph ?? "bolt", icon: r.icon ?? "", title: r.title, run: () => r.run(), ask: !!r.destructive, kind: r.kind, doneTitle: doneTitle(r) };
     }
+    // ── more things Halo can simply do ──
+    function hyprDo(cmd) { Quickshell.execDetached(["hyprctl", "dispatch", cmd]); }
+    function answer(icon, title, text) { return { glyph: icon, title, own: () => root.say({ key: "fact", icon, title, text: text ?? "", level: "asked", tone: "normal", duration: 7000 }) }; }
+    function more(q, lower) {
+        let m;
+        const trimThe = t => t.replace(/^(the|a|an|that|this) /i, "").replace(/ (button|link|tab|icon|option)$/i, "").replace(/^["“']|["”']$/g, "").trim();
+        // ── hands: keys first ("press ctrl+s", "hit enter"), then clicks, pointing, scrolling, typing
+        if ((m = /^(?:press|hit|tap) ((?:(?:ctrl|control|alt|shift|super|win|meta)\s*\+\s*)*(?:[a-z0-9]|f\d{1,2}|enter|return|esc|escape|tab|space|backspace|delete|up|down|left|right|home|end|page ?up|page ?down))$/i.exec(lower)))
+            return { glyph: "keyboard", title: "Press " + m[1], own: () => Hands.key(m[1].replace(/page ?up/i, "pageup").replace(/page ?down/i, "pagedown")) };
+        if ((m = /^(double[- ]click|right[- ]click|click|tap|press|select)(?: on)? (.+)$/i.exec(q))) {
+            const btn = /^double/i.test(m[1]) ? "double" : /^right/i.test(m[1]) ? "right" : "left";
+            const what = trimThe(m[2]);
+            if (what) return { glyph: "ads_click", title: "Click " + what, own: () => Hands.clickText(what, btn) };
+        }
+        if ((m = /^(?:point (?:at|to)|where(?:'s| is)|show me where|find on (?:the )?screen|look at) (.+?)(?: on (?:the|my) screen)?$/i.exec(q)))
+            return { glyph: "near_me", title: "Pointing at " + trimThe(m[1]), own: () => Hands.pointAt(trimThe(m[1])) };
+        if ((m = /^scroll (down|up)(?: (a bit|a little|a lot|more|to the (?:top|bottom)))?$/i.exec(lower))) {
+            const amt = !m[2] ? 5 : /bit|little/.test(m[2]) ? 2 : /lot|more/.test(m[2]) ? 12 : 30;
+            return { glyph: m[1] === "down" ? "south" : "north", title: "Scroll " + m[1], own: () => Hands.scroll(m[1], amt) };
+        }
+        if ((m = /^type (?:out |in )?(?:["“](.+)["”]|(.+))$/i.exec(q)))
+            return { glyph: "keyboard", title: "Type it", own: () => Hands.type(m[1] ?? m[2]) };
+        if (/^(go back|back)$/.test(lower)) return { glyph: "arrow_back", title: "Back", own: () => Hands.key("alt+Left", true) };
+        if (/^(go forward|forward)$/.test(lower)) return { glyph: "arrow_forward", title: "Forward", own: () => Hands.key("alt+Right", true) };
+        if (/^(refresh|reload)( the page| this| it)?$/.test(lower)) return { glyph: "refresh", title: "Reload", own: () => Hands.key("F5", true) };
+        if (/^(new tab|open a new tab)$/.test(lower)) return { glyph: "tab", title: "New tab", own: () => Hands.key("ctrl+t", true) };
+
+        // ── windows and workspaces ──
+        if ((m = /^(?:go to|switch to|show) workspace (\d+)$/.exec(lower)))
+            return { glyph: "space_dashboard", title: "Workspace " + m[1], doneTitle: "On workspace " + m[1], run: () => hyprDo("hl.dsp.focus({ workspace = " + m[1] + " })") };
+        if ((m = /^(?:move|send|put) (?:this|the|my)? ?(?:window|app)? ?to workspace (\d+)$/.exec(lower)))
+            return { glyph: "move_group", title: "Moved to workspace " + m[1], plain: true, run: () => hyprDo("hl.dsp.window.move({ workspace = " + m[1] + " })") };
+        if (/^(maximi[sz]e|make (it|this) (big|bigger|full))( (this|the|my) window| it)?$/.test(lower))
+            return { glyph: "fullscreen", title: "Maximised", plain: true, run: () => hyprDo("hl.dsp.window.fullscreen({ mode = \"maximized\", action = \"toggle\" })") };
+        if (/^(full ?screen)( (this|the|my) window| it)?$/.test(lower))
+            return { glyph: "fullscreen", title: "Fullscreen", plain: true, run: () => hyprDo("hl.dsp.window.fullscreen({ mode = \"fullscreen\", action = \"toggle\" })") };
+        if (/^(float|unfloat|pop out|tile)( (this|the|my) window| it)?$/.test(lower))
+            return { glyph: "picture_in_picture", title: "Floating or tiled", plain: true, run: () => { hyprDo("hl.dsp.window.float({ action = \"toggle\" })"); hyprDo("hl.dsp.window.center()"); } };
+        if (/^(minimi[sz]e|hide|tuck away)( (this|the|my) window| it)?$/.test(lower))
+            return { glyph: "minimize", title: "Tucked away (Super+Shift+H brings it back)", plain: true, run: () => hyprDo("hl.dsp.window.move({ workspace = \"special:minimized\", follow = false })") };
+        if (/^close (this|the|my) window$/.test(lower)) {
+            const t = Hyprland.activeToplevel?.title ?? "this window";
+            return { glyph: "close", title: "Close “" + t.slice(0, 50) + "”", ask: true, run: () => hyprDo("hl.dsp.window.close()") };
+        }
+
+        // ── music ──
+        if (/^(pause|stop)( the)? (music|song|playback|it)$|^pause$/.test(lower) && Media.playing)
+            return { glyph: "pause", title: "Paused", plain: true, run: () => Media.toggle() };
+        if (/^(play|resume|continue)( the)? (music|song|playback|it)$|^(play|resume)$/.test(lower) && !Media.playing && Media.present)
+            return { glyph: "play_arrow", title: "Playing " + (Media.title || "again"), plain: true, run: () => Media.toggle() };
+        if (/^(next|skip)( (song|track|this( song)?))?$/.test(lower) && Media.present)
+            return { glyph: "skip_next", title: "Next track", plain: true, run: () => Media.next() };
+        if (/^(previous|last|go back a)( song| track)$|^previous$/.test(lower) && Media.present)
+            return { glyph: "skip_previous", title: "Previous track", plain: true, run: () => Media.previous() };
+        if (/^(what'?s|what is) (playing|this song|the song|on)\b/.test(lower))
+            return Media.present ? answer("music_note", Media.title || "Something's playing", [Media.artist, Media.playing ? "playing" : "paused"].filter(x => x).join(" · "))
+                                 : answer("music_off", "Nothing's playing", "");
+
+        // ── quick answers ──
+        if (/^(how much )?battery( left| level| status)?$|^how('?s| is) (the|my) battery$|^(how long will|when will) (the|my) battery/.test(lower)) {
+            if (!Battery.available) return answer("power", "No battery", "This computer runs on mains power.");
+            const pct = Math.round(Battery.percentage * 100) + "%";
+            return answer(Battery.icon, pct + (Battery.pluggedIn ? (Battery.full ? " — full" : " and charging") : ""),
+                          Battery.pluggedIn ? (Battery.timeToFull > 0 ? "Full in " + Battery.formatDuration(Battery.timeToFull) : "") : (Battery.forecastText ? "About " + Battery.forecastText + " left at this rate" : ""));
+        }
+        if (/^(what('?s| is) the )?time( is it)?( now)?$|^what time is it$/.test(lower))
+            return answer("schedule", Qt.formatTime(new Date(), Theme.timeFormatFull), Qt.formatDate(new Date(), "dddd d MMMM"));
+        if (/^(what('?s| is) )?(the |today'?s )?date( today)?$|^what day is (it|today)$/.test(lower))
+            return answer("calendar_today", Qt.formatDate(new Date(), "dddd d MMMM yyyy"), "");
+        if (/^(what('?s| is) )?(my |the )?(wi-?fi|network)( name| called)?$|^which wi-?fi\b/.test(lower))
+            return answer(Network.ssid ? "wifi" : "wifi_off", Network.ssid || "Not connected to Wi-Fi", "");
+
+        // ── reading aloud ──
+        if (/^read (this|that|it|the selection|my selection|what i selected|my clipboard|the clipboard)( to me| aloud| out loud)?$/.test(lower))
+            return { glyph: "record_voice_over", title: "Reading it", own: () => root.readAloud(/clipboard/.test(lower)) };
+
+        // ── files ──
+        if ((m = /^(?:find|search for|look for|open|where(?:'s| is)) (?:my |the )?(?:file |document |pdf |notes? )?(.+?\.(?:pdf|docx?|pptx?|xlsx?|txt|md|png|jpe?g|zip|mp4|mp3|csv|py|c|cpp|java|js))$/i.exec(q))
+            ?? (m = /^(?:find|search for|look for) (?:my |the )?(?:file|files|document|pdf|notes?) (?:called |named |about )?(.+)$/i.exec(q)))
+            return { glyph: "search", title: "Looking for " + m[1], own: () => root.findFile(m[1]) };
+        return null;
+    }
+
+    // Read the selection (or clipboard) aloud — even with spoken replies off
+    function readAloud(clipboard) { readProc.command = ["sh", "-c", clipboard ? "wl-paste --no-newline 2>/dev/null | head -c 6000" : "wl-paste --primary --no-newline 2>/dev/null | head -c 6000"]; readProc.running = true; }
+    Process {
+        id: readProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const t = text.trim();
+                if (!t) { root.say({ key: "fact", icon: "record_voice_over", title: "Nothing to read", text: "Select some text first (or copy it and say “read my clipboard”).", level: "asked" }); return; }
+                if (!Voice.canSpeak) { root.say({ key: "fact", icon: "volume_off", title: "I can't speak yet", text: "Install espeak-ng (sudo dnf install espeak-ng).", level: "asked" }); return; }
+                Voice.say(t, true);
+            }
+        }
+    }
+    // Find files in your home by name (fd), newest first
+    function findFile(name) {
+        const words = name.trim().split(/\s+/).filter(w => w).map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+        fileProc.want = name;
+        fileProc.command = ["sh", "-c", 'cd "$HOME" && fd -i -t f --max-results 40 --exclude ".*" -- "$1" 2>/dev/null | head -40 | while read -r f; do printf "%s\t%s\n" "$(stat -c %Y "$f" 2>/dev/null)" "$HOME/$f"; done | sort -rn | head -4 | cut -f2',
+                            "sh", words.join(".*")];
+        fileProc.running = true;
+    }
+    Process {
+        id: fileProc
+        property string want: ""
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const files = text.split("\n").filter(f => f);
+                if (!files.length) { root.say({ key: "fact", icon: "search_off", title: "No file called “" + fileProc.want + "”", text: "I looked through your home folder (hidden folders skipped).", level: "asked", tone: "concerned" }); return; }
+                const nice = f => f.replace(Quickshell.env("HOME"), "~");
+                root.say({ key: "files", icon: "description", title: files.length === 1 ? files[0].replace(/.*\//, "") : "Found " + files.length + " files",
+                          text: files.map(nice).join("\n"), level: "asked", duration: 15000,
+                          actions: files.slice(0, 3).map(f => {
+                                       const name = f.replace(/.*\//, ""), dup = files.filter(g => g.replace(/.*\//, "") === name).length > 1;
+                                       const dir = f.replace(/\/[^\/]*$/, "").replace(/.*\//, "");
+                                       return { label: "Open " + name.slice(0, 22) + (dup ? " · " + dir.slice(0, 14) : ""), icon: "open_in_new", run: () => Qt.openUrlExternally("file://" + f) };
+                                   })
+                                   .concat([{ label: "Show in folder", icon: "folder_open", run: () => Quickshell.execDetached(["xdg-open", files[0].replace(/\/[^\/]*$/, "")]) },
+                                            { label: "Ask about it", icon: "auto_awesome", run: () => Ai.askAboutFiles([files[0]], "file") }]) });
+            }
+        }
+    }
+
     // What was done, said naturally: "Start a 25:00 timer" → "25:00 timer started"
     function doneTitle(r) {
         const t = r.title;

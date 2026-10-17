@@ -96,7 +96,8 @@ Singleton {
             property string haloWrapUp: "21:30"   // the evening wrap-up ("" = off)
             property string haloLastMorning: ""   // the day the morning brief last ran (yyyy-MM-dd)
             property string haloLastWrap: ""      // … and the evening wrap-up
-            property var haloReminders: []        // [{ at: ms, text }] — "remind me at 9 to …"
+            property var haloReminders: []
+            property bool haloHands: true         // Halo may point, click, scroll, press keys and type (clicks/keys/typing ask first)        // [{ at: ms, text }] — "remind me at 9 to …"
         }
     }
 }

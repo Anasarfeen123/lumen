@@ -793,6 +793,13 @@ and a small shake when something's wrong; dimmed and slow in quiet hours. Rules:
   directly, no model; destructive things (shut down, log out) always ask first.
 - **Voice is offline and on request.** Push-to-talk (Super+Alt+H), whisper.cpp to hear, Piper or
   espeak-ng to speak. There is no wake word: nothing listens until you ask.
+- **Hands, with permission.** Halo can point (the pointer glides there and a small Halo rides
+  along; rings mark the spot), scroll, click, press keys and type. Pointing and scrolling just
+  happen; every click, key and bit of typing asks first, *right where it will happen* (Enter
+  allows, Esc cancels, or "allow for 2 minutes"). Moving the mouse takes it back at once. Targets
+  come from reading the screen on this computer. Never on the lock screen or a password prompt.
+- **The panel grows out of the island** (its pill stretches down on a spring, the words arrive once
+  there's room) and pulls back into it when it closes.
 - **Circle to search** (Super+Z) freezes the screen; you draw round anything and a sheet rises with
   what you can do with it. The circled piece lifts out of a dim; the stroke is light, and fades.
 

@@ -32,6 +32,7 @@ Singleton {
 
     function start() {
         if (open || shooter.running) return;
+        cleanup.stop();
         // Panels over the screen first slide away, so they aren't in the picture
         if (Ai.open || Overview.open || Sidebar.open) { Ai.open = false; Overview.open = false; Sidebar.open = false; later.restart(); return; }
         Ai.prepare();
@@ -55,10 +56,14 @@ Singleton {
     }
     function reset() { sel = Qt.rect(0, 0, 0, 0); crop = ""; cropReady = ""; text = ""; reading = false; asked = false; }
     function close() {
+        if (!open) return;
         open = false;
-        if (asked && Ai.busy) {}            // the answer keeps coming in Halo
-        Quickshell.execDetached([script, "clean"]);
-        shot = ""; reset();
+        cleanup.restart();                  // after the overlay has faded away
+    }
+    Timer {
+        id: cleanup
+        interval: 360
+        onTriggered: { if (root.open) return; Quickshell.execDetached([root.script, "clean"]); root.shot = ""; root.reset(); }
     }
 
     // r: the selection in screen pixels of the frozen image

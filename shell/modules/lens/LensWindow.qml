@@ -22,9 +22,13 @@ PanelWindow {
     readonly property HyprlandMonitor monitor: Hyprland.monitorFor(screen)
     readonly property bool showing: Lens.open && (monitor?.name ?? "") === Lens.screen
 
-    visible: showing
+    // Leaving: the frozen screen fades into the live one and the sheet drops away
+    property real fade: showing ? 1 : 0
+    Behavior on fade { NumberAnimation { duration: Theme.reducedMotion ? 0 : (win.showing ? 90 : 240); easing.type: Easing.OutCubic } }
+    Binding { target: win.contentItem; property: "opacity"; value: win.fade }
+    visible: showing || fade > 0.01
     anchors { top: true; bottom: true; left: true; right: true }
-    color: "black"
+    color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "lumen-lens"
     WlrLayershell.layer: WlrLayer.Overlay
@@ -162,7 +166,7 @@ PanelWindow {
         }
     }
     function windowAt(x, y) {
-        const ox = monitor?.lastIpcObject?.x ?? 0, oy = monitor?.lastIpcObject?.y ?? 0, ws = monitor?.activeWorkspace?.id;
+        const ox = win.screen?.x ?? 0, oy = win.screen?.y ?? 0, ws = monitor?.activeWorkspace?.id;
         const hit = Hyprland.toplevels.values.map(t => t.lastIpcObject ?? {})
             .filter(o => o.workspace?.id === ws && o.at && o.size)
             .sort((a, b) => (b.floating === true) - (a.floating === true))
@@ -233,7 +237,7 @@ PanelWindow {
     MouseArea { id: sheetArea; anchors.fill: sheet; hoverEnabled: true; acceptedButtons: Qt.NoButton }
     Rectangle {
         id: sheet
-        readonly property bool up: win.hasBox && !win.drawing
+        readonly property bool up: win.hasBox && !win.drawing && win.showing
         width: Math.min(720, win.width - 48)
         height: sheetCol.implicitHeight + Theme.space.s4 * 2
         anchors.horizontalCenter: parent.horizontalCenter
