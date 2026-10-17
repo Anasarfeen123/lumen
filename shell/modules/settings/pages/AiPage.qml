@@ -160,6 +160,16 @@ Page {
     }
 
     Group {
+        title: "Doing things for you"
+        SetRow {
+            icon: "smart_toy"
+            title: "Let " + Halo.name + " carry out jobs"
+            description: "Ask for a job, not just an answer — “start a 50-minute study timer and tell me my next class”, “find my DBMS notes and summarise them”, “add a to-do for the lab record and remind me at 9”. " + Halo.name + " plans it and uses Lumen's tools one step at a time; you see every step, can stop it, and anything that clicks, types, runs a command or can't be undone waits for your OK. Type /agent to ask for it directly. Works best with a larger model (Claude, or a 7B+ local one)."
+            LSwitch { checked: Persist.data.haloAgent ?? true; onToggled: Persist.data.haloAgent = checked }
+        }
+    }
+
+    Group {
         title: "Hands"
         SetRow {
             icon: "pan_tool_alt"

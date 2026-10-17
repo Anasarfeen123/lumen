@@ -173,6 +173,7 @@ Singleton {
           prompt: a => "Suggest clearer file names for these files, based on what's inside them." + (a ? " Style: " + a + "." : "")
                      + " Rules: keep each file's extension; at most 60 characters; readable words (e.g. \"Robotics Club Budget 2026-09.txt\"); include a date only if the content shows one; no slashes. "
                      + "Reply with ONLY a JSON array, no other text: [{\"from\": \"<current name>\", \"to\": \"<new name>\"}]" },
+        { id: "agent",     icon: "smart_toy",        label: "Do it for me",  hint: "/agent <a goal> — Halo plans and uses Lumen's tools", prompt: a => a },
         { id: "eli5",      icon: "child_care",       label: "Simply",        hint: "Explain it like I'm new to this",         prompt: a => "Explain this simply, as to someone new to the topic, with an everyday analogy." + (a ? " " + a : "") },
     ]
     function skillFor(text) {
@@ -271,7 +272,7 @@ Singleton {
         + "For commands, prefer Fedora (dnf) and say clearly before anything destructive. " + Halo.style
 
     function clear() { stop(); messages = []; error = ""; speed = 0; }
-    function stop() { if (ask.running) ask.running = false; ctxProc.running = false; busy = false; phase = ""; slow = false; }
+    function stop() { if (ask.running) ask.running = false; ctxProc.running = false; busy = false; phase = ""; slow = false; if (Agent.running) Agent.stop(); }
 
     // A card from Halo itself (an action it did, a brief, a check) as an answer
     //   { icon, title, text, tone, actions: [{ label, icon, run }] }
@@ -385,10 +386,12 @@ Singleton {
     function send(raw) {
         raw = raw.trim();
         if (!raw || busy) return;
+        // Not sure yet what's set up (just started): wait for that, then decide
+        if (!statusKnown && provider !== "off") { queued = raw; refreshStatus(); return; }
         if (whatsappDraft(raw)) return;
         // Things Lumen can simply do ("turn on dark mode", "remind me at 9 to…"):
         // Halo does them itself, no model needed
-        if (!raw.startsWith("/") && Halo.intent(raw)) {
+        if (!raw.startsWith("/") && !(configured && Agent.multi(raw)) && Halo.intent(raw)) {
             error = "";
             history = history.filter(h => h !== raw).concat([raw]).slice(-30);
             messages = messages.concat([{ role: "user", text: raw, shown: raw, local: true }]);
@@ -396,6 +399,13 @@ Singleton {
             return;
         }
         if (!configured && provider !== "off" && (!statusKnown || statusProc.running)) { queued = raw; refreshStatus(); return; }
+        // A job rather than a question: Halo plans it and uses Lumen's tools
+        if (configured && Agent.wants(raw)) {
+            error = "";
+            history = history.filter(h => h !== raw).concat([raw]).slice(-30);
+            Agent.start(raw, "panel");
+            return;
+        }
         if (!configured) { error = provider === "off" ? "Choose where answers come from — Settings → Halo." : "Halo isn't ready yet — Settings → Halo."; return; }
         error = "";
         history = history.filter(h => h !== raw).concat([raw]).slice(-30);
@@ -496,7 +506,7 @@ Singleton {
         askStarted = Date.now();
         slowTimer.restart();
         const req = { provider, model: modelFor(!!image), system,
-                      messages: messages.slice(0, -1).filter(m => m.kind !== "wa" && m.kind !== "act" && !m.local).map(m => Object.assign({ role: m.role, text: m.text }, m.image ? { image: m.image } : {})) };
+                      messages: messages.slice(0, -1).filter(m => m.kind !== "wa" && m.kind !== "act" && m.kind !== "agent" && !m.local).map(m => Object.assign({ role: m.role, text: m.text }, m.image ? { image: m.image } : {})) };
         reqFile.setText(JSON.stringify(req));
         ask.command = [Theme.lumenRoot + "/scripts/ai.sh", "ask", reqFile.path];
         ask.running = true;

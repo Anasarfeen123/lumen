@@ -14,15 +14,24 @@ Item {
     required property var info
     readonly property bool live: info.live === true
     readonly property var actions: live ? liveActions : (info.actions ?? [])
-    readonly property var liveActions: Voice.listening ? [{ label: "Done talking", icon: "stop_circle", run: () => Voice.stopListening() },
+    // Halo acting on a goal (services/Agent.qml) while the panel is away
+    readonly property bool acting: live && Agent.running && Agent.active?.where === "island"
+    readonly property var lastStep: (Agent.active?.steps ?? []).slice(-1)[0] ?? null
+    readonly property var liveActions: acting ? (Agent.active.state === "waiting"
+                                                    ? [{ label: "Allow", icon: "check", run: () => Agent.approve(true) }, { label: "Skip", icon: "close", run: () => Agent.approve(false) }]
+                                                    : [{ label: "Stop", icon: "stop", run: () => Agent.stop() }, { label: "Open in Halo", icon: "open_in_full", run: () => Ai.show() }])
+                                     : Voice.listening ? [{ label: "Done talking", icon: "stop_circle", run: () => Voice.stopListening() },
                                                          { label: "Cancel", icon: "close", run: () => Voice.cancel() }]
                                      : Ai.busy ? [{ label: "Stop", icon: "stop", run: () => { Ai.stop(); Halo.session = false; } },
                                                   { label: "Open in Halo", icon: "open_in_full", run: () => Ai.show() }] : []
     readonly property string title: !live ? (info.title ?? "")
+        : acting ? "“" + Agent.active.goal + "”"
         : Voice.listening ? (Voice.heardSpeech ? "Listening…" : "Listening — go ahead")
         : Voice.transcribing ? "Got it…"
         : Halo.heard ? "“" + Halo.heard + "”" : Halo.name
     readonly property string body: !live ? (info.text ?? "")
+        : acting ? (Agent.active.state === "waiting" ? "Needs your OK: " + (lastStep?.say ?? "")
+                    : (Agent.active.steps.length ? "Step " + Agent.active.steps.length + " · " + (lastStep?.say ?? "") + (lastStep?.result ? " — " + lastStep.result : "") : "Planning…"))
         : Voice.listening ? "I'll stop when you pause."
         : Ai.busy ? (Ai.streamText ? tail(Voice.speakable(Ai.streamText) || Ai.streamText) : (Ai.slow ? "Still thinking — the first answer takes a moment…" : "Thinking…"))
         : ""

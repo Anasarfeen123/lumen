@@ -327,6 +327,10 @@ PanelWindow {
                             { icon: "gesture", label: "Circle to search", lens: true },
                         ].concat(Voice.canListen ? [{ icon: "mic", label: "Talk", talk: true }] : [])
                          .concat(Ai.configured && Ai.projectDir ? [{ icon: "commit", label: "Commit message", q: "/commit" }] : [])
+                         .concat(HaloCollege.on && Amazecc.next ? [{ icon: "school", label: "Next class", q: "what's my next class" }] : [])
+                         .concat(HaloCollege.on && Amazecc.examCountdown && Ai.configured && Agent.enabled
+                                 ? [{ icon: "edit_note", label: "Plan revision · " + (Amazecc.nextExam?.title ?? "").split(" ").slice(0, 3).join(" "),
+                                      q: "/agent Make a revision plan note for my " + (Amazecc.nextExam?.kind ?? "") + " in " + (Amazecc.nextExam?.title ?? "") + " (" + Amazecc.examCountdown + "): check my marks and the exam date with the college tool, then create a note with a day-by-day plan until the exam, and add one to-do for today." }] : [])
                          .concat(Halo.reminders.length ? [{ icon: "alarm", label: Halo.reminders.length === 1 ? "1 reminder" : Halo.reminders.length + " reminders", reminders: true }] : [])
                         delegate: ActionPill {
                             required property var modelData
@@ -536,7 +540,7 @@ PanelWindow {
                         width: parent.width
                         spacing: Theme.space.s2
                         Rectangle {
-                            visible: !msg.modelData.renames && msg.modelData.kind !== "wa" && msg.modelData.kind !== "act"
+                            visible: !msg.modelData.renames && msg.modelData.kind !== "wa" && msg.modelData.kind !== "act" && msg.modelData.kind !== "agent"
                             width: parent.width
                             radius: Theme.radius.md
                             color: Theme.withAlpha(Theme.surfaceElevated, 0.7)
@@ -672,6 +676,110 @@ PanelWindow {
                                         delegate: ActionPill { required property var modelData; required property int index; outlined: true
                                                                icon: modelData.icon ?? ""; text: modelData.label; onClicked: Ai.actDecide(msg.index, index) }
                                     }
+                                }
+                            }
+                        }
+                        // Halo acting on a goal: each step as it happens, then the answer
+                        Rectangle {
+                            id: agentCard
+                            visible: msg.modelData.kind === "agent"
+                            readonly property var r: Agent.runs[msg.modelData.runId ?? ""] ?? ({})
+                            readonly property bool live: r.state === "running" || r.state === "waiting"
+                            width: answerCol.width
+                            height: visible ? agCol.implicitHeight + Theme.space.s3 * 2 : 0
+                            radius: Theme.radius.md
+                            color: Theme.withAlpha(Theme.surfaceElevated, 0.7)
+                            border.width: 1; border.color: r.state === "waiting" ? Theme.withAlpha(Theme.warning, 0.5) : live ? Theme.withAlpha(Theme.accent, 0.4) : Theme.border
+                            Behavior on height { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard } }
+                            Column {
+                                id: agCol
+                                x: Theme.space.s3; y: Theme.space.s3
+                                width: parent.width - Theme.space.s3 * 2
+                                spacing: 6
+                                Item {
+                                    width: parent.width; height: 26
+                                    Row {
+                                        spacing: 8
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        HaloOrb { size: 22; face: Persist.data.haloFace ?? true; anchors.verticalCenter: parent.verticalCenter
+                                                  mood: agentCard.live ? (Agent.thinking ? "thinking" : agentCard.r.state === "waiting" ? "concerned" : "speaking") : agentCard.r.state === "done" ? "happy" : "rest" }
+                                        LText { role: "bodyStrong"; anchors.verticalCenter: parent.verticalCenter
+                                                text: agentCard.r.state === "waiting" ? "Needs your OK"
+                                                    : agentCard.live ? (Agent.thinking ? "Working out the next step…" : "Working on it…")
+                                                    : agentCard.r.state === "stopped" ? "Stopped" : "Done" + ((agentCard.r.steps ?? []).length ? " · " + agentCard.r.steps.length + ((agentCard.r.steps ?? []).length === 1 ? " step" : " steps") : "") }
+                                    }
+                                    ActionPill { visible: agentCard.live; anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                                 icon: "stop"; text: "Stop"; onClicked: Agent.stop() }
+                                }
+                                Repeater {
+                                    model: agentCard.r.steps ?? []
+                                    delegate: Item {
+                                        id: stepRow
+                                        required property var modelData
+                                        required property int index
+                                        width: agCol.width
+                                        height: stepCol.implicitHeight + 4
+                                        opacity: 0
+                                        transform: Translate { id: stepRise; x: -8 }
+                                        Component.onCompleted: stepIn.start()
+                                        ParallelAnimation {
+                                            id: stepIn
+                                            NumberAnimation { target: stepRow; property: "opacity"; to: 1; duration: Theme.reducedMotion ? 0 : Theme.motion.normal }
+                                            NumberAnimation { target: stepRise; property: "x"; to: 0; duration: Theme.reducedMotion ? 0 : Theme.motion.large; easing.type: Easing.OutCubic }
+                                        }
+                                        Rectangle {
+                                            id: dot
+                                            y: 1
+                                            width: 22; height: 22; radius: 11
+                                            readonly property string st: stepRow.modelData.state
+                                            color: st === "done" ? Theme.withAlpha(Theme.success, 0.18) : st === "failed" ? Theme.withAlpha(Theme.error, 0.18)
+                                                 : st === "waiting" ? Theme.withAlpha(Theme.warning, 0.2) : Theme.withAlpha(Theme.accent, 0.16)
+                                            LIcon { anchors.centerIn: parent; size: 13; fill: 1
+                                                    icon: dot.st === "done" ? "check" : dot.st === "failed" ? "close" : dot.st === "skipped" ? "remove" : dot.st === "waiting" ? "front_hand" : stepRow.modelData.icon
+                                                    color: dot.st === "done" ? Theme.success : dot.st === "failed" ? Theme.error : dot.st === "waiting" ? Theme.warning : Theme.accent }
+                                            // working: a soft ring that turns
+                                            Rectangle {
+                                                visible: dot.st === "running"
+                                                anchors.fill: parent; anchors.margins: -2; radius: width / 2
+                                                color: "transparent"; border.width: 2; border.color: Theme.withAlpha(Theme.accent, 0.5)
+                                                SequentialAnimation on opacity { running: dot.st === "running" && !Theme.reducedMotion; loops: Animation.Infinite
+                                                    NumberAnimation { to: 0.2; duration: 600 } NumberAnimation { to: 1; duration: 600 } }
+                                            }
+                                        }
+                                        Column {
+                                            id: stepCol
+                                            anchors { left: dot.right; leftMargin: 10; right: parent.right; top: parent.top }
+                                            spacing: 1
+                                            LText { width: parent.width; elide: Text.ElideRight; textFormat: Text.PlainText
+                                                    color: stepRow.modelData.state === "skipped" ? Theme.textMuted : Theme.text; text: stepRow.modelData.say }
+                                            LText { visible: text !== ""; width: parent.width; elide: Text.ElideRight; role: "caption"; color: Theme.textMuted; textFormat: Text.PlainText
+                                                    text: stepRow.modelData.result ?? "" }
+                                            Row {
+                                                visible: stepRow.modelData.state === "waiting" && Agent.current === msg.modelData.runId
+                                                spacing: 6; topPadding: 4
+                                                ActionPill { outlined: true; icon: "check"; text: "Allow"; onClicked: Agent.approve(true) }
+                                                ActionPill { outlined: true; icon: "close"; text: "Skip"; onClicked: Agent.approve(false) }
+                                            }
+                                        }
+                                    }
+                                }
+                                TextEdit {
+                                    visible: (agentCard.r.answer ?? "") !== ""
+                                    width: parent.width
+                                    readOnly: true; selectByMouse: true
+                                    wrapMode: Text.Wrap; textFormat: TextEdit.RichText
+                                    text: Md.toHtml(agentCard.r.answer ?? "", win.mdColors)
+                                    onLinkActivated: link => Qt.openUrlExternally(link)
+                                    color: Theme.text; selectionColor: Theme.withAlpha(Theme.accent, 0.4)
+                                    font.family: Theme.fontUi; font.pixelSize: 14
+                                    topPadding: 4
+                                }
+                                Row {
+                                    visible: (agentCard.r.answer ?? "") !== ""
+                                    spacing: 4
+                                    ActionPill { icon: "content_copy"; text: "Copy"; onClicked: Ai.copy(agentCard.r.answer) }
+                                    ActionPill { visible: Voice.canSpeak; icon: "volume_up"; text: "Read aloud"; onClicked: Voice.say(agentCard.r.answer, true) }
+                                    ActionPill { visible: msg.last; icon: "refresh"; text: "Again"; onClicked: Agent.start(agentCard.r.goal, "panel") }
                                 }
                             }
                         }

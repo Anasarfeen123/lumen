@@ -13,6 +13,7 @@ pointing and scrolling need no OK). Standard library only.
   halo-hands.py scroll <up|down> [steps]  the mouse wheel where the pointer is (ydotool)
   halo-hands.py key <combo>               e.g. ctrl+s, alt+Left, Return (wtype)
   halo-hands.py type <text>               types the text into the focused window (wtype)
+  halo-hands.py read                      the text on the focused screen (tesseract), plain
   halo-hands.py find <text>               JSON: where that text is on the focused screen,
                                           best match first [{x, y, w, h, text, score}]
                                           (grim + tesseract, on this computer; the
@@ -206,6 +207,28 @@ def find(want):
     return hits[:6]
 
 
+def read_screen():
+    """All the text on the focused screen, top to bottom (for the agent)."""
+    mon = focused_monitor()
+    if not mon:
+        return ""
+    fd, img = tempfile.mkstemp(prefix="halo-read-", suffix=".png", dir=RUN)
+    os.close(fd)
+    try:
+        if subprocess.run(["grim", "-o", mon["name"], img], capture_output=True, timeout=5).returncode != 0:
+            return ""
+        # larger and in greys reads far better (dark themes, small UI text)
+        subprocess.run(["magick", img, "-colorspace", "Gray", "-resize", "160%", img], capture_output=True, timeout=10)
+        return subprocess.run(["tesseract", img, "-", "-l", "eng", "--psm", "3"], capture_output=True, text=True, timeout=40).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    finally:
+        try:
+            os.remove(img)
+        except OSError:
+            pass
+
+
 def main():
     a = sys.argv[1:]
     if not a:
@@ -225,6 +248,9 @@ def main():
         out(key(a[1]))
     elif c == "type" and len(a) >= 2:
         out(type_text(" ".join(a[1:])))
+    elif c == "read":
+        text = re.sub(r"\n{3,}", "\n\n", read_screen()).strip()
+        sys.stdout.write(text[:8000] + "\n")
     elif c == "find" and len(a) >= 2:
         out(find(" ".join(a[1:])))
     else:

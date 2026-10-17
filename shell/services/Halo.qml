@@ -66,7 +66,7 @@ Singleton {
     SystemClock { id: clock; precision: SystemClock.Minutes }
     readonly property bool lateNight: clock.date.getHours() >= 1 && clock.date.getHours() < 6
     readonly property string mood: Voice.listening ? "listening"
-        : (Ai.busy && Ai.phase !== "writing") || Voice.transcribing ? "thinking"
+        : (Ai.busy && Ai.phase !== "writing") || Voice.transcribing || Agent.thinking ? "thinking"
         : Voice.speaking || (Ai.busy && Ai.phase === "writing") ? "speaking"
         : flash !== "" ? flash
         : Doctor.worried ? "concerned"
@@ -98,7 +98,9 @@ Singleton {
         if (chattiness === "helpful") return level !== "chatter";
         return true;
     }
+    property var capture: null          // the agent reading what a card would say, without showing it
     function say(card) {
+        if (capture) { capture(card); return; }
         const level = card.level ?? "important";
         if (!allowed(level)) return;
         card.time = Date.now();
@@ -109,6 +111,11 @@ Singleton {
             if (card.tone === "happy") react("happy", 2600);
             if (card.speak !== false && Voice.wanted) Voice.say(card.speak ?? [card.title, card.text].filter(x => x).join(". "));
             return;
+        }
+        // Too long for the island: one tap shows all of it in Halo
+        if (((card.text ?? "").split("\n").length > 4 || (card.text ?? "").length > 240) && !(card.actions ?? []).some(a => a?.full)) {
+            const full = Object.assign({}, card);
+            card.actions = (card.actions ?? []).concat([{ label: "Show all", icon: "open_in_full", full: true, run: () => { Ai.show(); Ai.note(full); } }]);
         }
         if (quiet && level !== "urgent" && level !== "asked" && !(level === "important" && card.throughQuiet)) {
             held = held.filter(c => c.key !== card.key).concat([card]).slice(-12);
@@ -170,6 +177,9 @@ Singleton {
             return { glyph: "stethoscope", title: "Checking", own: () => Doctor.checkNow(true) };
         if (/^(circle|search) (to search|my screen|the screen|this)|^what'?s this on (my|the) screen|^lens$/i.test(lower))
             return { glyph: "gesture", title: "Circle to search", own: () => Lens.start() };
+        // College (AmazeCC): next class, attendance, skipping, marks, FAT targets, exams
+        const college = HaloCollege.intent(q);
+        if (college) return college;
         // Reminders: "remind me in 20 min to …", "remind me at 9 (pm) to …"
         let m = /^remind me (?:in |after )?(.+?) (?:to|that|about) (.+)$/i.exec(q) ?? /^remind me to (.+?) (?:in|at|after) (.+)$/i.exec(q);
         if (m) {
@@ -416,7 +426,9 @@ Singleton {
     function ask(text) {
         heard = text;
         if (Ai.open) { Ai.send(text); return; }
+        if (Ai.configured && Agent.multi(text)) { Agent.start(text, "island"); return; }
         if (handle(text, "island")) return;
+        if (Ai.configured && Agent.wants(text)) { Agent.start(text, "island"); return; }
         if (!Ai.configured) {
             say({ key: "live", icon: "psychology", title: "“" + text + "”", text: "To answer that I need a brain — choose one in Settings → Halo.", level: "asked",
                   actions: [{ label: "Settings → Halo", icon: "settings", run: () => SettingsState.launch("ai") }] });

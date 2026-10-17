@@ -512,10 +512,13 @@ Singleton {
                 if (!remindFlag("class:" + dateKey(now) + ":" + c.id + ":" + c.start)) continue;
                 const mins = Math.max(0, Math.round(lead / 60000));
                 const when = mins === 0 ? "Starting now" : "In " + mins + " min";
+                // Attendance on the line: say so (Halo's college sense)
+                const co = courses.find(x => x.id === c.id);
+                const att = co?.total ? (co.pct < cfg.threshold ? co.pct + "% — needs this one" : co.pct < cfg.threshold + 5 ? co.pct + "% — don't skip" : "") : "";
                 if (cfg.classReminders && !asleep)
                     Island.push({ kind: "device", key: "amazecc:class", priority: Island.priority.system, duration: 9000, queueable: true,
                                   data: { icon: c.kind === "lab" ? "science" : "school", title: c.title,
-                                          badge: c.kind === "lab" ? "Lab" : "", detail: [c.venue, when, "till " + clockLabel(c.end)].filter(x => x).join(" · "),
+                                          badge: c.kind === "lab" ? "Lab" : "", detail: [c.venue, when, "till " + clockLabel(c.end), att].filter(x => x).join(" · "),
                                           actions: [{ icon: "event_note", label: "Today", cmd: [Theme.lumenRoot + "/bin/lumen-shell-ipc", "planner", "open"] }] } });
                 if (cfg.phoneReminders) Link.notify(c.title + " — " + (c.venue ? c.venue + ", " : "") + when.toLowerCase());
             }

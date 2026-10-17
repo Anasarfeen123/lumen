@@ -97,6 +97,7 @@ Singleton {
             property string haloLastMorning: ""   // the day the morning brief last ran (yyyy-MM-dd)
             property string haloLastWrap: ""      // … and the evening wrap-up
             property var haloReminders: []
+            property bool haloAgent: true         // Halo carries out multi-step requests with Lumen's tools (services/Agent.qml)
             property bool haloHands: true         // Halo may point, click, scroll, press keys and type (clicks/keys/typing ask first)        // [{ at: ms, text }] — "remind me at 9 to …"
         }
     }

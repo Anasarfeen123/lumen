@@ -16,7 +16,8 @@
 # groq · mistral · custom (any OpenAI-compatible endpoint). All but Anthropic and
 # Ollama go through the OpenAI Chat Completions format.
 #
-# request.json: { provider, model, system, messages: [{ role, text, image?: "/path.jpg" }] }
+# request.json: { provider, model, system, messages: [{ role, text, image?: "/path.jpg" }], json?: true }
+#   json: ask for a JSON object (Ollama format:json, OpenAI-style response_format) — Halo's agent
 # API keys live in ~/.local/state/lumen/ai/<provider>.key (mode 600) and reach
 # curl through a header file on stdin, never the command line or a log.
 # Images and long texts go through files (jq --slurpfile/--rawfile): command-line
@@ -206,7 +207,8 @@ ask)
         jq -c --slurpfile imgs "$TMP/imgs.json" '
           {model, stream:true, keep_alive:"15m",
            options:{num_ctx:(if ([.messages[].text] | add | length) > 9000 then 8192 else 4096 end)},
-           messages:([{role:"system", content:.system}] + [.messages[] | {role, content:.text} + (if .image then {images:[$imgs[0][.image]]} else {} end)])}' \
+           messages:([{role:"system", content:.system}] + [.messages[] | {role, content:.text} + (if .image then {images:[$imgs[0][.image]]} else {} end)])}
+          + (if .json then {format:"json"} else {} end)' \
           "$req" > "$body"
         # Images on a model that runs partly on the CPU can take minutes
         t=300; [ "$has_image" = true ] && t=900
@@ -235,7 +237,8 @@ ask)
         jq -c --slurpfile imgs "$TMP/imgs.json" '
           def content: if .image then [ {type:"text", text:.text}, {type:"image_url", image_url:{url:("data:image/jpeg;base64," + $imgs[0][.image])}} ] else .text end;
           {model, stream:true, stream_options:{include_usage:true},
-           messages:([{role:"system", content:.system}] + [.messages[] | {role, content:content}])}' \
+           messages:([{role:"system", content:.system}] + [.messages[] | {role, content:content}])}
+          + (if .json and (.provider | IN("openai", "groq", "mistral")) then {response_format:{type:"json_object"}} else {} end)' \
           "$req" > "$body"
         # Some servers reject stream_options; llama.cpp and LM Studio accept it
         auth_headers "$provider"

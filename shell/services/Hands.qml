@@ -47,12 +47,14 @@ Singleton {
     }
     function refresh() { probe.running = true; }
 
+    // How it went, for whoever asked (Halo's agent waits on this)
+    signal outcome(bool ok, string why)
     function say(title, text, tone) {
         Halo.say({ key: "hands", icon: "pan_tool_alt", title, text: text ?? "", tone: tone ?? "normal", level: "asked", duration: 4500, speak: false });
     }
     function refuse() {
-        if (!enabled) { say("My hands are off", "Turn them on in Settings → Halo → Hands."); return true; }
-        if (blocked) return true;
+        if (!enabled) { say("My hands are off", "Turn them on in Settings → Halo → Hands."); outcome(false, "Halo's hands are turned off in Settings."); return true; }
+        if (blocked) { outcome(false, "the screen is locked or a password prompt is open"); return true; }
         return false;
     }
 
@@ -61,7 +63,7 @@ Singleton {
         if (refuse()) return;
         target = { kind: "point", x, y, w: w ?? 0, h: h ?? 0, label: label ?? "" };
         asking = false;
-        glide(x, y, () => markTimer.restart());
+        glide(x, y, () => { markTimer.restart(); root.outcome(true, "Pointing at " + (label ?? "it") + "."); });
     }
     Timer { id: markTimer; interval: 2600; onTriggered: if (root.target?.kind === "point") root.target = null }
 
@@ -70,6 +72,7 @@ Singleton {
         if (refuse()) return;
         if ((a.kind === "click" || a.kind === "scroll") && !canClick) {
             say("I can't click yet", "Clicks and scrolling go through ydotool — its service isn't running (systemctl --user start ydotool).", "concerned");
+            outcome(false, "clicking isn't available (ydotool isn't running)");
             return;
         }
         target = a;
@@ -85,6 +88,7 @@ Singleton {
         run();
     }
     function cancel() {
+        if (asking || driving) outcome(false, "the user cancelled it");
         asking = false;
         target = null;
         if (doer.running) doer.running = false;
@@ -129,6 +133,7 @@ Singleton {
             if (r.why === "you-moved") say("All yours", "You moved the mouse, so I stopped.");
             else say("That didn't work", r.why ?? "", "concerned");
         }
+        outcome(!!r.ok, r.ok ? "" : (r.why === "you-moved" ? "the user took the mouse" : (r.why ?? "it didn't work")));
     }
     Timer { id: doneTimer; interval: 700; onTriggered: if (root.target?.kind === "done") root.target = null }
 
@@ -215,7 +220,7 @@ Singleton {
         if (refuse()) return;
         Halo.react("thinking", 900);
         clearView(() => find(what, hits => {
-            if (!hits.length) { say("I can't see “" + what + "”", "Not on this screen — is it scrolled out of view?", "concerned"); return; }
+            if (!hits.length) { say("I can't see “" + what + "”", "Not on this screen — is it scrolled out of view?", "concerned"); root.outcome(false, "“" + what + "” isn't visible on the screen"); return; }
             const h = hits[0];
             request({ kind: "click", x: h.x, y: h.y, w: h.w, h: h.h, label: h.text, button: button ?? "left" });
         }));
@@ -232,7 +237,7 @@ Singleton {
             return;
         }
         find(what, hits => {
-            if (!hits.length) { say("I can't see “" + what + "”", "Not on this screen.", "concerned"); return; }
+            if (!hits.length) { say("I can't see “" + what + "”", "Not on this screen.", "concerned"); root.outcome(false, "“" + what + "” isn't visible on the screen"); return; }
             const h = hits[0];
             point(h.x, h.y, h.w, h.h, h.text);
         });

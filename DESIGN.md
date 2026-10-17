@@ -798,6 +798,14 @@ and a small shake when something's wrong; dimmed and slow in quiet hours. Rules:
   happen; every click, key and bit of typing asks first, *right where it will happen* (Enter
   allows, Esc cancels, or "allow for 2 minutes"). Moving the mouse takes it back at once. Targets
   come from reading the screen on this computer. Never on the lock screen or a password prompt.
+- **Jobs, not just answers (the agent).** "Start a 50-minute timer and tell me my next class" is
+  planned and done with Lumen's own tools, one visible step at a time (a tick, a cross or "needs
+  your OK" beside each), then answered. It may only do what was asked — tools with side effects
+  run only when the request mentions them, repeats and dead ends end the run with an honest
+  answer — and anything that clicks, types, runs a command or can't be undone waits for you.
+  Steps that need the screen move from the panel to the island so the screen is clear.
+- **College sense.** Next class, attendance, "can I skip Friday", marks, FAT targets and exams are
+  answered from AmazeCC at once, no model needed; class reminders say when attendance is on the line.
 - **The panel grows out of the island** (its pill stretches down on a spring, the words arrive once
   there's room) and pulls back into it when it closes.
 - **Circle to search** (Super+Z) freezes the screen; you draw round anything and a sheet rises with
