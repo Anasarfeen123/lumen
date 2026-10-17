@@ -13,12 +13,15 @@ Item {
     property bool action: false
     property bool busy: false
     signal toggled()
+    signal more()                 // right-click: the tile's options (if it has any)
+    property bool hasMore: false
 
     implicitWidth: 76
     implicitHeight: 52 + 6 + 30
     activeFocusOnTab: true
     Keys.onReturnPressed: toggled()
     Keys.onSpacePressed: toggled()
+    Keys.onMenuPressed: if (hasMore) more()
     // Arrow keys: the containing grid decides where focus goes (if it can)
     Keys.onPressed: event => {
         const d = { [Qt.Key_Left]: [-1, 0], [Qt.Key_Right]: [1, 0], [Qt.Key_Up]: [0, -1], [Qt.Key_Down]: [0, 1] }[event.key];
@@ -57,6 +60,13 @@ Item {
             opacity: root.busy ? 0.4 : 1
         }
     }
+    Rectangle {      // options: a tiny mark at the disc's corner
+        visible: root.hasMore
+        width: 6; height: 6; radius: 3
+        x: disc.x + disc.width - 8; y: disc.y + disc.height - 8
+        color: root.active && !root.action ? Theme.onAccent : Theme.textMuted
+        opacity: 0.7
+    }
     LText {
         anchors { top: disc.bottom; topMargin: 6; horizontalCenter: parent.horizontalCenter }
         width: root.width
@@ -73,6 +83,9 @@ Item {
         anchors.fill: disc
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onClicked: root.toggled()
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onClicked: m => (m.button === Qt.RightButton && root.hasMore) ? root.more() : root.toggled()
+        pressAndHoldInterval: 450
+        onPressAndHold: if (root.hasMore) root.more()
     }
 }

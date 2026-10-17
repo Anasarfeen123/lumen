@@ -298,6 +298,7 @@ key("SUPER + Backspace", hl.dsp.focus({ workspace = "previous" }), "Back to the 
 group("Lumen")
 key("SUPER + R", exec(ipc .. ' overview search ">"'), "Run a command (the overview, ready)")
 key("SUPER + X", exec(ipc .. " dropzone toggle"), "Drop Zone shelf")
+key("SUPER + ALT + C", exec(ipc .. " caffeine toggle"), "Caffeine: keep awake (right-click its toggle for a timer)")
 key("CTRL + SUPER + Space", exec(ipc .. ' ai ask "/screen"'), "Ask Halo about the screen")
 key("SUPER + B", global("lumen:planner"), "Your day (planner)")
 key("SUPER + comma", global("lumen:settings"))

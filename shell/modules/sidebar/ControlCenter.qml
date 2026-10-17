@@ -224,9 +224,11 @@ Item {
                 }
                 RoundToggle {
                     icon: "coffee"
-                    label: Caffeine.on ? "Awake" : "Caffeine"
+                    label: !Caffeine.on ? "Caffeine" : Caffeine.until > 0 ? Caffeine.remainingText : "Awake"
                     active: Caffeine.on
+                    hasMore: true                         // right-click / hold: durations and the lid
                     onToggled: Caffeine.toggle()
+                    onMore: root.detail = "caffeine"
                 }
                 RoundToggle {
                     icon: "nightlight"
@@ -377,7 +379,8 @@ Item {
             sourceComponent: root.detail === "wifi" ? wifiDetail
                            : root.detail === "bluetooth" ? btDetail
                            : root.detail === "output" ? outputDetail
-                           : root.detail === "focus" ? focusDetail : null
+                           : root.detail === "focus" ? focusDetail
+                           : root.detail === "caffeine" ? caffeineDetail : null
             onLoaded: item.forceActiveFocus()
         }
     }
@@ -396,4 +399,5 @@ Item {
     Component { id: btDetail; BluetoothDetail { onBack: root.detail = "" } }
     Component { id: outputDetail; OutputDetail { onBack: root.detail = "" } }
     Component { id: focusDetail; FocusDetail { onBack: root.detail = "" } }
+    Component { id: caffeineDetail; CaffeineDetail { onBack: root.detail = "" } }
 }

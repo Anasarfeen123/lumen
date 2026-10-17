@@ -174,6 +174,16 @@ Singleton {
         // Commands with an argument
         {
             let m;
+            // "awake 2h", "caffeine 45m", "stay awake 1.5 hours", "awake off"
+            if ((m = /^(?:caffeine|awake|stay awake|keep awake|no sleep)(?:\s+(?:for\s+)?(\d+(?:\.\d+)?)\s*(m|min|mins|minutes?|h|hr|hrs|hours?)?|\s+(off|stop))?$/i.exec(q))) {
+                if (m[3]) out.push({ kind: "command", group: "Commands", title: "Caffeine off", glyph: "bedtime", badge: "Run", run: () => Caffeine.stop(false) });
+                else {
+                    const n = m[1] ? Number(m[1]) : 0;
+                    const mins = Math.round(m[2] && /^h/i.test(m[2]) ? n * 60 : (m[2] ? n : n * 60));
+                    if (!m[1] || (mins >= 1 && mins <= 1440))
+                        out.push({ kind: "command", group: "Commands", title: "Stay awake " + Caffeine.nice(m[1] ? mins : 0), glyph: "coffee", badge: "Run", run: () => Caffeine.start(m[1] ? mins : 0) });
+                }
+            }
             if ((m = /^(?:vol|volume)\s+(\d{1,3})%?$/i.exec(q))) {
                 const v = Math.min(100, +m[1]);
                 out.push({ kind: "command", group: "Commands", title: "Set volume to " + v + "%", glyph: "volume_up", badge: "Set",

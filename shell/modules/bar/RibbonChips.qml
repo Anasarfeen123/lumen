@@ -125,6 +125,17 @@ Item {
             }
         }
         Chip {
+            // Caffeine on: a cup and, with a timer, what's left. Click: options
+            want: Caffeine.on
+            onClicked: Sidebar.showDetail("caffeine")
+            LIcon { anchors.verticalCenter: parent.verticalCenter; icon: "coffee"; size: 15; fill: 1; color: Theme.accent }
+            LText {
+                anchors.verticalCenter: parent.verticalCenter
+                role: "caption"
+                text: Caffeine.until > 0 ? Caffeine.remainingText : "Awake"
+            }
+        }
+        Chip {
             want: Focus.mode !== "off" || Countdown.active
             onClicked: Sidebar.showDetail("focus")
             LIcon {
