@@ -185,7 +185,10 @@ Singleton {
         return c;
     }
 
+    // Every arrival, for whoever listens (Halo spots deadlines in them)
+    signal arrived(string appName, string summary, string body)
     function insertGrouped(entry) {
+        arrived(entry.appName ?? "", entry.summary ?? "", entry.body ?? "");
         // Move the app's existing entries to the top, then put the new one first.
         let dest = 0;
         for (let i = 0; i < history.count; i++) {

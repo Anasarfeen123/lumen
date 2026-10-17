@@ -174,6 +174,9 @@ Singleton {
                      + " Rules: keep each file's extension; at most 60 characters; readable words (e.g. \"Robotics Club Budget 2026-09.txt\"); include a date only if the content shows one; no slashes. "
                      + "Reply with ONLY a JSON array, no other text: [{\"from\": \"<current name>\", \"to\": \"<new name>\"}]" },
         { id: "agent",     icon: "smart_toy",        label: "Do it for me",  hint: "/agent <a goal> — Halo plans and uses Lumen's tools", prompt: a => a },
+        { id: "quiz",      icon: "quiz",             label: "Quiz me",       hint: "/quiz <topic> — or attach notes / a PDF", files: false,
+          prompt: a => "Quiz me" + (a ? " on " + a : " on the material above") + ". Ask ONE short question at a time (mix recall, why and apply questions), then wait for my answer. "
+                     + "When I answer, say right or not quite in one line with the key point, then ask the next. After 5 questions give my score and the topics to revise. Start with question 1 now." },
         { id: "eli5",      icon: "child_care",       label: "Simply",        hint: "Explain it like I'm new to this",         prompt: a => "Explain this simply, as to someone new to the topic, with an everyday analogy." + (a ? " " + a : "") },
     ]
     function skillFor(text) {

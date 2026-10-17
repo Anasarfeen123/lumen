@@ -85,6 +85,10 @@ Singleton {
         data.events = data.events.concat([{ title: e.title, when: e.when, allDay: e.allDay, reminded: e.allDay }]);
         return true;
     }
+    // An event at an exact time (Halo's study plan)
+    function addEventAt(title, when, allDay) {
+        data.events = data.events.concat([{ title, when, allDay: !!allDay }]).sort((a, b) => a.when - b.when);
+    }
     function removeEvent(i) { data.events = data.events.filter((_, j) => j !== i); }
 
     function parse(input) {

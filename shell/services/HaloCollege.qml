@@ -10,6 +10,7 @@ pragma Singleton
 // facts (services/Agent.qml).
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.theme
 
 Singleton {
@@ -61,10 +62,12 @@ Singleton {
     // ── what Halo can answer (returns an intent for Halo.handle, or null) ──
     function intent(q) {
         const l = q.toLowerCase().replace(/[?.!]+$/, "").trim();
-        const collegey = /\b(class(es)?|lecture|lab|attendance|bunk|skip|marks?|grades?|fat|cat|exams?|timetable|semester)\b/.test(l);
+        const collegey = /\b(class(es)?|lecture|lab|attendance|bunk|skip|marks?|grades?|fat|cat|exams?|timetable|semester|revision|study plan)\b/.test(l);
         if (!collegey) return null;
         if (!on) return needsSetup();
         let m;
+        if (/\b(study|revision) (plan|schedule|timetable)\b|^plan (my )?(study|studies|revision|exam prep)|^(make|build|create) (me )?a (study|revision) (plan|schedule)/.test(l)) return studyPlanCard();
+        if (/\bbunk budget\b|^how many (classes )?can i (bunk|skip|miss)( this week)?$/.test(l)) return budgetCard();
 
         // next class
         if (/\b(next|upcoming) (class|lecture|lab)\b|^where('?s| is) my (next )?class|what('?s| is) next\b/.test(l)) {
@@ -162,6 +165,116 @@ Singleton {
                         [{ label: "Make revision note", icon: "checklist", run: () => Quickshell.execDetached([Theme.lumenRoot + "/bin/lumen-shell-ipc", "amazecc", "revise", first.code + "|" + first.kind]) }]);
         }
         return null;
+    }
+
+    // ── a study plan, worked out here (no model): sooner and weaker first ──
+    // Each day until the exams: up to two courses, not the same one two days
+    // running unless it's the eve of its exam (then only that one).
+    function plan(days) {
+        const now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const horizon = today.getTime() + (days ?? 21) * 86400000;
+        const exams = Amazecc.exams.filter(e => e.when > Date.now() && e.when < horizon).sort((a, b) => a.when - b.when);
+        if (!exams.length) return null;
+        const info = exams.map(e => {
+            const c = Amazecc.courses.find(x => x.code === e.code) ?? course(e.title);
+            const t = marksFor(c) ? Amazecc.targets(marksFor(c)) : null;
+            return { e, name: e.title, rate: t ? t.rate : 0.6, day: new Date(new Date(e.when).getFullYear(), new Date(e.when).getMonth(), new Date(e.when).getDate()).getTime() };
+        });
+        const out = [];
+        let yesterday = [];
+        for (let d = today.getTime(); d < info[info.length - 1].day; d += 86400000) {
+            const open = info.filter(x => x.day > d);
+            if (!open.length) break;
+            const eve = open.find(x => x.day - d === 86400000);
+            let pick;
+            if (eve) pick = [eve];
+            else {
+                const scored = open.map(x => ({ x, p: (1.6 - x.rate) / Math.max(1, (x.day - d) / 86400000) - (yesterday.includes(x.name) ? 0.15 : 0) }))
+                                   .sort((a, b) => b.p - a.p);
+                pick = scored.slice(0, 2).map(y => y.x);
+            }
+            const exam = info.find(x => x.day === d);
+            out.push({ day: d, items: pick.map(x => x.name), eve: !!eve, exam: exam ? exam.e : null });
+            yesterday = pick.map(x => x.name);
+        }
+        return { exams: info.map(x => x.e), days: out };
+    }
+    function planText(p) {
+        return p.days.map(d => Qt.formatDate(new Date(d.day), "ddd d MMM") + ": " + (d.eve ? "final revision — " + d.items[0] + " (past papers, formulas, weak topics)" : d.items.join(" · "))
+                                   + (d.exam ? "  [exam: " + d.exam.title + "]" : "")).join("\n");
+    }
+    function studyPlanCard() {
+        if (!on) return needsSetup();
+        const p = plan(45);
+        if (!p) return card("event_available", "No exams in the next six weeks", "Nothing to plan for yet — I'll keep an eye on VTOP's schedule.");
+        const first = p.days[0]?.items[0] ?? p.exams[0].title;
+        const text = planText(p);
+        return { glyph: "edit_calendar", title: "Revision plan", own: () => Halo.say({ key: "college", icon: "edit_calendar",
+            title: "Revision plan · " + p.exams.length + (p.exams.length === 1 ? " exam" : " exams") + " in " + p.days.length + " days",
+            text: text, level: "asked", duration: 20000, actions: [
+                { label: "Study " + (first.length > 24 ? first.slice(0, 22).trim() + "…" : first) + " now", icon: "play_arrow", run: () => { Focus.set("study"); Countdown.startTimer(50 * 60000, "Study: " + first); } },
+                { label: "Save as a note", icon: "note_add", run: () => root.savePlan(p) },
+                { label: "Add evenings to calendar", icon: "event", run: () => {
+                    for (const d of p.days) Planner.addEventAt("Study: " + d.items.join(" + "), d.day + 19 * 3600000, false);
+                    Halo.say({ key: "college", icon: "event", title: "Added " + p.days.length + " study evenings (7 PM)", text: "In the planner's calendar.", level: "asked", tone: "happy", duration: 4000 });
+                } }] }) };
+    }
+    function savePlan(p) {
+        const body = "Exams: " + p.exams.map(e => e.kind + " " + e.title + " — " + Planner.whenLabel(e.when, !e.timed)).join("; ") + "\n\n"
+                   + p.days.map(d => "- [ ] " + Qt.formatDate(new Date(d.day), "ddd d MMM") + ": " + (d.eve ? "final revision — " + d.items[0] : d.items.join(" · "))).join("\n");
+        saver.command = ["sh", "-c", 'f=$("$1" --dir "$2" new "$3") && "$1" --dir "$2" append "$f" "$4" >/dev/null && echo "$f"',
+                         "sh", Theme.lumenRoot + "/scripts/notes.py", Notes.dir, "Revision plan " + Qt.formatDate(new Date(), "d MMM"), body];
+        saver.running = true;
+    }
+    Process {
+        id: saver
+        stdout: StdioCollector { onStreamFinished: { Notes.refresh(); if (text.trim()) Halo.say({ key: "college", icon: "note_add", title: "Saved to Notes", text: text.trim(), level: "asked", tone: "happy", duration: 5000,
+                                                       actions: [{ label: "Open", icon: "open_in_new", run: () => Notes.launch(text.trim()) }] }); } }
+    }
+
+    // ── bunk budget: what each course can spare, this week ──
+    function budgetCard() {
+        if (!on) return needsSetup();
+        const all = Amazecc.courses.filter(c => c.total).sort((a, b) => Amazecc.skippable(a) - Amazecc.skippable(b));
+        const total = all.reduce((n, c) => n + Amazecc.skippable(c), 0);
+        return card("savings", "Bunk budget · " + total + " class" + (total === 1 ? "" : "es") + " to spare",
+                    all.map(c => Amazecc.courseName(c) + ": " + (c.pct < Amazecc.cfg.threshold ? "none — attend the next " + Amazecc.needed(c) : Amazecc.skippable(c) + " left")).join("\n"),
+                    [], all.some(c => c.pct < Amazecc.cfg.threshold) ? "concerned" : "normal");
+    }
+
+    // ── the morning guardian: a class you can't afford to miss today ──
+    property string guarded: ""
+    Timer {
+        interval: 60000; repeat: true; triggeredOnStart: true
+        running: Persist.automates && root.on
+        onTriggered: {
+            const now = new Date(), key = Qt.formatDate(now, "yyyy-MM-dd");
+            if (root.guarded === key || now.getHours() < 7 || now.getHours() >= 11) return;
+            const risky = Amazecc.today.map(c => ({ c, co: root.courseOf(c) })).filter(x => x.co?.total && x.co.pct < Amazecc.cfg.threshold + 2 && x.c.start > Amazecc.nowMin);
+            root.guarded = key;
+            if (!risky.length) return;
+            const x = risky[0];
+            Halo.say({ key: "guardian", icon: "shield", title: "Don't skip " + x.c.title + " today", tone: "concerned", level: "important", throughQuiet: true, duration: 15000,
+                       text: Amazecc.clockLabel(x.c.start) + (x.c.venue ? " · " + x.c.venue : "") + " · attendance " + root.attLine(x.co)
+                             + (risky.length > 1 ? " · also " + risky.slice(1).map(y => y.c.title).join(", ") : ""),
+                       actions: [{ label: "Remind me 15 min before", icon: "alarm", run: () => Halo.addReminder(root.classTime(new Date(), x.c).getTime() - 900000, x.c.title + (x.c.venue ? " at " + x.c.venue : "")) }] });
+        }
+    }
+
+    // ── deadlines in notifications: "Assignment due Friday 5 PM" → the planner ──
+    Connections {
+        target: Notifications
+        function onArrived(appName, summary, body) {
+            if (!Persist.automates) return;
+            const text = (summary + " " + Notifications.plain(body)).replace(/\s+/g, " ").trim();
+            if (!/\b(assignment|deadline|due|submit|submission|quiz|lab record|report|DA\s?\d|digital assignment|project review)\b/i.test(text)) return;
+            if (!/\b(due|by|before|deadline|on|until|till)\b/i.test(text)) return;
+            const ev = Planner.parse(text);
+            Halo.say({ key: "deadline:" + summary, icon: "assignment_late", title: "Looks like a deadline", text: summary + (body ? " — " + Notifications.plain(body).slice(0, 120) : ""),
+                       level: "important", duration: 15000,
+                       actions: [ev ? { label: "Add “" + ev.title.slice(0, 24) + "” · " + Planner.whenLabel(ev.when, ev.allDay), icon: "event", run: () => Planner.addEventAt(ev.title, ev.when, ev.allDay) } : null,
+                                 { label: "Add a to-do", icon: "checklist", run: () => Planner.addTodo(summary) }].filter(a => a) });
+        }
     }
 
     // For the agent: the facts as text

@@ -207,6 +207,17 @@ Singleton {
             return { glyph: "playlist_play", title: "Workflows", own: () => root.say({ key: "workflows", icon: "playlist_play", title: Object.keys(Persist.data.haloWorkflows ?? {}).length ? "Your workflows" : "No workflows yet",
                      text: Object.keys(Persist.data.haloWorkflows ?? {}).map(n => "• " + n + " — " + (Persist.data.haloWorkflows[n] ?? []).map(s => s.say).join(", ")).join("\n") || "Ask me to do a job, then say “save that as <name>”.",
                      level: "asked", duration: 15000 }) };
+        // Quiz me on a topic — your matching note comes along
+        if ((mm = /^(?:quiz|test) me(?: on| about)? (.+)$/i.exec(q))) {
+            const topic = mm[1].replace(/^(my |the )/i, "").replace(/ notes?$/i, "");
+            const words = topic.toLowerCase().split(/\s+/).filter(w => w.length > 1);
+            const note = Notes.all.find(n => words.every(w => n.title.toLowerCase().includes(w))) ?? Notes.all.find(n => words.some(w => w.length > 3 && n.title.toLowerCase().includes(w)));
+            return { glyph: "quiz", title: "Quiz on " + topic, own: () => {
+                if (note) Ai.files = [Notes.pathOf(note.file)];
+                Ai.show();
+                Ai.send("/quiz " + topic + (note ? " (from my note “" + note.title + "”)" : ""));
+            } };
+        }
         // College (AmazeCC): next class, attendance, skipping, marks, FAT targets, exams
         const college = HaloCollege.intent(q);
         if (college) return college;

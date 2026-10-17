@@ -189,7 +189,11 @@ Item {
             readonly property var cls: Amazecc.current ?? (Amazecc.next && Amazecc.next.start - Amazecc.nowMin <= 60 ? Amazecc.next : null)
             want: Amazecc.cfg.enabled && Amazecc.cfg.islandNext && cls !== null
             onClicked: Planner.toggle()
-            LIcon { anchors.verticalCenter: parent.verticalCenter; icon: classChip.cls?.kind === "lab" ? "science" : "school"; size: 15; color: Theme.accent }
+            // attendance on the line for this course: say so, in amber
+            readonly property var course: cls ? Amazecc.courses.find(c => c.id === cls.id) ?? null : null
+            readonly property bool risky: !!course?.total && course.pct < Amazecc.cfg.threshold + 2
+            LIcon { anchors.verticalCenter: parent.verticalCenter; icon: classChip.risky ? "shield" : classChip.cls?.kind === "lab" ? "science" : "school"; size: 15
+                    color: classChip.risky ? Theme.warning : Theme.accent }
             LText {
                 anchors.verticalCenter: parent.verticalCenter
                 role: "caption"
@@ -197,6 +201,7 @@ Item {
                 elide: Text.ElideRight
                 text: !classChip.cls ? "" : classChip.cls.title + (classChip.cls.venue ? "  ·  " + classChip.cls.venue : "")
                       + "  ·  " + (Amazecc.isCurrent(classChip.cls) ? "till " + Amazecc.clockLabel(classChip.cls.end) : Amazecc.inLabel(classChip.cls.start))
+                      + (classChip.risky ? "  ·  " + classChip.course.pct + "%" : "")
             }
         }
         Chip {
