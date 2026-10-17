@@ -10,6 +10,8 @@ VTOP. Standard library only.
   amazecc.py forget                     removes the login, the session and the synced data
   amazecc.py sync [--threshold 75]      fetch everything, write the snapshot, print what changed:
                                         JSON {ok, error?, updated, changes: [...]}
+  amazecc.py extra <route> [--body {}]  one read-only VTOP page (grades, class-messages, circulars,
+                                        fees-intimation, library-due, proctor, faculty-info…) as JSON
 
 Options (any command): --api URL (default http://127.0.0.1:3000) · --semester ID
 
@@ -588,6 +590,38 @@ def cmd_sync(a):
          "partial": [n for n, v in (("exams", sched), ("calendar", cal)) if v is None]})
 
 
+# Read-only extras (grades, class messages, circulars, dues…): one VTOP page each,
+# through the same session. Only routes that read are allowed here.
+EXTRA_ROUTES = {"grades", "all-grades", "class-messages", "circulars", "fees-intimation", "library-due", "proctor",
+                "proctor-messages", "faculty-info", "marks/stats", "course-page", "curriculum", "biometric", "hostel-leave",
+                "od", "transcript", "profile-images", "student", "me", "registration-status", "wallet", "capstone",
+                "mess-selection", "credentials", "outcome-set", "late-hour", "university-day"}
+
+
+def cmd_extra(a):
+    if a.route not in EXTRA_ROUTES:
+        out({"ok": False, "error": "not a read-only route Lumen uses"})
+        return
+    creds = secret_get()
+    if not creds:
+        out({"ok": False, "error": "nologin"})
+        return
+    body = json.loads(a.body or "{}")
+    try:
+        s = session(a.api, creds)
+        base = {"cookies": s["cookies"], "csrf": s["csrf"], "authorizedID": s["authorizedID"], "semesterId": a.semester or default_semester()}
+        try:
+            r = post(a.api, a.route, dict(base, **body), timeout=180)
+        except ApiError:
+            s = session(a.api, creds, fresh=True)
+            base.update({"cookies": s["cookies"], "csrf": s["csrf"], "authorizedID": s["authorizedID"]})
+            r = post(a.api, a.route, dict(base, **body), timeout=180)
+    except ApiError as e:
+        out({"ok": False, "error": str(e)})
+        return
+    out({"ok": True, "data": r})
+
+
 def main():
     p = argparse.ArgumentParser(description="AmazeCC for Lumen")
     p.add_argument("--api", default=os.environ.get("LUMEN_AMAZECC_API") or "http://127.0.0.1:3000")
@@ -600,8 +634,11 @@ def main():
     sl.add_argument("username")
     sub.add_parser("forget")
     sub.add_parser("sync")
+    ex = sub.add_parser("extra", help="one read-only VTOP page (grades, class-messages, circulars…) as JSON")
+    ex.add_argument("route")
+    ex.add_argument("--body", default="", help="extra JSON fields for the route")
     a = p.parse_args()
-    {"status": cmd_status, "set-login": cmd_set_login, "forget": cmd_forget, "sync": cmd_sync}[a.cmd](a)
+    {"status": cmd_status, "set-login": cmd_set_login, "forget": cmd_forget, "sync": cmd_sync, "extra": cmd_extra}[a.cmd](a)
 
 
 if __name__ == "__main__":
