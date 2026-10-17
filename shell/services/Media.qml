@@ -92,6 +92,28 @@ Singleton {
     }
 
     function toggle() { if (active?.canTogglePlaying) active.togglePlaying(); }
+
+    // ── sleep timer: the music stops by itself (15 → 30 → 60 min → off) ──
+    property real sleepAt: 0
+    property real sleepNow: Date.now()
+    readonly property int sleepLeft: sleepAt > 0 ? Math.max(0, Math.ceil((sleepAt - sleepNow) / 60000)) : 0
+    function sleepIn(min) { sleepAt = min > 0 ? Date.now() + min * 60000 : 0; sleepNow = Date.now(); }
+    function sleepCycle() {
+        const steps = [15, 30, 60, 0], cur = sleepLeft;
+        const next = cur === 0 ? 15 : steps.find(s => s > cur) ?? 0;
+        sleepIn(next);
+        Island.system("bedtime", next ? "Music stops in " + next + " min" : "Sleep timer off", "");
+    }
+    Timer {
+        interval: 20000; repeat: true; running: root.sleepAt > 0
+        onTriggered: {
+            root.sleepNow = Date.now();
+            if (root.sleepNow < root.sleepAt) return;
+            root.sleepAt = 0;
+            for (const p of Mpris.players.values) if (p.isPlaying && p.canPause) p.pause();
+            Island.system("bedtime", "Music stopped", "Sleep timer");
+        }
+    }
     function next() { if (active?.canGoNext) active.next(); }
     function previous() { if (active?.canGoPrevious) active.previous(); }
     function seekTo(fraction) { if (canSeek) active.position = fraction * length; }

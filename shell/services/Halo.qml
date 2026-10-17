@@ -338,6 +338,17 @@ Singleton {
         if (/^(brighten|lighten)( the)?( screen| display)?( a bit| a little)?$|^(raise|increase)( the)? brightness$|^(make )?(the )?screen brighter$/.test(lower))
             return { glyph: "brightness_high", title: "Screen brighter", plain: true, run: () => Brightness.set(Math.min(1, (Brightness.value ?? 0.5) + 0.25)) };
 
+        // ── picture in picture ──
+        if (/^(picture[- ]in[- ]picture|pip|pop (it|this|the (video|player|window)) out|float (the )?video|mini ?player)( (on|mode))?$/.test(lower))
+            return { glyph: "picture_in_picture", title: "Picture in picture", plain: true, run: () => (Media.playing && Pip.playerWindow() ? Pip.popPlayer() : Pip.pop("")) };
+        if ((m = /^(?:move|put) (?:the )?(?:pip|video|mini ?player|picture in picture) (?:to )?(?:the )?(top|bottom) (left|right)$/.exec(lower)))
+            return { glyph: "picture_in_picture_alt", title: "Moved", plain: true, run: () => Pip.corner((m[1] === "top" ? "t" : "b") + (m[2] === "left" ? "l" : "r")) };
+        if (Pip.active && /^(make (it|the (pip|video)) )?(bigger|larger|smaller)$/.test(lower))
+            return { glyph: "aspect_ratio", title: /small/.test(lower) ? "Smaller" : "Bigger", plain: true, run: () => Pip.size(/small/.test(lower) ? "smaller" : "bigger") };
+        if (Pip.active && /^(put it back|exit (pip|picture in picture)|close (the )?pip|pip off|stop picture in picture)$/.test(lower))
+            return { glyph: "close_fullscreen", title: "Back in its place", plain: true, run: () => Pip.back() };
+        if ((m = /^(?:stop|pause) (?:the )?music in (\d+) ?(?:min|minutes)$|^sleep timer (?:for )?(\d+)(?: ?min(?:utes)?)?$/.exec(lower)))
+            return { glyph: "bedtime", title: "Music stops in " + (m[1] ?? m[2]) + " min", plain: true, run: () => Media.sleepIn(+(m[1] ?? m[2])) };
         // ── music ──
         if (/^(pause|stop)( the)? (music|song|playback|it)$|^pause$/.test(lower) && Media.playing)
             return { glyph: "pause", title: "Paused", plain: true, run: () => Media.toggle() };

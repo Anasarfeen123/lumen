@@ -17,7 +17,7 @@ Item {
     id: root
     implicitWidth: Theme.island.expandedWidth - 2 * Theme.space.s4
     implicitHeight: 64 + Theme.space.s3 + (lyricsView.visible ? lyricsView.height + Theme.space.s3 : 0)
-                    + 16 + (extras.visible ? extras.height + Theme.space.s2 : 0)
+                    + 16 + (ctrls.visible ? 26 + Theme.space.s2 : 0)
     Behavior on implicitHeight { enabled: !Theme.reducedMotion; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
 
     // Lyrics are looked up only while this view is on screen
@@ -38,7 +38,7 @@ Item {
     // scrolls sideways when there are many; long names are trimmed
     Item {
         id: extras
-        visible: Media.players.length > 1 || Media.shuffleOk || Media.loopOk || Lyrics.available
+        visible: true
         anchors { left: parent.left; right: ctrls.left; rightMargin: Theme.space.s2; bottom: parent.bottom }
         height: 26
         ListView {
@@ -65,9 +65,36 @@ Item {
     Row {
         id: ctrls
         anchors { right: parent.right; bottom: parent.bottom }
-        visible: extras.visible
+        visible: Media.present
         height: 26
         spacing: 2
+        // picture in picture: pop the player out (a PiP already up: next corner; right-click puts it back)
+        HoverTarget {
+            width: 28; height: 26
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onClicked: m => { if (m.button === Qt.RightButton) Pip.back(); else if (Pip.active) Pip.corner("next"); else Pip.popPlayer(); }
+            LIcon { anchors.centerIn: parent; icon: Pip.active ? "picture_in_picture_alt" : "picture_in_picture"; size: 17; color: Pip.active ? Theme.accent : Theme.textMuted }
+        }
+        // where it plays: click for the next output
+        HoverTarget {
+            visible: Audio.sinks.length > 1
+            width: 28; height: 26
+            onClicked: {
+                const s = Audio.sinks, i = s.indexOf(Audio.sink);
+                const next = s[(i + 1) % s.length];
+                Audio.setSink(next);
+                Island.system("speaker", "Playing on " + Audio.label(next), "");
+            }
+            LIcon { anchors.centerIn: parent; icon: /bluez|head|buds/i.test((Audio.sink?.name ?? "") + Audio.deviceName) ? "headphones" : "speaker"; size: 17; color: Theme.textMuted }
+        }
+        // sleep timer: 15 → 30 → 60 min → off
+        HoverTarget {
+            width: Media.sleepLeft ? slRow.implicitWidth + 12 : 28; height: 26
+            onClicked: Media.sleepCycle()
+            Row { id: slRow; anchors.centerIn: parent; spacing: 2
+                  LIcon { icon: "bedtime"; size: 16; color: Media.sleepLeft ? Theme.accent : Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
+                  LText { visible: Media.sleepLeft > 0; role: "caption"; color: Theme.accent; text: Media.sleepLeft + "m"; anchors.verticalCenter: parent.verticalCenter } }
+        }
         HoverTarget {
             id: lyricsChip
             visible: Lyrics.available

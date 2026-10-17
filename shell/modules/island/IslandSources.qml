@@ -56,7 +56,7 @@ Scope {
     // The NVIDIA GPU stuck awake is watched by Power (it speaks for itself)
     readonly property bool _dgpuWatch: Power.dgpuStuck || true
     // Halo's wrap-ups and reminders run in the background (singletons start when first named)
-    readonly property bool _halo: Brief.active || Halo.present || Doctor.enabled || Routines.active || Accounts.active || true
+    readonly property bool _halo: Brief.active || Halo.present || Doctor.enabled || Routines.active || Accounts.active || Pip.active || true
 
     // ── Now playing: announce briefly on play/track change, then back to the
     //    clock (which shows an equalizer while music plays) ──
