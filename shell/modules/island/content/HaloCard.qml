@@ -88,6 +88,7 @@ Item {
                 : info.tone === "concerned" ? "concerned" : info.tone === "happy" ? "happy" : Halo.mood
             level: Voice.level
             mouth: Voice.mouth
+            accessory: HaloExtras.accessory
             // looks at the pointer on the card, else at what it's saying
             lookX: cardHover.hovered ? Math.max(-1, Math.min(1, (cardHover.point.position.x - orbBox.width / 2) / 160)) : 0.35
             lookY: cardHover.hovered ? Math.max(-1, Math.min(1, (cardHover.point.position.y - orbBox.height / 2) / 80)) : 0

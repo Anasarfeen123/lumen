@@ -7,6 +7,7 @@
         stop now and use what was said; SIGINT: cancel). Prints JSON lines:
         {"level": 0–1} while recording · {"speech": true} once you start ·
         {"state": "transcribing"} · then {"heard": "…"} or {"error": "…"}.
+  halo-voice.py transcribe <audio file>   a long recording (a lecture) → text on stdout
   halo-voice.py say <rate> <voice-hint> <text>
         Speaks the text and exits when done (SIGTERM stops it). Prints
         {"env": [0–1 …], "step": 40} (loudness per 40 ms, for the lips) and
@@ -259,6 +260,27 @@ def cmd_say(rate, hint, text):
     _rm(wav)
 
 
+def cmd_transcribe(path):
+    """A long recording (a lecture) → text on stdout. Converted to 16 kHz WAV in RAM first."""
+    b, model = stt_bin(), stt_model()
+    if not b or not model:
+        sys.stderr.write("no-stt\n")
+        sys.exit(3)
+    os.makedirs(RUN, mode=0o700, exist_ok=True)
+    wav = os.path.join(RUN, "long-%d.wav" % os.getpid())
+    try:
+        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", path, "-ac", "1", "-ar", "16000", "-y", wav], check=True, timeout=600)
+        threads = str(max(2, min(8, (os.cpu_count() or 4) - 2)))
+        r = subprocess.run([b, "-m", model, "-f", wav, "-nt", "-np", "-l", "en", "-t", threads], capture_output=True, text=True, timeout=7200)
+        text = re.sub(r"\[[^\]]*\]|\([^)]*\)", " ", r.stdout)
+        sys.stdout.write(re.sub(r"[ \t]+", " ", text).strip() + "\n")
+    except (OSError, subprocess.SubprocessError) as e:
+        sys.stderr.write(str(e) + "\n")
+        sys.exit(1)
+    finally:
+        _rm(wav)
+
+
 def main():
     a = sys.argv[1:]
     if not a:
@@ -268,6 +290,8 @@ def main():
         cmd_status()
     elif a[0] == "listen":
         cmd_listen(a[1:])
+    elif a[0] == "transcribe" and len(a) >= 2:
+        cmd_transcribe(a[1])
     elif a[0] == "say" and len(a) >= 4:
         cmd_say(a[1], a[2], " ".join(a[3:]))
     else:

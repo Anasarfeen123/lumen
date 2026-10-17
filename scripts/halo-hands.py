@@ -14,7 +14,8 @@ pointing and scrolling need no OK). Standard library only.
   halo-hands.py key <combo>               e.g. ctrl+s, alt+Left, Return (wtype)
   halo-hands.py type <text>               types the text into the focused window (wtype)
   halo-hands.py read                      the text on the focused screen (tesseract), plain
-  halo-hands.py find <text>               JSON: where that text is on the focused screen,
+  halo-hands.py shot                      JSON: the focused screen as a small JPEG for a vision model
+  halo-hands.py find <text>               JSON: where that text is (every screen, the focused one first),
                                           best match first [{x, y, w, h, text, score}]
                                           (grim + tesseract, on this computer; the
                                           picture is deleted at once)
@@ -149,10 +150,45 @@ def focused_monitor():
     return None
 
 
+def monitors():
+    try:
+        ms = [m for m in json.loads(hypr("-j", "monitors") or "[]") if not m.get("disabled")]
+    except ValueError:
+        return []
+    return sorted(ms, key=lambda m: not m.get("focused"))       # the focused one first
+
+
 def find(want):
+    """Every monitor, the focused one first; best match wins (ties: the focused screen)."""
+    hits = []
+    for i, mon in enumerate(monitors()):
+        for h in find_on(mon, want):
+            h["score"] -= 0.001 * i
+            hits.append(h)
+        if any(h["score"] >= 0.99 for h in hits):
+            break                                               # exact on the focused screen: enough
+    hits.sort(key=lambda h: (-h["score"], h["y"], h["x"]))
+    return hits[:6]
+
+
+def shot():
+    """The focused screen as a small JPEG for a vision model: {file, x, y, w, h} (logical px)."""
     mon = focused_monitor()
     if not mon:
-        return []
+        return {}
+    scale = float(mon.get("scale") or 1)
+    out = os.path.join(RUN, "lumen-ai", "halo-look-%d.jpg" % os.getpid())
+    os.makedirs(os.path.dirname(out), mode=0o700, exist_ok=True)
+    try:
+        g = subprocess.Popen(["grim", "-o", mon["name"], "-"], stdout=subprocess.PIPE)
+        subprocess.run(["magick", "-", "-resize", "1280x1280>", "-quality", "82", out], stdin=g.stdout, capture_output=True, timeout=10)
+        g.wait(timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return {}
+    return {"file": out, "x": mon["x"], "y": mon["y"], "w": round(mon["width"] / scale), "h": round(mon["height"] / scale)}
+
+
+def find_on(mon, want):
     fd, img = tempfile.mkstemp(prefix="halo-find-", suffix=".png", dir=RUN)
     os.close(fd)
     try:
@@ -203,8 +239,7 @@ def find(want):
         hits.append({"x": round(mon["x"] + (x0 + x1) / 2 / scale), "y": round(mon["y"] + (y0 + y1) / 2 / scale),
                      "w": round((x1 - x0) / scale), "h": round((y1 - y0) / scale),
                      "text": " ".join(r["t"] for r in run), "score": round(score, 2)})
-    hits.sort(key=lambda h: (-h["score"], h["y"], h["x"]))
-    return hits[:6]
+    return hits
 
 
 def read_screen():
@@ -251,6 +286,8 @@ def main():
     elif c == "read":
         text = re.sub(r"\n{3,}", "\n\n", read_screen()).strip()
         sys.stdout.write(text[:8000] + "\n")
+    elif c == "shot":
+        out(shot())
     elif c == "find" and len(a) >= 2:
         out(find(" ".join(a[1:])))
     else:

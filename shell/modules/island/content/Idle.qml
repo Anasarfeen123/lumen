@@ -90,6 +90,7 @@ Item {
             visible: Halo.present
             size: 17
             breathes: false             // the resting island spends nothing: blinks and glances only
+            accessory: HaloExtras.accessory
             face: Persist.data.haloFace ?? true
             mood: Halo.mood
             level: Voice.level

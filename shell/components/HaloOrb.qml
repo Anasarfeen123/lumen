@@ -33,6 +33,7 @@ Item {
     property real lookX: 0              // -1 … 1: where it looks (the pointer, a card…)
     property real lookY: 0
     property bool breathes: true        // a slow breath at rest (off in the island)
+    property string accessory: ""       // "headphones" (music) · "party" (your birthday) · "scarf" (winter)
     width: size; height: size
 
     readonly property bool still: Theme.reducedMotion
@@ -283,6 +284,66 @@ Item {
                     Behavior on opacity { NumberAnimation { duration: 160 } }
                     Behavior on x { NumberAnimation { duration: 220 } }
                 }
+            }
+        }
+
+        // ── the wardrobe ──
+        // headphones: a band over the top, a cup each side
+        Item {
+            anchors.fill: parent
+            visible: root.accessory === "headphones" && root.size >= 16
+            Shape {
+                anchors.fill: parent
+                preferredRendererType: Shape.CurveRenderer
+                ShapePath {
+                    strokeColor: Theme.textSecondary; strokeWidth: Math.max(1.4, root.size * 0.075); fillColor: "transparent"; capStyle: ShapePath.RoundCap
+                    startX: -root.size * 0.04; startY: root.size * 0.46
+                    PathArc { x: root.size * 1.04; y: root.size * 0.46; radiusX: root.size * 0.56; radiusY: root.size * 0.66; useLargeArc: false }
+                }
+            }
+            Repeater {
+                model: [-1, 1]
+                Rectangle {
+                    required property int modelData
+                    width: root.size * 0.16; height: root.size * 0.3; radius: width / 2
+                    x: modelData < 0 ? -width * 0.45 : root.size - width * 0.55
+                    y: root.size * 0.38
+                    color: Theme.textSecondary
+                    border.width: Math.max(1, root.size * 0.03); border.color: Qt.darker(Theme.textSecondary, 1.4)
+                }
+            }
+        }
+        // a party hat, a little tilted, with a bobble
+        Item {
+            visible: root.accessory === "party" && root.size >= 16
+            width: root.size * 0.42; height: root.size * 0.46
+            x: root.size * 0.5; y: -root.size * 0.3
+            rotation: 18
+            Shape {
+                anchors.fill: parent
+                preferredRendererType: Shape.CurveRenderer
+                ShapePath {
+                    strokeWidth: -1
+                    fillGradient: LinearGradient { x1: 0; y1: 0; x2: root.size * 0.42; y2: 0
+                        GradientStop { position: 0; color: Theme.warning } GradientStop { position: 0.5; color: Theme.accent } GradientStop { position: 1; color: Theme.error } }
+                    startX: root.size * 0.21; startY: 0
+                    PathLine { x: root.size * 0.42; y: root.size * 0.46 }
+                    PathLine { x: 0; y: root.size * 0.46 }
+                    PathLine { x: root.size * 0.21; y: 0 }
+                }
+            }
+            Rectangle { width: root.size * 0.12; height: width; radius: width / 2; color: "white"; x: root.size * 0.21 - width / 2; y: -width / 2 }
+        }
+        // a scarf, wrapped round the bottom
+        Item {
+            visible: root.accessory === "scarf" && root.size >= 20
+            anchors.fill: parent
+            Rectangle {
+                width: root.size * 0.86; height: root.size * 0.16; radius: height / 2
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: root.size * 0.78
+                color: Theme.error
+                Rectangle { width: parent.height * 0.6; height: parent.height * 1.9; radius: width / 3; color: Qt.darker(Theme.error, 1.15); x: parent.width * 0.62; y: parent.height * 0.6; rotation: -12 }
             }
         }
 

@@ -295,6 +295,7 @@ PanelWindow {
                         id: bigOrb
                         anchors.verticalCenter: parent.verticalCenter
                         size: 52; mood: Halo.mood; level: Voice.level; mouth: Voice.mouth; face: Persist.data.haloFace ?? true
+                        accessory: HaloExtras.accessory
                         // follows the pointer; looks down at what you're typing
                         lookX: panel.lookAt(bigOrb).x; lookY: panel.lookAt(bigOrb).y
                     }
@@ -1126,8 +1127,8 @@ PanelWindow {
     }
 
     // ── pieces ──
-    function ctxIcon(k) { return ({ selection: "format_quote", clipboard: "content_paste", screen: "screenshot_monitor", window: "select_window", system: "monitor_heart", project: "commit", file: "attach_file", college: "school", notes: "edit_note", lens: "gesture" })[k] ?? "attach_file"; }
-    function ctxLabel(k) { return ({ selection: "Selection", clipboard: "Clipboard", screen: "Screen", window: "Window", system: "System", project: "Project", file: "Files", college: "Classes & marks", notes: "Notes", lens: "Circled" })[k] ?? k; }
+    function ctxIcon(k) { return ({ selection: "format_quote", clipboard: "content_paste", screen: "screenshot_monitor", window: "select_window", system: "monitor_heart", project: "commit", file: "attach_file", college: "school", notes: "edit_note", lens: "gesture", web: "travel_explore" })[k] ?? "attach_file"; }
+    function ctxLabel(k) { return ({ selection: "Selection", clipboard: "Clipboard", screen: "Screen", window: "Window", system: "System", project: "Project", file: "Files", college: "Classes & marks", notes: "Notes", lens: "Circled", web: "Web page" })[k] ?? k; }
     function fileIcon(name) {
         const e = (name.match(/\.([^.\/]+)$/)?.[1] ?? "").toLowerCase();
         if (e === "pdf") return "picture_as_pdf";

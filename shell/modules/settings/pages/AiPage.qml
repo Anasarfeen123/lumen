@@ -112,6 +112,22 @@ Page {
     }
 
     Group {
+        title: "Little things"
+        SetRow {
+            icon: "self_improvement"
+            title: "Break nudges"
+            description: "After about an hour at the screen, " + Halo.name + " suggests a short break (stretch, look away, water). Never in quiet hours or during a timer."
+            LSwitch { checked: Persist.data.haloBreaks ?? true; onToggled: Persist.data.haloBreaks = checked }
+        }
+        SetRow {
+            icon: "cake"
+            title: Persist.data.haloBirthday ? "Your birthday: " + Qt.formatDate(new Date(2000, +Persist.data.haloBirthday.slice(0, 2) - 1, +Persist.data.haloBirthday.slice(3)), "d MMMM") : "Your birthday"
+            description: "Tell " + Halo.name + " “my birthday is 12 March” — it wears a party hat that day. It wears headphones while music plays, and a scarf in winter."
+            Button { visible: !!Persist.data.haloBirthday; text: "Forget it"; onActivated: Persist.data.haloBirthday = "" }
+        }
+    }
+
+    Group {
         title: "Voice"
         SetRow {
             icon: Voice.canListen ? "mic" : "mic_off"

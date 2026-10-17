@@ -336,7 +336,7 @@ Singleton {
           run: (a, done) => {
               const py = Theme.lumenRoot + "/scripts/notes.py";
               const p = runner.createObject(root, { cb: out => { Notes.refresh(); done(out.trim() ? "Created the note \"" + a.title + "\"." : "Couldn't create the note.", !!out.trim()); } });
-              p.command = ["sh", "-c", 'f=$("$1" --dir "$2" new "$3") && "$1" --dir "$2" append "$f" "$4" >/dev/null && echo "$f"', "sh", py, Notes.dir, String(a.title ?? "Note"), String(a.text ?? "")];
+              p.command = ["sh", "-c", 'f=$("$1" --dir "$2" new "$3") && printf "%s\\n" "$4" >> "$2/$f" && echo "$f"', "sh", py, Notes.dir, String(a.title ?? "Note"), String(a.text ?? "")];
               p.running = true;
           } },
         { name: "notes_find", args: "{\"query\": \"…\"}", icon: "search", desc: "find the user's notes by title or content", label: a => "Looking in notes: " + (a.query ?? ""),
@@ -369,6 +369,10 @@ Singleton {
                               Qt.openUrlExternally(t.startsWith("/") ? "file://" + t : t); done("Opened."); } },
         { name: "web", needs: /web|online|internet|google|browser|look (it )?up|search for|search the/, args: "{\"query\": \"…\"}", icon: "travel_explore", desc: "open a web search in the browser", label: a => "Searching the web: " + (a.query ?? ""),
           run: (a, done) => { Qt.openUrlExternally(Search.webSearchUrl.replace("%s", encodeURIComponent(String(a.query ?? "")))); done("Opened the search in the browser."); } },
+        { name: "web_read", args: "{\"url\": \"https://…\"}", icon: "travel_explore", desc: "read a web page as text", label: a => "Reading " + String(a.url ?? "").replace(/^https?:\/\//, "").slice(0, 40),
+          run: (a, done) => HaloExtras.readWeb(String(a.url ?? ""), d => done(d.error ? d.error : (d.title + "\n" + d.text).slice(0, 6000), !d.error)) },
+        { name: "tidy", needs: /tidy|clean|organi|sort/, args: "{}", icon: "cleaning_services", desc: "sort the Downloads folder into folders by kind (the user approves; undoable)", label: a => "Tidying Downloads",
+          run: (a, done) => { HaloExtras.tidyPlan(); done("Showed the user a tidy plan to approve."); } },
         { name: "screen", args: "{}", icon: "visibility", desc: "the text on the user's screen right now", label: a => "Reading the screen",
           run: (a, done) => root.needScreen(() => { const p = runner.createObject(root, { cb: out => done(out.trim().slice(0, 5000) || "No readable text on screen.") });
                                                     p.command = [Theme.lumenRoot + "/scripts/halo-hands.py", "read"]; p.running = true; }) },

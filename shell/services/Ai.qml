@@ -530,6 +530,15 @@ Singleton {
         busy = true;
         nextContext();
     }
+    // A question with context you don't need to see in the bubble (a web page, …)
+    function askWith(shown, prompt, chips) {
+        if (busy) stop();
+        if (!configured) { error = "Choose where answers come from — Settings → Halo."; return; }
+        error = "";
+        pending = { text: prompt, shown, chips: chips ?? [], ctx: [], ctxText: "", screen: false, image: "", fileNames: [] };
+        busy = true;
+        nextContext();
+    }
     // Ask the last question again (a new answer)
     function retry() {
         if (busy) return;

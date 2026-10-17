@@ -56,6 +56,7 @@ Singleton {
         : Context.fullscreen ? "fullscreen"
         : ["deep", "study", "work", "sleep"].includes(Focus.mode) ? "Focus"
         : Notifications.dnd ? "Do Not Disturb"
+        : HaloExtras.sharing ? "sharing your screen"
         : Lock.locked ? "locked" : ""
     readonly property bool quiet: quietWhy !== ""
 
@@ -230,6 +231,9 @@ Singleton {
             if (at > Date.now()) return { glyph: "alarm", title: "I'll remind you " + whenText(at) + " — " + what, plain: true,
                                           run: () => addReminder(at, what) };
         }
+        // Web pages, tidying, repairs, battery, updates, music, journal, lectures, birthdays
+        const ex = HaloExtras.intent(q);
+        if (ex) return ex;
         // Hands, windows, music, quick answers, files, reading aloud
         const extra = more(q, lower);
         if (extra) return extra;

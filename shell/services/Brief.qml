@@ -150,8 +150,10 @@ Singleton {
         const s = since(awayFrom > 0 ? awayFrom : Date.now() - 8 * 3600000);
         parts.push(...sinceLine(s));
         if (Battery.available && !Battery.pluggedIn && Battery.percentage < 0.3) parts.push("battery at " + Math.round(Battery.percentage * 100) + "% — plug in before you head out");
+        // an exam within two days: Halo is a little anxious for you
+        const examSoon = HaloCollege.on && Amazecc.nextExam && Amazecc.nextExam.when - Date.now() < 2 * 86400000;
         Halo.say({ key: "morning", icon: "wb_sunny", title: Halo.greeting(), text: parts.join(" · ") || "Nothing on the calendar. A clear day.",
-                   level: asked ? "asked" : "important", tone: "happy", duration: 15000,
+                   level: asked ? "asked" : "important", tone: examSoon ? "concerned" : "happy", duration: 15000,
                    speak: Halo.greeting() + " " + parts.slice(0, 3).join(". ") + ".",
                    actions: [{ label: "Today's plan", icon: "event_note", run: () => { Planner.open = true; } }].concat(catchUpActions(s)) });
     }
@@ -183,6 +185,7 @@ Singleton {
                    level: asked ? "asked" : "important", duration: 16000,
                    speak: (asked ? "" : "Time to wrap up. ") + parts.slice(0, 3).join(". ") + ".",
                    actions: [{ label: "Plan tomorrow", icon: "event_note", run: () => { Planner.open = true; } },
+                             { label: "Journal", icon: "auto_stories", run: () => HaloExtras.journal() },
                              Focus.mode !== "sleep" ? { label: "Sleep mode", icon: "bedtime", run: () => Focus.set("sleep") } : null].concat(catchUpActions(s)).filter(a => a) });
     }
 

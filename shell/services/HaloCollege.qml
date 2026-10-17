@@ -222,7 +222,7 @@ Singleton {
     function savePlan(p) {
         const body = "Exams: " + p.exams.map(e => e.kind + " " + e.title + " — " + Planner.whenLabel(e.when, !e.timed)).join("; ") + "\n\n"
                    + p.days.map(d => "- [ ] " + Qt.formatDate(new Date(d.day), "ddd d MMM") + ": " + (d.eve ? "final revision — " + d.items[0] : d.items.join(" · "))).join("\n");
-        saver.command = ["sh", "-c", 'f=$("$1" --dir "$2" new "$3") && "$1" --dir "$2" append "$f" "$4" >/dev/null && echo "$f"',
+        saver.command = ["sh", "-c", 'f=$("$1" --dir "$2" new "$3") && printf "%s\\n" "$4" >> "$2/$f" && echo "$f"',
                          "sh", Theme.lumenRoot + "/scripts/notes.py", Notes.dir, "Revision plan " + Qt.formatDate(new Date(), "d MMM"), body];
         saver.running = true;
     }

@@ -174,7 +174,8 @@ Singleton {
                 icon: "healing", title: name + (n > 1 ? " crashed again (" + n + " times today)" : " crashed"),
                 text: (restarts.includes(c.exe) ? "It restarted by itself. " : "") + (n > 1 ? "If it keeps happening, an update usually fixes it." : ""),
                 level: n > 1 || !restarts.includes(c.exe) ? "important" : "chatter", tone: "concerned",
-                actions: [askHalo(c.exe + " crashed " + n + " time(s) today with signal " + c.sig + " on Fedora (I can run coredumpctl). What usually causes this and how do I fix it?")]
+                actions: [HaloExtras.units[c.exe] ? { label: "Restart it", icon: "restart_alt", run: () => HaloExtras.restartUnit(HaloExtras.units[c.exe], () => Halo.say({ key: "doctor:fixed", icon: "healing", title: name + " restarted", text: "", tone: "happy", level: "asked", duration: 3000, speak: false })) } : null,
+                          askHalo(c.exe + " crashed " + n + " time(s) today with signal " + c.sig + " on Fedora (I can run coredumpctl). What usually causes this and how do I fix it?")]
             }, n > 2 ? 6 * 3600000 : 0);
         }
 

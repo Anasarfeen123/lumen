@@ -806,6 +806,13 @@ and a small shake when something's wrong; dimmed and slow in quiet hours. Rules:
   Steps that need the screen move from the panel to the island so the screen is clear.
 - **College sense.** Next class, attendance, "can I skip Friday", marks, FAT targets and exams are
   answered from AmazeCC at once, no model needed; class reminders say when attendance is on the line.
+- **It remembers only what you tell it to** ("remember that…"), shows all of it in Settings, and
+  forgets on request. **Routines** ("every weekday at 8:30, brief me", "when I plug in the charger,
+  …") and **watches** ("tell me when the download finishes") run Halo's own direct actions — never
+  an open-ended job by themselves. A job that worked can be **saved as a workflow** and replayed
+  exactly, with no model.
+- **It dresses for the day:** headphones while music plays, a party hat on your birthday, a scarf
+  in winter — small, drawn in the same light as the ring.
 - **The panel grows out of the island** (its pill stretches down on a spring, the words arrive once
   there's room) and pulls back into it when it closes.
 - **Circle to search** (Super+Z) freezes the screen; you draw round anything and a sheet rises with

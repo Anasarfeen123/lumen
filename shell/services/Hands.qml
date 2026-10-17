@@ -194,6 +194,50 @@ Singleton {
             }
         }
     }
+    // No text to find (an icon, a picture): ask a cloud vision model where it is.
+    // A guess — so it's always shown (and a click always asked) before anything happens.
+    property var _look: null
+    function locate(what, then) {
+        // small local vision models guess positions poorly: only cloud ones (Claude, GPT, Gemini…)
+        if (!(Ai.configured && Ai.vision && !Ai.local)) { then(null); return; }
+        _look = { what, then, shot: null };
+        looker.buf = "";
+        shotProc.running = true;
+    }
+    Process {
+        id: shotProc
+        command: [root.script, "shot"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let s = {}; try { s = JSON.parse(text); } catch (e) {}
+                if (!s.file || !root._look) { const f = root._look?.then; root._look = null; if (f) f(null); return; }
+                root._look.shot = s;
+                lookReq.setText(JSON.stringify({ provider: Ai.provider, model: Ai.modelFor(true), json: true,
+                    system: "You find things on a computer screen. Reply with JSON only.",
+                    messages: [{ role: "user", image: s.file,
+                                 text: "Where on this screenshot is: \"" + root._look.what + "\"? It may be an icon, button or picture. "
+                                     + "Reply {\"found\": true, \"x\": <0-1000>, \"y\": <0-1000>} with its centre as thousandths of the image width and height, or {\"found\": false}." }] }));
+                looker.command = [Theme.lumenRoot + "/scripts/ai.sh", "ask", lookReq.path];
+                looker.running = true;
+            }
+        }
+    }
+    FileView { id: lookReq; path: Ai.runDir + "/hands-look.json"; blockWrites: true; printErrors: false }
+    Process {
+        id: looker
+        property string buf: ""
+        stdout: SplitParser { onRead: line => { try { const d = JSON.parse(line); if (d.t) looker.buf += d.t; } catch (e) {} } }
+        onExited: {
+            const L = root._look; root._look = null;
+            if (!L) return;
+            Quickshell.execDetached(["rm", "-f", L.shot?.file ?? ""]);
+            let d = null;
+            try { const t = looker.buf; d = JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1)); } catch (e) {}
+            if (!d?.found || typeof d.x !== "number" || typeof d.y !== "number" || d.x < 0 || d.x > 1000 || d.y < 0 || d.y > 1000) { L.then(null); return; }
+            L.then({ x: Math.round(L.shot.x + d.x / 1000 * L.shot.w), y: Math.round(L.shot.y + d.y / 1000 * L.shot.h), w: 0, h: 0, text: L.what + " (my best guess)" });
+        }
+    }
+
     // A window by name, title or app
     function windowFor(name) {
         const q = name.toLowerCase().replace(/^the /, "");
@@ -220,9 +264,13 @@ Singleton {
         if (refuse()) return;
         Halo.react("thinking", 900);
         clearView(() => find(what, hits => {
-            if (!hits.length) { say("I can't see “" + what + "”", "Not on this screen — is it scrolled out of view?", "concerned"); root.outcome(false, "“" + what + "” isn't visible on the screen"); return; }
-            const h = hits[0];
-            request({ kind: "click", x: h.x, y: h.y, w: h.w, h: h.h, label: h.text, button: button ?? "left" });
+            const go = h => request({ kind: "click", x: h.x, y: h.y, w: h.w, h: h.h, label: h.text, button: button ?? "left" });
+            if (hits.length) { go(hits[0]); return; }
+            locate(what, h => {
+                if (h) { go(h); return; }
+                say("I can't see “" + what + "”", "Not on screen — is it scrolled out of view?", "concerned");
+                root.outcome(false, "“" + what + "” isn't visible on the screen");
+            });
         }));
     }
     function pointAt(what) {
@@ -237,9 +285,12 @@ Singleton {
             return;
         }
         find(what, hits => {
-            if (!hits.length) { say("I can't see “" + what + "”", "Not on this screen.", "concerned"); root.outcome(false, "“" + what + "” isn't visible on the screen"); return; }
-            const h = hits[0];
-            point(h.x, h.y, h.w, h.h, h.text);
+            if (hits.length) { const h = hits[0]; point(h.x, h.y, h.w, h.h, h.text); return; }
+            locate(what, h => {
+                if (h) { point(h.x, h.y, 0, 0, h.text); return; }
+                say("I can't see “" + what + "”", "Not on screen.", "concerned");
+                root.outcome(false, "“" + what + "” isn't visible on the screen");
+            });
         });
     }
     function scroll(dir, steps) { clearView(() => request({ kind: "scroll", dir, steps: steps ?? 5, safe: true, label: dir === "up" ? "Scrolling up" : "Scrolling down" })); }

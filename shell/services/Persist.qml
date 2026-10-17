@@ -101,7 +101,10 @@ Singleton {
             property bool haloUseMemory: true
             property var haloRoutines: []         // services/Routines.qml
             property var haloWorkflows: ({})      // name → [{ tool, args, say }] (services/Agent.qml)
-            property bool haloAgent: true         // Halo carries out multi-step requests with Lumen's tools (services/Agent.qml)
+            property bool haloAgent: true
+            property bool haloBreaks: true        // a nudge after about an hour at the screen
+            property string haloBirthday: ""      // "MM-DD" — "my birthday is 12 March"
+            property string haloLastBirthday: ""         // Halo carries out multi-step requests with Lumen's tools (services/Agent.qml)
             property bool haloHands: true         // Halo may point, click, scroll, press keys and type (clicks/keys/typing ask first)        // [{ at: ms, text }] — "remind me at 9 to …"
         }
     }
