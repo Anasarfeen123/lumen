@@ -173,14 +173,15 @@ Page {
         SetRow {
             icon: "graphic_eq"
             title: "How it sounds"
-            description: Voice.status.tts === "piper" ? "Piper — a natural voice, on this computer."
-                : Voice.status.tts === "espeak" ? "espeak-ng — clear but robotic. For a natural voice (offline): pip install --user piper-tts, then put a Piper voice (.onnx and its .json, e.g. en_GB-alan-medium from the Piper project) in ~/.local/share/lumen/voices."
-                : "No speech engine — install espeak-ng (sudo dnf install espeak-ng) or Piper."
+            description: Voice.status.tts === "piper" ? "Piper — a natural voice, on this computer (British for Jarvis, American otherwise)."
+                : "espeak-ng — clear but robotic. “Natural voice” sets up Piper (offline neural speech) in a terminal you can read: its own folder, no sudo, two voices from Piper's own repository (~150 MB). It asks before doing anything."
             Row {
                 spacing: 8
                 LSlider { width: 120; anchors.verticalCenter: parent.verticalCenter; icon: "speed"
                           value: ((Persist.data.haloVoiceRate ?? 1) - 0.7) / 0.7
                           onMoved: v => Persist.data.haloVoiceRate = Math.round((0.7 + v * 0.7) * 20) / 20 }
+                Button { visible: Voice.status.tts !== "piper"; text: "Natural voice"; icon: "graphic_eq"; primary: true
+                         onActivated: Quickshell.execDetached(["kitty", "--title", "Halo · natural voice", "--hold", Theme.lumenRoot + "/scripts/halo-voice-setup.sh"]) }
                 Button { text: Voice.speaking ? "Stop" : "Test"; icon: Voice.speaking ? "stop" : "play_arrow"; enabled: Voice.canSpeak
                          onActivated: Voice.speaking ? Voice.stop() : Voice.say(Halo.greeting() + " This is how I sound.", true) }
             }

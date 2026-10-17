@@ -791,6 +791,11 @@ and a small shake when something's wrong; dimmed and slow in quiet hours. Rules:
   screen time, weather), built on this computer; a model sees them only when you press Summarise.
 - **Doing beats chatting.** "dark mode on", "volume 40", "remind me at 9 to…" are done by Lumen
   directly, no model; destructive things (shut down, log out) always ask first.
+- **Talking feels like a phone assistant.** A glass sheet rises from the bottom over a soft aurora of
+  the accent's colours that swells with your voice and moves with Halo's words; what you said is
+  large, the answer under it with what to do next; after an answer it listens for a follow-up
+  ("thanks" ends it). Typing works the same. Typed questions get quiet answers; spoken ones are
+  spoken back.
 - **Voice is offline and on request.** Push-to-talk (Super+Alt+H), whisper.cpp to hear, Piper or
   espeak-ng to speak. There is no wake word: nothing listens until you ask.
 - **Hands, with permission.** Halo can point (the pointer glides there and a small Halo rides

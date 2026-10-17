@@ -184,6 +184,14 @@ ShellRoot {
             screen: modelData
         }
     }
+    // Talking with Halo (Super+Alt+H, "Hey Halo")
+    Variants {
+        model: Quickshell.screens
+        delegate: VoiceSheet {
+            required property var modelData
+            screen: modelData
+        }
+    }
     // Circle to search (Super+Z)
     Variants {
         model: Quickshell.screens

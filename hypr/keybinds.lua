@@ -51,7 +51,11 @@ key("SUPER + O", global("lumen:notes"), "Notes")
 key("SUPER + SHIFT + O", global("lumen:notesNew"), "New note")
 key("SUPER + SHIFT + Space", global("lumen:ai"), "Lumen Halo (AI)")
 key("SUPER + Z", global("lumen:lens"), "Circle to search (draw round anything)")
-key("SUPER + ALT + H", exec(ipc .. " voice talk"), "Talk to Halo (press again to stop)")
+-- Talk to Halo: a tap listens until you pause; hold it to talk (push-to-talk)
+key("SUPER + ALT + H", exec(ipc .. " converse press"), "Talk to Halo (tap, or hold to talk)")
+key("SUPER + ALT + H", exec(ipc .. " converse release"), nil, { release = true })
+key("SUPER + ALT + R", exec(ipc .. " halo handle 'read this'"), "Halo: read the selection aloud")
+key("SUPER + ALT + period", exec(ipc .. " voice stop"), "Halo: stop talking / listening")
 key("SUPER + SHIFT + W", global("lumen:inbox"), "Messages: reply, find a chat (WhatsApp)")
 
 -- ── Windows ──

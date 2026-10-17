@@ -102,6 +102,8 @@ Singleton {
     property var capture: null          // the agent reading what a card would say, without showing it
     function say(card) {
         if (capture) { capture(card); return; }
+        // talking with Halo (the voice sheet): its answers go there
+        if (Converse.open && (card.level ?? "important") !== "chatter" && card.key !== "hands") { card.time = Date.now(); Converse.card(card); return; }
         const level = card.level ?? "important";
         if (!allowed(level)) return;
         card.time = Date.now();
@@ -262,6 +264,11 @@ Singleton {
     function more(q, lower) {
         let m;
         const trimThe = t => t.replace(/^(the|a|an|that|this) /i, "").replace(/ (button|link|tab|icon|option)$/i, "").replace(/^["“']|["”']$/g, "").trim();
+        // ── timers, said naturally ("set a timer for 10 minutes", "a 25 minute timer") ──
+        if ((m = /^(?:set|start|put on|make)(?: me)?(?: a| an)? (?:timer|countdown) (?:for |of )?(.+)$/i.exec(lower)) || (m = /^(?:set|start)(?: a| an)? (.+?) (?:timer|countdown)$/i.exec(lower))) {
+            const ms = Countdown.parse(m[1].replace(/^half an? hour$/, "30 min").replace(/^(a|an|one) (hour|minute)/, "1 $2").replace(/\bminutes?\b/, "min").replace(/\bseconds?\b/, "s").replace(/\bhours?\b/, "h"));
+            if (ms > 0) return { glyph: "timer", title: Countdown.fmt(ms) + " timer started", plain: true, run: () => Countdown.startTimer(ms, "") };
+        }
         // ── hands: keys first ("press ctrl+s", "hit enter"), then clicks, pointing, scrolling, typing
         if ((m = /^(?:press|hit|tap) ((?:(?:ctrl|control|alt|shift|super|win|meta)\s*\+\s*)*(?:[a-z0-9]|f\d{1,2}|enter|return|esc|escape|tab|space|backspace|delete|up|down|left|right|home|end|page ?up|page ?down))$/i.exec(lower)))
             return { glyph: "keyboard", title: "Press " + m[1], own: () => Hands.key(m[1].replace(/page ?up/i, "pageup").replace(/page ?down/i, "pagedown")) };
@@ -352,6 +359,9 @@ Singleton {
         if (/^(what('?s| is) )?(my |the )?(wi-?fi|network)( name| called)?$|^which wi-?fi\b/.test(lower))
             return answer(Network.ssid ? "wifi" : "wifi_off", Network.ssid || "Not connected to Wi-Fi", "");
 
+        // ── quiet, please ──
+        if (/^(stop talking|be quiet|shut up|quiet|shh+|stop speaking|that'?s enough)$/.test(lower))
+            return { glyph: "volume_off", title: "Okay", own: () => { Voice.stop(); Voice.cancel(); } };
         // ── reading aloud ──
         if (/^read (this|that|it|the selection|my selection|what i selected|my clipboard|the clipboard)( to me| aloud| out loud)?$/.test(lower))
             return { glyph: "record_voice_over", title: "Reading it", own: () => root.readAloud(/clipboard/.test(lower)) };
@@ -469,10 +479,12 @@ Singleton {
     property string heard: ""
     property bool session: false        // a spoken question is being answered in the island
     function live(extra) {
+        if (Converse.open) return;              // the voice sheet shows it
         Island.push(Object.assign({ kind: "halo", key: "halo:live", priority: Island.priority.system, duration: 25000, force: true,
                                     data: { key: "live", live: true } }, extra ?? {}));
     }
     function talk() {
+        if (!Ai.open) { Converse.show(); return; }    // the voice sheet (Ai.open: the panel's own mic)
         if (Voice.listening) { Voice.stopListening(); return; }
         if (Ai.open) { Voice.listen(); return; }          // the panel shows it itself
         heard = "";
@@ -483,9 +495,10 @@ Singleton {
     Connections {
         target: Voice
         // "hey halo, …" says it all at once; "hey halo" alone: Halo listens for the rest
-        function onWoke(rest) { if (rest.length > 2) { root.heard = rest; Ai.prepare(); root.ask(rest); } else root.talk(); }
-        function onHeard(text) { root.ask(text); }
+        function onWoke(rest) { if (rest.length > 2) Converse.say(rest); else Converse.show(); }
+        function onHeard(text) { if (!Converse.open) root.ask(text); }
         function onMissed(why) {
+            if (Converse.open) return;
             if (why === "cancelled") { Island.dismiss(); return; }
             const card = why === "no-stt"
                 ? { key: "live", icon: "mic_off", title: "I can't hear yet", text: "Voice needs whisper.cpp — Settings → Halo shows how (it all stays on this computer).",
@@ -513,6 +526,7 @@ Singleton {
     // The answer to a spoken question, in the island (and aloud)
     function answered(answer) {
         session = false;
+        if (Converse.open) { Converse.answered(answer); return; }
         const plain = Voice.speakable(answer) || answer.replace(/\s+/g, " ").slice(0, 280);
         const ms = Math.max(8000, Math.min(20000, plain.length * 60));
         Island.push({ kind: "halo", key: "halo:live", priority: Island.priority.system, duration: ms, force: true,

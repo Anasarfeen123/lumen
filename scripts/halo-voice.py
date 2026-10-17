@@ -14,8 +14,9 @@
         Speaks the text and exits when done (SIGTERM stops it). Prints
         {"env": [0–1 …], "step": 40} (loudness per 40 ms, for the lips) and
         {"play": true} the moment playback starts.
-        Piper (pip install --user piper-tts, a voice in ~/.local/share/lumen/voices/)
-        if present, else espeak-ng. voice-hint: "uk" or "us".
+        Piper (scripts/halo-voice-setup.sh: its own environment in ~/.local/share/lumen/piper,
+        voices in ~/.local/share/lumen/voices/) if present, else espeak-ng.
+        voice-hint: "uk" (a British voice, for Jarvis) or "us".
 
 Ears: ffmpeg (from the microphone through PipeWire) + whisper.cpp (the
 whisper-cpp package) with a ggml model in ~/.local/share/lumen/whisper/.
@@ -68,18 +69,28 @@ def wake_model():
     return sorted(cands, key=os.path.getsize)[0] if cands else ""
 
 
-def piper_voice():
+def piper_voice(hint=""):
+    """A Piper voice: British for "uk" (Jarvis), American otherwise, else any."""
     v = sorted(glob.glob(DATA + "/voices/*.onnx"))
-    return v[0] if v else ""
+    want = "en_GB" if hint == "uk" else "en_US"
+    pick = [x for x in v if os.path.basename(x).startswith(want)]
+    return (pick or v or [""])[0]
+
+
+def piper_python():
+    """Piper's own environment (scripts/halo-voice-setup.sh), else this Python if it has piper."""
+    for py in (DATA + "/piper/bin/python", sys.executable):
+        if os.access(py, os.X_OK):
+            try:
+                if subprocess.run([py, "-c", "import piper"], capture_output=True, timeout=8).returncode == 0:
+                    return py
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+    return ""
 
 
 def has_piper():
-    if not piper_voice():
-        return False
-    try:
-        return subprocess.run([sys.executable, "-c", "import piper"], capture_output=True, timeout=5).returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        return False
+    return bool(piper_voice() and piper_python())
 
 
 def cmd_status():
@@ -341,8 +352,9 @@ def cmd_say(rate, hint, text):
         rate = max(0.6, min(1.6, float(rate)))
     except ValueError:
         rate = 1.0
-    if has_piper():
-        p = subprocess.Popen([sys.executable, "-m", "piper", "-m", piper_voice(), "-f", wav, "--length-scale", "%.2f" % (1 / rate)],
+    py = piper_python() if piper_voice() else ""
+    if py:
+        p = subprocess.Popen([py, "-m", "piper", "-m", piper_voice(hint), "-f", wav, "--length-scale", "%.2f" % (1 / rate)],
                              stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True)
         procs.append(p)
         p.communicate(text)

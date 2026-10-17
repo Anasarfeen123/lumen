@@ -129,7 +129,8 @@ Inside any Wayland desktop, `bin/lumen-session` runs Lumen in a window, so nothi
 | <kbd>Alt</kbd>+<kbd>Tab</kbd> | Switch windows |
 | <kbd>Super</kbd>+<kbd>V</kbd> | Clipboard history |
 | <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd> | Lumen Halo (assistant) |
-| <kbd>Super</kbd>+<kbd>Z</kbd> · <kbd>Super</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd> | Circle to search · Talk to Halo |
+| <kbd>Super</kbd>+<kbd>Z</kbd> · <kbd>Super</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd> | Circle to search · Talk to Halo (tap, or hold to talk) |
+| <kbd>Super</kbd>+<kbd>Alt</kbd>+<kbd>R</kbd> · <kbd>Super</kbd>+<kbd>Alt</kbd>+<kbd>.</kbd> | Read the selection aloud · Stop Halo talking |
 | <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> · <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> | Screenshot a region · Copy text from the screen |
 | <kbd>F12</kbd> · <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd> | Drop-down terminal · Music |
 | <kbd>Super</kbd>+<kbd>L</kbd> · <kbd>Super</kbd>+<kbd>I</kbd> | Lock · Settings |

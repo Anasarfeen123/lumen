@@ -600,7 +600,7 @@ Singleton {
     }
 
     // Thinking in the background: the island shows it, then says when it's done
-    readonly property bool islandBusy: busy && !open && !Halo.session
+    readonly property bool islandBusy: busy && !open && !Halo.session && !Converse.open
     onIslandBusyChanged: if (islandBusy) Island.progress("halo", "auto_awesome", "Halo is thinking", -1, local ? "On this computer" : providerLabel)
     function announceDone() {
         Island.push({ kind: "system", key: "progress:halo", priority: Island.priority.system, duration: 3500, queueable: true, force: true,

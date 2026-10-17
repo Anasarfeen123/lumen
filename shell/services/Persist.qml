@@ -102,6 +102,7 @@ Singleton {
             property var haloRoutines: []         // services/Routines.qml
             property var haloWorkflows: ({})      // name → [{ tool, args, say }] (services/Agent.qml)
             property bool haloAgent: true
+            property bool haloConversation: true  // after an answer, listen for a follow-up
             property bool haloWake: false         // listen for "hey halo" (off by default; Settings → Halo → Voice)
             property bool haloWakeBattery: false  // … also on battery
             property bool haloBreaks: true        // a nudge after about an hour at the screen

@@ -148,7 +148,7 @@ Singleton {
 
     IpcHandler {
         target: "voice"
-        function talk(): void { Halo.talk(); }
+        function talk(): void { Converse.show(); }
         function stop(): void { root.stopListening(); root.stop(); }
         function say(text: string): void { root.say(text, true); }
         function state(): string { return JSON.stringify({ status: root.status, listening: root.listening, speaking: root.speaking, headphones: root.headphones }); }
