@@ -21,7 +21,9 @@
 | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>O</kbd> | New note |
 | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd> | Lumen Halo (AI) |
 | <kbd>Super</kbd> + <kbd>Z</kbd> | Circle to search (draw round anything) |
-| <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>H</kbd> | Talk to Halo (press again to stop) |
+| <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>H</kbd> | Talk to Halo (tap, or hold to talk) |
+| <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>R</kbd> | Halo: read the selection aloud |
+| <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>.</kbd> | Halo: stop talking / listening |
 | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>W</kbd> | Messages: reply, find a chat (WhatsApp) |
 
 ## Windows
