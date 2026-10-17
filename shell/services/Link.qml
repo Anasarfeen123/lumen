@@ -142,7 +142,8 @@ Singleton {
     // kdeconnectd's link received data a moment before (link.sh from-phone).
     Connections {
         target: Clipboard
-        function onChanged() { if (root.announces && root.connected && root.clipSync === "on" && !root.mock) clipCheck.restart(); }
+        // (clipboard sync, or text shared from the phone — KDE Connect puts that on the clipboard too)
+        function onChanged() { if (root.announces && root.connected && !root.mock) clipCheck.restart(); }
     }
     // After Lumen's own "Copied" pill (same key), so this one replaces it
     Timer { id: clipCheck; interval: 450; onTriggered: if (!fromPhone.running) fromPhone.running = true }
@@ -153,6 +154,8 @@ Singleton {
     }
     function copiedFromPhone(text) {
         const image = text === "IMAGE";
+        // "Halo, …" from the phone: a question for Halo, answered back on the phone
+        if (!image && HaloPhone.wants(text)) { HaloPhone.ask(text); return; }
         const kind = image ? "image" : Clipboard.kindOf({ text });
         const flat = text.replace(/\s+/g, " ").trim();
         const detail = image ? "An image" : kind === "secret" ? "•".repeat(Math.min(12, flat.length)) + " (hidden)"

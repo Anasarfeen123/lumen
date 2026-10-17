@@ -253,6 +253,48 @@ Page {
     }
 
     Group {
+        title: "Calendar & email"
+        SetRow {
+            icon: "calendar_month"
+            title: Accounts.calendars.length ? Accounts.calendars.length + (Accounts.calendars.length === 1 ? " calendar" : " calendars") + " · " + Accounts.events.length + " events this month" : "Add a calendar"
+            description: (Accounts.calError ? "⚠ " + Accounts.calError + "\n" : "") + "Paste a calendar's iCal link — in Google Calendar: Settings → your calendar → “Secret address in iCal format”. Read-only; events join the planner, your briefs and " + Halo.name + "'s answers. The link is kept private on this computer."
+            Row {
+                spacing: 8
+                LField { id: calName; width: 110; icon: "label"; placeholder: "Name"; clearOnAccept: false }
+                LField { id: calUrl; width: 220; icon: "link"; placeholder: "https://…/basic.ics"; clearOnAccept: false
+                         onAccepted: t => Accounts.addCalendar(calName.text, t, r => { if (r.ok) { calUrl.text = ""; calName.text = ""; } }) }
+                Button { text: "Add"; onActivated: Accounts.addCalendar(calName.text, calUrl.text, r => { if (r.ok) { calUrl.text = ""; calName.text = ""; } }) }
+            }
+        }
+        Repeater {
+            model: Accounts.calendars
+            SetRow {
+                required property var modelData
+                icon: "event"
+                title: modelData.name
+                description: modelData.host
+                Button { text: "Remove"; onActivated: Accounts.removeCalendar(modelData.name) }
+            }
+        }
+        SetRow {
+            icon: "mail"
+            title: Accounts.mail.configured ? "Inbox: " + Accounts.mail.user + (Accounts.unread.length ? " · " + Accounts.unread.length + " unread" : "") : "Add your inbox"
+            description: (Accounts.mailError ? "⚠ " + Accounts.mailError + "\n" : "")
+                + (Accounts.mail.configured ? "Read-only: senders and subjects of unread mail, nothing marked read. " + Halo.name + " never sends mail — drafts open in Gmail for you to send."
+                   : "For Gmail: turn on 2-Step Verification, then make an app password (myaccount.google.com/apppasswords) and paste it here. It's kept private on this computer (like the AI keys). Read-only; " + Halo.name + " never sends mail.")
+            Row {
+                spacing: 8
+                visible: !Accounts.mail.configured
+                LField { id: mailUser; width: 170; icon: "alternate_email"; placeholder: "you@gmail.com"; clearOnAccept: false }
+                LField { id: mailPass; width: 150; icon: "key"; placeholder: "App password"; input.echoMode: TextInput.Password; clearOnAccept: false }
+                Button { text: "Connect"; primary: true
+                         onActivated: Accounts.setMail(/@(gmail|googlemail)\./.test(mailUser.text) ? "imap.gmail.com" : "imap." + mailUser.text.replace(/.*@/, ""), mailUser.text, mailPass.text, r => { mailPass.text = ""; }) }
+            }
+            Button { visible: Accounts.mail.configured; text: "Disconnect"; onActivated: Accounts.removeMail() }
+        }
+    }
+
+    Group {
         title: "Hands"
         SetRow {
             icon: "pan_tool_alt"

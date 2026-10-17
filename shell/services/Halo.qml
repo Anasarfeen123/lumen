@@ -181,6 +181,9 @@ Singleton {
             return { glyph: "stethoscope", title: "Checking", own: () => Doctor.checkNow(true) };
         if (/^(circle|search) (to search|my screen|the screen|this)|^what'?s this on (my|the) screen|^lens$/i.test(lower))
             return { glyph: "gesture", title: "Circle to search", own: () => Lens.start() };
+        // "Watch me" → a workflow from how you set things up
+        const rec = Recorder.intent(q);
+        if (rec) return rec;
         // Memory: "remember that …", "what do you remember", "forget …"
         let mm;
         if ((mm = /^(?:please )?remember (?:that |this: ?)?(.{3,300})$/i.exec(q)) && !/^remember me\b/i.test(q))
@@ -221,6 +224,9 @@ Singleton {
                 Ai.send("/quiz " + topic + (note ? " (from my note “" + note.title + "”)" : ""));
             } };
         }
+        // Calendars and email
+        const acc = Accounts.intent(q);
+        if (acc) return acc;
         // College (AmazeCC): next class, attendance, skipping, marks, FAT targets, exams
         const college = HaloCollege.intent(q);
         if (college) return college;
@@ -359,6 +365,13 @@ Singleton {
         if (/^(what('?s| is) )?(my |the )?(wi-?fi|network)( name| called)?$|^which wi-?fi\b/.test(lower))
             return answer(Network.ssid ? "wifi" : "wifi_off", Network.ssid || "Not connected to Wi-Fi", "");
 
+        // ── to the phone ──
+        if (/^send (that|this|it|the answer) to (my )?phone$/.test(lower)) {
+            const t = HaloPhone.lastAnswer();
+            return !Link.phone ? { glyph: "mobile_off", title: "No phone linked — Settings → Phone", already: true }
+                 : !t ? { glyph: "smartphone", title: "Nothing to send yet", already: true }
+                 : { glyph: "send_to_mobile", title: "Sent to " + (Link.phone.name ?? "your phone"), plain: true, run: () => Link.sendText(t) };
+        }
         // ── quiet, please ──
         if (/^(stop talking|be quiet|shut up|quiet|shh+|stop speaking|that'?s enough)$/.test(lower))
             return { glyph: "volume_off", title: "Okay", own: () => { Voice.stop(); Voice.cancel(); } };

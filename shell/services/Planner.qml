@@ -76,6 +76,7 @@ Singleton {
         const now = Date.now();
         return (data.events ?? []).map((e, i) => Object.assign({ index: i }, e))
                                    .concat(Amazecc.agenda)
+                                   .concat(Accounts.events)                // your calendars (iCal links), read-only
                                    .filter(e => e.allDay ? (e.until ?? e.when) + 86400000 > now : e.when >= now - 3600000)
                                    .sort((a, b) => a.when - b.when);
     }

@@ -80,12 +80,14 @@ Singleton {
         const apps = Object.keys(by).sort((a, b) => by[b] - by[a]);
         const chats = Inbox.unreadConversations.filter(c => (c.lastTime ?? 0) > t);
         const dls = downloads.filter(d => d.at > t);
-        return { n, apps, by, texts, chats, dls };
+        const mails = Accounts.unread.filter(m => m.date > t);
+        return { n, apps, by, texts, chats, dls, mails };
     }
     function sinceLine(s) {
         const parts = [];
         if (s.n) parts.push(plural(s.n, "notification") + " — " + s.apps.slice(0, 3).map(a => a + (s.by[a] > 1 ? " " + s.by[a] : "")).join(", ") + (s.apps.length > 3 ? "…" : ""));
         if (s.chats.length) parts.push("WhatsApp: " + s.chats.slice(0, 3).map(c => c.title + (c.unread > 1 ? " (" + c.unread + ")" : "")).join(", ") + (s.chats.length > 3 ? " +" + (s.chats.length - 3) : ""));
+        if (s.mails?.length) parts.push(plural(s.mails.length, "email") + " — " + s.mails.slice(0, 2).map(m => m.from).join(", ") + (s.mails.length > 2 ? "…" : ""));
         if (s.dls.length) parts.push((s.dls.length === 1 ? "Downloaded " + s.dls[0].name : plural(s.dls.length, "download") + " finished"));
         return parts;
     }
@@ -143,7 +145,7 @@ Singleton {
             if (ex && ex.when - Date.now() < 4 * 86400000 && Amazecc.examCountdown) parts.push(Amazecc.examCountdown);
         }
         const end = new Date(); end.setHours(23, 59, 59, 999);
-        const ev = (Planner.upcoming ?? []).filter(e => !e.external && e.when <= end.getTime() && e.when >= Date.now() - 3600000);
+        const ev = (Planner.upcoming ?? []).filter(e => (!e.external || e.source === "calendar") && e.when <= end.getTime() && e.when >= Date.now() - 3600000);
         if (ev.length) parts.push(ev.slice(0, 2).map(e => e.title + (e.allDay ? "" : " at " + clock(e.when))).join(", ") + (ev.length > 2 ? " +" + (ev.length - 2) : ""));
         const rem = Halo.reminders.filter(r => r.at <= end.getTime());
         if (rem.length) parts.push(plural(rem.length, "reminder") + " today");
@@ -177,7 +179,7 @@ Singleton {
             const ex = Amazecc.nextExam;
             if (ex && ex.when - Date.now() < 4 * 86400000 && Amazecc.examCountdown) parts.push(Amazecc.examCountdown);
         }
-        const ev = (Planner.upcoming ?? []).filter(e => !e.external && e.when >= tomorrow.getTime() && e.when < tomorrow.getTime() + 86400000);
+        const ev = (Planner.upcoming ?? []).filter(e => (!e.external || e.source === "calendar") && e.when >= tomorrow.getTime() && e.when < tomorrow.getTime() + 86400000);
         if (ev.length) parts.push(ev.slice(0, 2).map(e => e.title + (e.allDay ? "" : " at " + clock(e.when))).join(", "));
         const todos = (Planner.todos ?? []).filter(t => !t.done);
         if (todos.length) parts.push(plural(todos.length, "to-do") + " left");
