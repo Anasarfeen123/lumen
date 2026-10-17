@@ -776,6 +776,11 @@ widen and the ring swells with your voice while listening; a point of light circ
 thinking; ripples go out while it speaks; `^ ^` and one bright spin when something worked; amber
 and a small shake when something's wrong; dimmed and slow in quiet hours. Rules:
 
+- **A face, kept simple:** two pill eyes with a glint and a small mouth. The whole face turns toward
+  what it looks at (the pointer while the panel is open, its own words on a card), the far eye
+  narrows and the ring's light slides round to that side. Its mouth follows the real loudness of
+  what it says (lip-sync), and arrivals are a pop: a springy overshoot and a hop, back into its seat
+  by the clock when a card leaves. Pointing at it never expands the island — it's about to be clicked.
 - **It speaks up rarely, and never in the way.** Chattiness is Silent · Helpful · Companion. It is
   quiet on calls, in games, fullscreen, presenting, Focus and Do Not Disturb; what waited comes back
   as **one** card afterwards, never a burst.

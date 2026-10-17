@@ -42,7 +42,17 @@ PanelWindow {
     WlrLayershell.keyboardFocus: showing ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     mask: Region { item: showing ? catcher : null }
 
-    onShowingChanged: if (showing) Qt.callLater(() => prompt.forceActiveFocus())
+    onShowingChanged: {
+        if (!showing) return;
+        Qt.callLater(() => prompt.forceActiveFocus());
+        // Halo wakes as the panel arrives: eyes open with a little hop
+        headOrb.wake();
+        greetPop.restart();
+    }
+    Timer { id: greetPop; interval: 140; onTriggered: bigOrb.pop() }
+
+    // Halo's eyes follow the pointer anywhere on this screen while the panel is open
+    HoverHandler { id: screenHover }
 
     // Click outside the panel closes it
     MouseArea { id: catcher; anchors.fill: parent; onClicked: { modelMenu.visible = false; Ai.open = false; } }
@@ -124,19 +134,30 @@ PanelWindow {
         y: Theme.edgeGap + Theme.barHeight + Theme.space.s3
         transformOrigin: Item.Top
         opacity: win.showing ? 1 : 0
-        scale: win.showing ? 1 : 0.96
+        scale: win.showing ? 1 : 0.9
         Behavior on opacity { NumberAnimation { duration: Theme.reducedMotion ? 0 : (win.showing ? Theme.motion.normal : Theme.motion.micro) } }
-        Behavior on scale { NumberAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+        // arrives with a soft spring past full size; leaves quickly and quietly
+        Behavior on scale {
+            NumberAnimation {
+                duration: Theme.reducedMotion ? 0 : (win.showing ? 420 : Theme.motion.micro + 30)
+                easing.type: win.showing ? Easing.OutBack : Easing.InCubic
+                easing.overshoot: 1.4
+            }
+        }
         Behavior on height { NumberAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard } }
         Rectangle { anchors.fill: parent; radius: parent.radius; color: Theme.withAlpha(Theme.bg, 0.55) }
         MouseArea { anchors.fill: parent; onClicked: modelMenu.visible = false }   // swallow clicks so they don't reach the catcher
-        // Halo's eyes follow the pointer over the panel (and look down at what you type)
-        HoverHandler { id: panelHover }
+        // Where Halo looks: at the pointer (anywhere on this screen), else down at
+        // what you're typing, else straight ahead. Near → a small turn; far → a full one.
+        property real typedAt: 0
+        Connections { target: prompt; function onTextChanged() { panel.typedAt = Date.now(); lookRest.restart(); } }
+        Timer { id: lookRest; interval: 1600 }
         function lookAt(orb) {
-            if (prompt.activeFocus && prompt.text !== "" && !panelHover.hovered) return Qt.point(0, 0.8);
-            if (!panelHover.hovered) return Qt.point(0, 0);
-            const c = orb.mapToItem(panel, orb.width / 2, orb.height / 2), p = panelHover.point.position;
-            return Qt.point(Math.max(-1, Math.min(1, (p.x - c.x) / 220)), Math.max(-1, Math.min(1, (p.y - c.y) / 160)));
+            if (lookRest.running && prompt.activeFocus) return Qt.point(-0.2, 0.9);     // reading what you type
+            if (!screenHover.hovered) return Qt.point(0, 0);
+            const c = orb.mapToItem(win.contentItem, orb.width / 2, orb.height / 2), p = screenHover.point.position;
+            const dx = p.x - c.x, dy = p.y - c.y;
+            return Qt.point(dx / (Math.abs(dx) + 140), dy / (Math.abs(dy) + 110));
         }
         // Drop files on Halo to ask about them (up to 5)
         DropArea {
@@ -179,7 +200,7 @@ PanelWindow {
                 Row {
                     spacing: Theme.space.s2
                     anchors.verticalCenter: parent.verticalCenter
-                    HaloOrb { id: headOrb; anchors.verticalCenter: parent.verticalCenter; size: 24; mood: Halo.mood; level: Voice.level; face: Persist.data.haloFace ?? true
+                    HaloOrb { id: headOrb; anchors.verticalCenter: parent.verticalCenter; size: 24; mood: Halo.mood; level: Voice.level; mouth: Voice.mouth; face: Persist.data.haloFace ?? true
                               lookX: panel.lookAt(headOrb).x; lookY: panel.lookAt(headOrb).y }
                     LText { role: "heading"; text: Halo.name; anchors.verticalCenter: parent.verticalCenter }
                     // Model: click to switch
@@ -258,7 +279,7 @@ PanelWindow {
                     HaloOrb {
                         id: bigOrb
                         anchors.verticalCenter: parent.verticalCenter
-                        size: 52; mood: Halo.mood; level: Voice.level; face: Persist.data.haloFace ?? true
+                        size: 52; mood: Halo.mood; level: Voice.level; mouth: Voice.mouth; face: Persist.data.haloFace ?? true
                         // follows the pointer; looks down at what you're typing
                         lookX: panel.lookAt(bigOrb).x; lookY: panel.lookAt(bigOrb).y
                     }

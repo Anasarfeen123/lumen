@@ -93,11 +93,23 @@ Item {
             face: Persist.data.haloFace ?? true
             mood: Halo.mood
             level: Voice.level
-            scale: orbTap.pressed ? 0.85 : orbHover.hovered ? 1.12 : 1
+            scale: orbArea.pressed ? 0.85 : orbArea.containsMouse ? 1.12 : 1
             Behavior on scale { NumberAnimation { duration: Theme.motion.micro } }
-            HoverHandler { id: orbHover; cursorShape: Qt.PointingHandCursor }
-            TapHandler { id: orbTap; onTapped: Ai.toggle() }
-            TapHandler { acceptedButtons: Qt.RightButton; onTapped: Halo.talk() }
+            // A MouseArea (not a tap handler) so the click is Halo's alone: the island
+            // underneath doesn't pin or expand
+            MouseArea {
+                id: orbArea
+                anchors.fill: parent; anchors.margins: -5
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onContainsMouseChanged: Island.orbHovered = containsMouse
+                onClicked: m => { if (m.button === Qt.RightButton) Halo.talk(); else Ai.toggle(); }
+            }
+            Component.onDestruction: Island.orbHovered = false
+            // looks up at you when you come close; back from a card, it hops into its seat
+            lookY: orbArea.containsMouse ? -0.6 : 0
+            Component.onCompleted: if (Date.now() - Halo.cardClosedAt < 1500) pop()
         }
     }
 }

@@ -32,6 +32,7 @@ Item {
     implicitWidth: Theme.island.expandedWidth - 2 * Theme.space.s4
     implicitHeight: Math.max(orbBox.height, col.implicitHeight) + (life.visible ? 8 : 0)
 
+    HoverHandler { id: cardHover }
     // Clicking the card (not a button): an answer opens in Halo
     TapHandler { enabled: !!root.info.answer; onTapped: { Island.dismiss(); Ai.show(); } }
 
@@ -77,10 +78,14 @@ Item {
             mood: root.live || Ai.busy || Voice.listening || Voice.speaking ? Halo.mood
                 : info.tone === "concerned" ? "concerned" : info.tone === "happy" ? "happy" : Halo.mood
             level: Voice.level
-            // arrives like it just looked up
-            scale: 0.6
-            Component.onCompleted: scale = 1
-            Behavior on scale { NumberAnimation { duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveOvershoot } }
+            mouth: Voice.mouth
+            // looks at the pointer on the card, else at what it's saying
+            lookX: cardHover.hovered ? Math.max(-1, Math.min(1, (cardHover.point.position.x - orbBox.width / 2) / 160)) : 0.35
+            lookY: cardHover.hovered ? Math.max(-1, Math.min(1, (cardHover.point.position.y - orbBox.height / 2) / 80)) : 0
+            // pops into the card, and again for each new thing it says
+            Component.onCompleted: pop()
+            Connections { target: root; function onInfoChanged() { if (!root.live) cardOrb.pop(); } }
+            id: cardOrb
         }
         Rectangle {
             visible: !Halo.present

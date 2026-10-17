@@ -241,7 +241,9 @@ PanelWindow {
     Binding { when: win.isFocused; target: Island; property: "shapeY"; value: body.y }
 
     // Hover intent — ignore the pointer passing over on its way somewhere else
-    Timer { id: enterTimer; interval: 300; onTriggered: { win.hoverIntent = true; if (win.isFocused) Island.hovered = true; } }
+    Timer { id: enterTimer; interval: 300; onTriggered: { if (Island.orbHovered) return; win.hoverIntent = true; if (win.isFocused) Island.hovered = true; } }
+    // Left Halo's ring but still on the island: now it may expand
+    Connections { target: Island; function onOrbHoveredChanged() { if (!Island.orbHovered && Island.pointerInside) enterTimer.restart(); } }
     // Moving away closes the timeline (a moment's grace to come back)
     Timer { id: timelineLeave; interval: 900; onTriggered: if (Island.timelineOpen) Island.closeTimeline() }
     Timer { id: leaveTimer; interval: 250; onTriggered: { win.hoverIntent = false; if (win.isFocused) Island.hovered = false; } }

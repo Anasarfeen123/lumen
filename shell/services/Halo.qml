@@ -72,6 +72,18 @@ Singleton {
         : Doctor.worried ? "concerned"
         : (Focus.mode === "sleep" || Notifications.dnd || lateNight) ? "sleeping" : "rest"
 
+    // When a Halo card leaves the island, the ring hops back into its seat by the clock
+    property real cardClosedAt: 0
+    property bool _cardShown: false
+    Connections {
+        target: Island
+        function onActiveChanged() {
+            const now = Island.active?.kind === "halo";
+            if (root._cardShown && !now) root.cardClosedAt = Date.now();
+            root._cardShown = now;
+        }
+    }
+
     // Little signs of life: it's pleased when something you waited for arrives
     Connections { target: Downloads; function onDone() { root.react("happy", 1800); } }
     Connections { target: Battery; function onPluggedInChanged() { if (Battery.pluggedIn && Island.ready) root.react("happy", 1600); } }
@@ -323,6 +335,7 @@ Singleton {
         function say(title: string, text: string): void { root.say({ key: "ipc", icon: "auto_awesome", title, text, level: "asked" }); }
         function handle(text: string): bool { return root.handle(text, "island"); }
         function mood(): string { return root.mood; }
+        function state(): string { return JSON.stringify({ mood: root.mood, quiet: root.quietWhy, orbHovered: Island.orbHovered, islandHovered: Island.hovered, variant: Island.variant }); }
         function react(m: string): void { root.react(m, 3000); }
     }
 }

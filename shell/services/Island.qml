@@ -39,6 +39,7 @@ Singleton {
     property bool hovered: false        // hover *intent* (delayed) — drives expansion
     property bool pointerInside: false  // raw — pauses the dismiss timer immediately
     property bool pinned: false
+    property bool orbHovered: false     // the pointer is on Halo's ring: don't expand under it (you're about to click it)
     property bool ready: false
 
     // Where the focused island currently is — the overview's search field

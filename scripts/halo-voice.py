@@ -8,7 +8,9 @@
         {"level": 0–1} while recording · {"speech": true} once you start ·
         {"state": "transcribing"} · then {"heard": "…"} or {"error": "…"}.
   halo-voice.py say <rate> <voice-hint> <text>
-        Speaks the text and exits when done (SIGTERM stops it).
+        Speaks the text and exits when done (SIGTERM stops it). Prints
+        {"env": [0–1 …], "step": 40} (loudness per 40 ms, for the lips) and
+        {"play": true} the moment playback starts.
         Piper (pip install --user piper-tts, a voice in ~/.local/share/lumen/voices/)
         if present, else espeak-ng. voice-hint: "uk" or "us".
 
@@ -186,6 +188,32 @@ def _rm(p):
 
 # ── speaking ────────────────────────────────────────────────────────────────
 
+def envelope(wav, step_ms):
+    """Loudness per step, 0–1 (16-bit mono or stereo wav)."""
+    import array
+    import wave
+    try:
+        with wave.open(wav) as w:
+            rate, ch, width = w.getframerate(), w.getnchannels(), w.getsampwidth()
+            if width != 2:
+                return []
+            data = array.array("h", w.readframes(w.getnframes()))
+    except (OSError, wave.Error, EOFError):
+        return []
+    n = max(1, rate * step_ms // 1000) * ch
+    vals = []
+    for i in range(0, len(data), n):
+        chunk = data[i:i + n]
+        if not chunk:
+            break
+        vals.append((sum(x * x for x in chunk[::4]) / max(1, len(chunk[::4]))) ** 0.5)
+    peak = max(vals) if vals else 0
+    if peak <= 0:
+        return [0] * len(vals)
+    # a little compression: quiet syllables still move the lips
+    return [round(min(1.0, (v / peak) ** 0.6), 2) for v in vals]
+
+
 def cmd_say(rate, hint, text):
     text = text.strip()[:1200]
     if not text:
@@ -222,7 +250,10 @@ def cmd_say(rate, hint, text):
     else:
         return
     if os.path.exists(wav):
+        # The mouth: how loud each 40 ms is, so Halo's lips move with the words
+        out({"env": envelope(wav, 40), "step": 40})
         p = subprocess.Popen(["pw-play", "--volume", "0.8", wav], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        out({"play": True})
         procs.append(p)
         p.wait()
     _rm(wav)
