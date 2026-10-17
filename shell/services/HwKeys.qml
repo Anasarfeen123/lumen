@@ -32,6 +32,16 @@ Singleton {
         }
     }
 
+    // ── power button → Lumen's power menu ──
+    // Holds logind's power-key action for as long as the main shell runs, so a
+    // press opens the menu (hypr/keybinds.lua) instead of switching off at once.
+    // If the shell isn't running, logind gets the button back.
+    Process {
+        running: Persist.automates
+        command: ["systemd-inhibit", "--what=handle-power-key", "--who=Lumen", "--why=Lumen shows a power menu",
+                  "--mode=block", "sleep", "infinity"]
+    }
+
     // ── touchpad ──
     property bool touchpadOn: true
     property var touchpads: []
