@@ -89,6 +89,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: Halo.present
             size: 17
+            breathes: false             // the resting island spends nothing: blinks and glances only
             face: Persist.data.haloFace ?? true
             mood: Halo.mood
             level: Voice.level

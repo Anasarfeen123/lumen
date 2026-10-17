@@ -8,7 +8,13 @@
 //   concerned  amber, eyes narrowed, one small shake
 //   sleeping   dimmed, eyes closed, breathing slower
 // Sizes: 18 in the resting island, 40–48 in cards, 64+ in the Halo panel.
+//
+// The ring is lit glass: a conic sheen runs round it, still at rest, turning
+// while Halo listens, thinks or speaks. At rest nothing animates continuously
+// unless `breathes` (the island turns it off: the idle desktop spends nothing,
+// DESIGN.md §0) — it only blinks and glances now and then.
 import QtQuick
+import QtQuick.Shapes
 import QtQuick.Effects
 import qs.theme
 
@@ -20,6 +26,7 @@ Item {
     property bool face: true
     property real lookX: 0              // -1 … 1: where it glances (a window it was told about…)
     property real lookY: 0
+    property bool breathes: true        // a slow breath at rest (off in the island)
     width: size; height: size
 
     readonly property bool still: Theme.reducedMotion
@@ -66,29 +73,62 @@ Item {
         Behavior on opacity { NumberAnimation { duration: Theme.motion.large } }
 
         SequentialAnimation on breath {
-            running: !root.still && ["rest", "sleeping", "concerned"].includes(root.mood)
+            running: !root.still && root.visible && (root.breathes || root.mood === "concerned") && ["rest", "sleeping", "concerned"].includes(root.mood)
             loops: Animation.Infinite
             alwaysRunToEnd: true
             NumberAnimation { to: 1.045; duration: root.mood === "sleeping" ? 3200 : 2100; easing.type: Easing.InOutSine }
             NumberAnimation { to: 1.0; duration: root.mood === "sleeping" ? 3200 : 2100; easing.type: Easing.InOutSine }
         }
 
-        // the plate and the ring
+        // the plate: a soft light from above
         Rectangle {
-            id: ring
             anchors.fill: parent
             radius: width / 2
-            color: Theme.withAlpha(root.tone, root.mood === "sleeping" ? 0.06 : 0.13)
-            border.width: root.mood === "listening" ? root.stroke * (1 + Math.min(1, root.level) * 0.9) : root.stroke
-            border.color: root.tone
-            Behavior on border.width { NumberAnimation { duration: 90 } }
-            Behavior on border.color { ColorAnimation { duration: Theme.motion.large } }
-            Behavior on color { ColorAnimation { duration: Theme.motion.large } }
+            gradient: Gradient {
+                GradientStop { position: 0; color: Theme.withAlpha(root.tone, root.mood === "sleeping" ? 0.09 : 0.22) }
+                GradientStop { position: 1; color: Theme.withAlpha(root.tone, root.mood === "sleeping" ? 0.03 : 0.07) }
+            }
+        }
+        // the ring: lit glass, a conic sheen running round it
+        Item {
+            id: ring
+            anchors.fill: parent
+            property real sheen: 300            // where the light sits (degrees)
+            property real w: root.mood === "listening" ? root.stroke * (1 + Math.min(1, root.level) * 0.9) : root.stroke
+            Behavior on w { NumberAnimation { duration: 90 } }
+            readonly property real c: root.size / 2
             layer.enabled: root.size >= 14
+            layer.samples: 4
             layer.effect: MultiEffect {
                 shadowEnabled: true; shadowColor: root.tone; shadowBlur: 0.7
                 shadowOpacity: root.mood === "sleeping" ? 0.15 : root.mood === "rest" ? 0.45 : 0.85
                 shadowHorizontalOffset: 0; shadowVerticalOffset: 0
+            }
+            Shape {
+                anchors.fill: parent
+                preferredRendererType: Shape.CurveRenderer
+                ShapePath {
+                    strokeWidth: -1
+                    strokeColor: "transparent"
+                    fillRule: ShapePath.OddEvenFill
+                    fillGradient: ConicalGradient {
+                        centerX: ring.c; centerY: ring.c; angle: ring.sheen
+                        GradientStop { position: 0.0; color: Qt.tint(root.tone, "#88ffffff") }
+                        GradientStop { position: 0.18; color: root.tone }
+                        GradientStop { position: 0.5; color: Qt.darker(root.tone, 1.35) }
+                        GradientStop { position: 0.82; color: root.tone }
+                        GradientStop { position: 1.0; color: Qt.tint(root.tone, "#88ffffff") }
+                    }
+                    PathAngleArc { centerX: ring.c; centerY: ring.c; radiusX: ring.c; radiusY: ring.c; startAngle: 0; sweepAngle: 360 }
+                    PathMove { x: ring.c + ring.c - ring.w; y: ring.c }
+                    PathAngleArc { centerX: ring.c; centerY: ring.c; radiusX: ring.c - ring.w; radiusY: ring.c - ring.w; startAngle: 0; sweepAngle: 360 }
+                }
+            }
+            // the light turns while Halo is busy with you, and rests where it stopped
+            NumberAnimation on sheen {
+                running: !root.still && root.visible && ["listening", "thinking", "speaking"].includes(root.mood)
+                from: ring.sheen; to: ring.sheen + 360; loops: Animation.Infinite
+                duration: root.mood === "thinking" ? 1600 : 4200
             }
         }
 

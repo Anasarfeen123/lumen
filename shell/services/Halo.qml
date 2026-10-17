@@ -72,6 +72,11 @@ Singleton {
         : Doctor.worried ? "concerned"
         : (Focus.mode === "sleep" || Notifications.dnd || lateNight) ? "sleeping" : "rest"
 
+    // Little signs of life: it's pleased when something you waited for arrives
+    Connections { target: Downloads; function onDone() { root.react("happy", 1800); } }
+    Connections { target: Battery; function onPluggedInChanged() { if (Battery.pluggedIn && Island.ready) root.react("happy", 1600); } }
+    Connections { target: Countdown; function onActiveChanged() { if (!Countdown.active && Island.ready) root.react("happy", 1600); } }
+
     // ── speaking up ──
     property var held: []               // cards that waited while it was quiet
     property var log: []                // what Halo said lately (newest last), for the panel
@@ -85,6 +90,7 @@ Singleton {
         const level = card.level ?? "important";
         if (!allowed(level)) return;
         card.time = Date.now();
+        card.duration = card.duration ?? 9000;
         // An answer to something you asked, with the panel open: it goes there
         if (level === "asked" && Ai.open) {
             Ai.note(card);
@@ -284,8 +290,9 @@ Singleton {
     function answered(answer) {
         session = false;
         const plain = Voice.speakable(answer) || answer.replace(/\s+/g, " ").slice(0, 280);
-        Island.push({ kind: "halo", key: "halo:live", priority: Island.priority.system, duration: Math.max(8000, Math.min(20000, plain.length * 60)), force: true,
-                      data: { key: "live", icon: "auto_awesome", title: "“" + heard + "”", text: plain, answer,
+        const ms = Math.max(8000, Math.min(20000, plain.length * 60));
+        Island.push({ kind: "halo", key: "halo:live", priority: Island.priority.system, duration: ms, force: true,
+                      data: { key: "live", icon: "auto_awesome", title: "“" + heard + "”", text: plain, answer, duration: ms,
                               actions: [{ label: "Open in Halo", icon: "open_in_full", run: () => Ai.show() },
                                         { label: "Copy", icon: "content_copy", run: () => Ai.copy(answer) }] } });
         Voice.say(answer);

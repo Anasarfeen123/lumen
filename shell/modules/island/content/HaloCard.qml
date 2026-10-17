@@ -30,7 +30,41 @@ Item {
     readonly property color tone: info.tone === "concerned" ? Theme.warning : Theme.accent
 
     implicitWidth: Theme.island.expandedWidth - 2 * Theme.space.s4
-    implicitHeight: Math.max(orbBox.height, col.implicitHeight)
+    implicitHeight: Math.max(orbBox.height, col.implicitHeight) + (life.visible ? 8 : 0)
+
+    // Clicking the card (not a button): an answer opens in Halo
+    TapHandler { enabled: !!root.info.answer; onTapped: { Island.dismiss(); Ai.show(); } }
+
+    // Words arrive just after the shape: a short rise and fade, again for each new card
+    property real arrive: 1
+    onInfoChanged: if (!root.live && !Theme.reducedMotion) { arrive = 0; arriveAnim.restart(); }
+    NumberAnimation { id: arriveAnim; target: root; property: "arrive"; to: 1; duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
+    Component.onCompleted: if (!root.live && !Theme.reducedMotion) { arrive = 0; arriveAnim.restart(); }
+
+    // How long the card stays: a hairline that runs down, and waits while you hover
+    Rectangle {
+        id: life
+        visible: !root.live
+        anchors { left: col.left; right: col.right; bottom: parent.bottom }
+        height: 2; radius: 1
+        color: Theme.withAlpha(Theme.text, 0.07)
+        Rectangle {
+            id: lifeFill
+            height: parent.height; radius: 1
+            color: Theme.withAlpha(root.tone, 0.55)
+            width: parent.width
+        }
+        NumberAnimation {
+            id: lifeAnim
+            target: lifeFill; property: "width"; from: life.width; to: 0
+            duration: root.info.duration ?? 9000
+            paused: running && (Island.pointerInside || Island.pinned)
+        }
+        function restart() { lifeFill.width = life.width; lifeAnim.restart(); }
+        Component.onCompleted: Qt.callLater(restart)
+        Connections { target: root; function onInfoChanged() { Qt.callLater(life.restart); } }
+        Connections { target: Island; function onPointerInsideChanged() { if (!Island.pointerInside && !Island.pinned) life.restart(); } }
+    }
 
     Item {
         id: orbBox
@@ -59,8 +93,10 @@ Item {
 
     Column {
         id: col
-        anchors { left: orbBox.right; leftMargin: Theme.space.s3; right: parent.right; verticalCenter: parent.verticalCenter }
+        anchors { left: orbBox.right; leftMargin: Theme.space.s3; right: parent.right; top: parent.top; topMargin: Math.max(0, (orbBox.height - implicitHeight) / 2) }
         spacing: 3
+        opacity: root.arrive
+        transform: Translate { y: (1 - root.arrive) * 6 }
         Row {
             spacing: 6
             width: parent.width
@@ -102,6 +138,8 @@ Item {
         property string label
         property bool primary: false
         width: actRow.implicitWidth + 20; height: 28
+        scale: pressed ? 0.95 : 1
+        Behavior on scale { NumberAnimation { duration: Theme.motion.micro } }
         Rectangle {
             anchors.fill: parent; radius: height / 2; z: -1
             color: act.primary ? Theme.withAlpha(root.tone, 0.18) : Theme.withAlpha(Theme.text, act.containsMouse ? 0.1 : 0.06)

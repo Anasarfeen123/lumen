@@ -23,6 +23,8 @@ Singleton {
     function toggle() { if (open) open = false; else show(); }
     function show() {
         open = true;
+        // A Halo card in the island would sit behind the panel: the panel shows it under "Lately"
+        if (Island.active?.kind === "halo" && !Island.active?.data?.live) Island.dismiss();
         readSelection();
         refreshStatus();
         if (Context.kind === "dev") Context.refreshDev();
@@ -118,8 +120,17 @@ Singleton {
     Process {
         id: statusProc
         command: [Theme.lumenRoot + "/scripts/ai.sh", "status"]
-        stdout: StdioCollector { onStreamFinished: { try { root.status = JSON.parse(text); } catch (e) {} } }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.status = JSON.parse(text); } catch (e) {}
+                root.statusKnown = true;
+                // a question that arrived before Halo knew its setup
+                if (root.queued) { const q = root.queued; root.queued = ""; root.send(q); }
+            }
+        }
     }
+    property bool statusKnown: false
+    property string queued: ""
     function setModel(provider, model) {
         Persist.data.aiProvider = provider;
         Persist.data.aiModel = model;
@@ -210,6 +221,18 @@ Singleton {
             onStreamFinished: root.downloads = text.split("\n").filter(l => l).map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(x => x)
         }
     }
+    // Ctrl+V in Halo with a picture on the clipboard: attach it (a private copy in RAM)
+    function pasteImage() { if (!pasteProc.running) pasteProc.running = true; }
+    Process {
+        id: pasteProc
+        command: ["sh", "-c", 'wl-paste --list-types 2>/dev/null | grep -q "^image/" || exit 1; mkdir -p "$1" && chmod 700 "$1"; f="$1/pasted-$(date +%s%N).png"; wl-paste --type image/png > "$f" 2>/dev/null && [ -s "$f" ] && echo "$f"', "sh", root.runDir]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const f = text.trim();
+                if (f && !root.files.includes(f) && root.files.length < 5) root.files = root.files.concat([f]);
+            }
+        }
+    }
     // For the Drop Zone and scripts: open Halo with these files attached and,
     // if given, run a skill on them ("pdf", "file", "rename")
     function askAboutFiles(paths, skill) {
@@ -242,7 +265,7 @@ Singleton {
     property var history: []            // what you typed, for ↑
     readonly property string runDir: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/lumen-ai"
     readonly property string system: "You are " + Halo.name + ", the assistant built into Lumen, the user's Linux desktop (Fedora, Hyprland)"
-        + (Halo.you ? "; the user's name is " + Halo.you : "") + ". "
+        + (Halo.you ? "; the user's name is " + Halo.you + " (use it only in greetings, not in answers)" : "") + ". "
         + "Be concise and practical; answer in Markdown. Use fenced code blocks with a language for commands and code. "
         + "When given selected text, a screenshot, a system snapshot or a diff, focus on it. "
         + "For commands, prefer Fedora (dnf) and say clearly before anything destructive. " + Halo.style
@@ -372,6 +395,7 @@ Singleton {
             Halo.handle(raw, "panel");
             return;
         }
+        if (!configured && provider !== "off" && (!statusKnown || statusProc.running)) { queued = raw; refreshStatus(); return; }
         if (!configured) { error = provider === "off" ? "Choose where answers come from — Settings → Halo." : "Halo isn't ready yet — Settings → Halo."; return; }
         error = "";
         history = history.filter(h => h !== raw).concat([raw]).slice(-30);

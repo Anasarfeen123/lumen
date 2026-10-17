@@ -130,6 +130,42 @@ PanelWindow {
         Behavior on height { NumberAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard } }
         Rectangle { anchors.fill: parent; radius: parent.radius; color: Theme.withAlpha(Theme.bg, 0.55) }
         MouseArea { anchors.fill: parent; onClicked: modelMenu.visible = false }   // swallow clicks so they don't reach the catcher
+        // Halo's eyes follow the pointer over the panel (and look down at what you type)
+        HoverHandler { id: panelHover }
+        function lookAt(orb) {
+            if (prompt.activeFocus && prompt.text !== "" && !panelHover.hovered) return Qt.point(0, 0.8);
+            if (!panelHover.hovered) return Qt.point(0, 0);
+            const c = orb.mapToItem(panel, orb.width / 2, orb.height / 2), p = panelHover.point.position;
+            return Qt.point(Math.max(-1, Math.min(1, (p.x - c.x) / 220)), Math.max(-1, Math.min(1, (p.y - c.y) / 160)));
+        }
+        // Drop files on Halo to ask about them (up to 5)
+        DropArea {
+            id: drop
+            anchors.fill: parent
+            keys: ["text/uri-list"]
+            onDropped: d => {
+                const paths = (d.urls ?? []).map(u => decodeURIComponent(String(u).replace(/^file:\/\//, ""))).filter(p => p.startsWith("/"));
+                for (const p of paths) if (!Ai.files.includes(p) && Ai.files.length < 5) Ai.files = Ai.files.concat([p]);
+                d.accept();
+                prompt.forceActiveFocus();
+            }
+        }
+        Rectangle {
+            anchors.fill: parent; anchors.margins: 6; z: 50
+            radius: win.panelRadius - 6
+            visible: opacity > 0.01
+            opacity: drop.containsDrag ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Theme.motion.micro } }
+            color: Theme.withAlpha(Theme.accent, 0.10)
+            border.width: 2; border.color: Theme.withAlpha(Theme.accent, 0.6)
+            Column {
+                anchors.centerIn: parent
+                spacing: Theme.space.s2
+                HaloOrb { anchors.horizontalCenter: parent.horizontalCenter; size: 44; mood: "listening"; level: 0.4; face: Persist.data.haloFace ?? true }
+                LText { anchors.horizontalCenter: parent.horizontalCenter; role: "bodyStrong"; text: "Drop to ask " + Halo.name + " about it" }
+                LText { anchors.horizontalCenter: parent.horizontalCenter; role: "caption"; color: Theme.textMuted; text: "PDFs, documents, code, pictures — up to 5" }
+            }
+        }
 
         Column {
             id: content
@@ -143,7 +179,8 @@ PanelWindow {
                 Row {
                     spacing: Theme.space.s2
                     anchors.verticalCenter: parent.verticalCenter
-                    HaloOrb { anchors.verticalCenter: parent.verticalCenter; size: 24; mood: Halo.mood; level: Voice.level; face: Persist.data.haloFace ?? true }
+                    HaloOrb { id: headOrb; anchors.verticalCenter: parent.verticalCenter; size: 24; mood: Halo.mood; level: Voice.level; face: Persist.data.haloFace ?? true
+                              lookX: panel.lookAt(headOrb).x; lookY: panel.lookAt(headOrb).y }
                     LText { role: "heading"; text: Halo.name; anchors.verticalCenter: parent.verticalCenter }
                     // Model: click to switch
                     HoverTarget {
@@ -222,8 +259,8 @@ PanelWindow {
                         id: bigOrb
                         anchors.verticalCenter: parent.verticalCenter
                         size: 52; mood: Halo.mood; level: Voice.level; face: Persist.data.haloFace ?? true
-                        // glances toward the prompt you're typing in
-                        lookY: prompt.activeFocus && prompt.text !== "" ? 0.8 : 0
+                        // follows the pointer; looks down at what you're typing
+                        lookX: panel.lookAt(bigOrb).x; lookY: panel.lookAt(bigOrb).y
                     }
                     Column {
                         width: parent.width - bigOrb.width - Theme.space.s4
@@ -253,11 +290,15 @@ PanelWindow {
                             { icon: "stethoscope", label: "How's my computer?", q: "how's my computer" },
                             { icon: "gesture", label: "Circle to search", lens: true },
                         ].concat(Voice.canListen ? [{ icon: "mic", label: "Talk", talk: true }] : [])
+                         .concat(Ai.configured && Ai.projectDir ? [{ icon: "commit", label: "Commit message", q: "/commit" }] : [])
+                         .concat(Halo.reminders.length ? [{ icon: "alarm", label: Halo.reminders.length === 1 ? "1 reminder" : Halo.reminders.length + " reminders", reminders: true }] : [])
                         delegate: ActionPill {
                             required property var modelData
                             outlined: true
                             icon: modelData.icon; text: modelData.label
-                            onClicked: modelData.lens ? Lens.start() : modelData.talk ? Voice.toggle() : Ai.send(modelData.q)
+                            onClicked: modelData.lens ? Lens.start() : modelData.talk ? Voice.toggle()
+                                     : modelData.reminders ? Ai.note({ icon: "alarm", title: "Your reminders", text: Halo.reminders.map(r => "• " + Halo.whenText(r.at) + " — " + r.text).join("\n") })
+                                     : Ai.send(modelData.q)
                         }
                     }
                 }
@@ -286,8 +327,10 @@ PanelWindow {
                                 spacing: 4
                                 Row {
                                     width: parent.width
-                                    LText { role: "bodyStrong"; text: noticed.modelData.title ?? ""; elide: Text.ElideRight; width: parent.width - when.width; textFormat: Text.PlainText }
-                                    LText { id: when; role: "caption"; color: Theme.textMuted; text: win.ago(Math.round((noticed.modelData.time ?? Date.now()) / 1000)) }
+                                    LText { role: "bodyStrong"; text: noticed.modelData.title ?? ""; elide: Text.ElideRight; width: parent.width - when.width - forget.width; textFormat: Text.PlainText }
+                                    LText { id: when; role: "caption"; color: Theme.textMuted; text: win.ago(Math.round((noticed.modelData.time ?? Date.now()) / 1000)); anchors.verticalCenter: parent.verticalCenter }
+                                    HoverTarget { id: forget; width: 22; height: 22; anchors.verticalCenter: parent.verticalCenter; onClicked: Halo.forget(noticed.modelData.key)
+                                                  LIcon { anchors.centerIn: parent; icon: "close"; size: 13; color: Theme.textMuted } }
                                 }
                                 LText { visible: text !== ""; width: parent.width; wrapMode: Text.Wrap; role: "caption"; color: Theme.textSecondary
                                         text: noticed.modelData.text ?? ""; maximumLineCount: 3; elide: Text.ElideRight; textFormat: Text.PlainText }
@@ -522,7 +565,7 @@ PanelWindow {
                                 spacing: 8
                                 Row {
                                     spacing: Theme.space.s2
-                                    HaloMark { size: 14; active: true; anchors.verticalCenter: parent.verticalCenter }
+                                    HaloOrb { size: 16; mood: "thinking"; face: false; anchors.verticalCenter: parent.verticalCenter }
                                     LText {
                                         role: "caption"; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter
                                         text: Ai.phase === "reading" ? "Reading what you attached…"
@@ -655,6 +698,8 @@ PanelWindow {
                             ActionPill { icon: copied.running ? "check" : "content_copy"; text: copied.running ? "Copied" : "Copy"; onClicked: { Ai.copy(msg.modelData.text); copied.restart(); } Timer { id: copied; interval: 1400 } }
                             ActionPill { icon: "keyboard_return"; text: "Insert"; onClicked: Ai.insert(msg.blocks.length === 1 && msg.modelData.text.trim().startsWith("```") ? msg.blocks[0].code : msg.modelData.text) }
                             ActionPill { icon: "note_add"; text: "Save to notes"; onClicked: Ai.saveToNotes(msg.modelData.text) }
+                            ActionPill { visible: Voice.canSpeak; icon: Voice.speaking && msg.last ? "stop" : "volume_up"; text: Voice.speaking && msg.last ? "Stop" : "Read aloud"
+                                         onClicked: Voice.speaking ? Voice.stop() : Voice.say(msg.modelData.text, true) }
                             ActionPill { visible: msg.last; icon: "refresh"; text: "Retry"; onClicked: Ai.retry() }
                             LText { visible: msg.last; role: "caption"; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
                                     text: "  " + Ai.model.replace(/:latest$/, "") + (Ai.speed > 0 ? " · " + Ai.speed + " tokens/s" : "") }
@@ -843,8 +888,10 @@ PanelWindow {
                                 if (box.histIdx >= Ai.history.length) { box.histIdx = -1; text = ""; } else { text = Ai.history[box.histIdx]; cursorPosition = length; }
                                 event.accepted = true;
                             } else if (event.key === Qt.Key_Escape) {
-                                if (Ai.busy) Ai.stop(); else if (text !== "") text = ""; else Ai.open = false;
+                                if (Voice.listening) Voice.cancel(); else if (Voice.speaking) Voice.stop(); else if (Ai.busy) Ai.stop(); else if (text !== "") text = ""; else Ai.open = false;
                                 event.accepted = true;
+                            } else if (event.key === Qt.Key_V && ctrl) {
+                                Ai.pasteImage();            // a picture on the clipboard is attached; text pastes as usual
                             } else if (event.key === Qt.Key_L && ctrl) { Ai.clear(); event.accepted = true; }
                             else if (event.key === Qt.Key_R && ctrl) { Ai.retry(); event.accepted = true; }
                         }
@@ -879,7 +926,7 @@ PanelWindow {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 role: "caption"; color: Theme.textMuted; font.pixelSize: 10
-                text: "Enter to send · / for skills · ↑ for earlier questions · Ctrl+L new chat" + (Ai.local ? " · nothing leaves this computer" : "")
+                text: "Enter to send · / for skills · drop or paste files and pictures · ↑ earlier questions · Ctrl+L new chat" + (Ai.local ? " · nothing leaves this computer" : "")
             }
         }
     }
