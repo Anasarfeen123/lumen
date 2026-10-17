@@ -4,7 +4,8 @@ pragma Singleton
 //   "what's my next class" · "where is my next class" · "classes tomorrow" ·
 //   "classes on friday" · "attendance" · "attendance in DBMS" ·
 //   "can I skip tomorrow" / "should I bunk friday" · "marks in OS" ·
-//   "what do I need in the FAT for an A in OS" · "exams" / "when is my next exam"
+//   "what do I need in the FAT for an A in OS" · "exams" / "when is my next exam" ·
+//   "when am I free tomorrow" · "is <book> in the library" · "how many ODs"
 // Each answer is a Halo card with what you'd do next (a reminder before the
 // class, a revision note, today's plan). The agent uses text() for the same
 // facts (services/Agent.qml).
@@ -62,10 +63,13 @@ Singleton {
     // ── what Halo can answer (returns an intent for Halo.handle, or null) ──
     function intent(q) {
         const l = q.toLowerCase().replace(/[?.!]+$/, "").trim();
-        const collegey = /\b(class(es)?|lecture|lab|attendance|bunk|skip|marks?|grades?|fat|cat|exams?|timetable|semester|revision|study plan|c?gpa|sgpa|proctor|circulars?|fees?|library|dues?|faculty)\b/.test(l);
+        // the library catalogue is public: no sign-in needed
+        let m;
+        if ((m = /^(?:is|are|do (?:they|we) have|does the library have|find|search(?: for)?|look for|where (?:is|can i find))\s+(?:the (?:book )?|a (?:book )?|book )?["“]?(.+?)["”]?\s+(?:in|at|from) (?:the )?(?:college |vit )?library$|^library (?:book |search )?(?:for )?(.+)$/.exec(l)) && !/^(dues?|fine|fees?)$/.test(m[1] ?? m[2]))
+            return libraryCard((m[1] ?? m[2]).trim());
+        const collegey = /\b(class(es)?|lecture|lab|attendance|bunk|skip|marks?|grades?|fat|cat|exams?|timetable|semester|revision|study plan|c?gpa|sgpa|proctor|circulars?|fees?|library|dues?|faculty|ods?|on duty|free|free time|free slots?|gaps?)\b/.test(l);
         if (!collegey) return null;
         if (!on) return needsSetup();
-        let m;
         if (/\b(study|revision) (plan|schedule|timetable)\b|^plan (my )?(study|studies|revision|exam prep)|^(make|build|create) (me )?a (study|revision) (plan|schedule)/.test(l)) return studyPlanCard();
         if (/\bbunk budget\b|^how many (classes )?can i (bunk|skip|miss)( this week)?$/.test(l)) return budgetCard();
         const ex = Amazecc.extra ?? {};
@@ -85,6 +89,17 @@ Singleton {
             return card("school", "CGPA " + ex.cgpa.cgpa + " · " + Number(ex.cgpa.creditsEarned) + " credits",
                         "Grades so far: " + Object.keys(g).filter(k => g[k]).map(k => k + " ×" + g[k]).join(" · ")
                         + ((ex.grades ?? []).length ? "\n" + ex.grades.slice(0, 8).map(x => x.grade + " — " + x.title).join("\n") : ""));
+        }
+        // on-duty leave this semester
+        if (/\b(how many )?ods?\b|\bon duty\b/.test(l) && ex.od) {
+            const r = (ex.od.records ?? []).slice().reverse();
+            return card("badge", ex.od.count + " OD" + (ex.od.count === 1 ? "" : "s") + " this semester",
+                        r.length ? "Latest:\n" + r.slice(0, 5).map(x => x.date.replace(/ to .*$/, "") + " · " + (x.remarks || x.reason).replace(/[\u2060•]/g, " ").replace(/\s+/g, " ").slice(0, 70)).join("\n") : "None recorded.");
+        }
+        // free time between classes
+        if (/\b(when am i|am i) free\b|\bfree (time|slots?|periods?|hours?)\b|\bgaps?\b.*\b(timetable|classes|today|tomorrow)|\bfree (today|tomorrow|on \w+)\b/.test(l)) {
+            const word = (/\b(today|tomorrow|tmrw|mon\w*|tue\w*|wed\w*|thu\w*|fri\w*|sat\w*|sun\w*)\b/.exec(l) ?? [])[1] ?? (new Date().getHours() >= 17 ? "tomorrow" : "today");
+            return freeCard(Amazecc.parseDay(word), word);
         }
         // your proctor
         if (/\bproctor\b/.test(l) && ex.proctor) {
@@ -201,6 +216,59 @@ Singleton {
                         [{ label: "Make revision note", icon: "checklist", run: () => Quickshell.execDetached([Theme.lumenRoot + "/bin/lumen-shell-ipc", "amazecc", "revise", first.code + "|" + first.kind]) }]);
         }
         return null;
+    }
+
+    // ── free time: the gaps of 40 minutes or more between 8:00 and 19:00 ──
+    function freeCard(d, word) {
+        const day = /^(today|tomorrow|tmrw)$/.test(word) ? (word === "today" ? "Today" : "Tomorrow") : Qt.formatDate(d, "dddd");
+        const info = Amazecc.dayInfo(d), list = Amazecc.classesOn(d).slice().sort((a, b) => a.start - b.start);
+        if (info?.kind === "holiday" || !list.length)
+            return card("beach_access", day + ": free all day", info?.kind === "holiday" ? (info.text || "A holiday").replace(/^Holiday · \((.*)\)$/, "$1") + " — no classes." : "No classes on the timetable.");
+        const isToday = Amazecc.dateKey(d) === Amazecc.dateKey(new Date());
+        const fmt = m => Amazecc.clockLabel(m);
+        let from = 8 * 60, gaps = [];
+        for (const c of list) { if (c.start - from >= 40) gaps.push([from, c.start]); from = Math.max(from, c.end); }
+        if (19 * 60 - from >= 40) gaps.push([from, 19 * 60]);
+        if (isToday) gaps = gaps.map(g => [Math.max(g[0], Amazecc.nowMin), g[1]]).filter(g => g[1] - g[0] >= 30);
+        const len = g => { const m = g[1] - g[0]; return m >= 60 ? Math.floor(m / 60) + " h" + (m % 60 ? " " + (m % 60) + " min" : "") : m + " min"; };
+        return card("event_available", gaps.length ? day + ": " + gaps.length + " free stretch" + (gaps.length === 1 ? "" : "es") : day + ": no real gaps",
+                    (gaps.length ? gaps.map(g => fmt(g[0]) + "–" + fmt(g[1]) + "  ·  " + len(g)).join("\n") + "\n" : "")
+                    + "Classes " + fmt(list[0].start) + "–" + fmt(list[list.length - 1].end) + " (" + list.length + ")",
+                    gaps.length && Math.max(...gaps.map(g => g[1] - g[0])) >= 60 ? [{ label: "Plan revision in it", icon: "checklist", run: () => Halo.handle("make a revision plan") }] : []);
+    }
+
+    // ── the library catalogue: each book, how many copies are in, and where ──
+    property string libQuery: ""
+    function libraryCard(q) {
+        return { glyph: "local_library", title: "Library", own: () => {
+            root.libQuery = q;
+            Halo.say({ key: "college", icon: "local_library", title: "Looking in the library…", text: q, level: "asked", duration: 8000 });
+            libProc.command = [Amazecc.script, "--api", Amazecc.cfg.api, "library"].concat(q.split(/\s+/));
+            libProc.running = true;
+        } };
+    }
+    Process {
+        id: libProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {}; try { r = JSON.parse(text); } catch (e) {}
+                if (!r.ok) { Halo.say({ key: "college", icon: "local_library", title: "Couldn't reach the library", text: "AmazeCC's server isn't answering.", level: "asked", tone: "concerned" }); return; }
+                const books = (r.books ?? []).slice(0, 3);
+                if (!books.length) { Halo.say({ key: "college", icon: "local_library", title: "Not in the library", text: "Nothing in the catalogue for “" + root.libQuery + "”.", level: "asked" }); return; }
+                const pretty = t => t.toLowerCase().replace(/\b\w/g, ch => ch.toUpperCase());
+                const line = b => {
+                    const inNow = b.copies.filter(c => /available/i.test(c.status));
+                    const where = [...new Set(inNow.map(c => c.where))].slice(0, 2).join("; ");
+                    const back = b.copies.filter(c => c.due).map(c => c.due).sort()[0];
+                    return pretty(b.title) + " — " + pretty(b.author) + "\n   " + (inNow.length ? inNow.length + " of " + b.copies.length + " in · " + where + " · " + (b.copies[0]?.call ?? "")
+                                                                                   : "all " + b.copies.length + " out" + (back ? " · back by " + back : ""));
+                };
+                const best = books[0];
+                Halo.say({ key: "college", icon: "local_library", title: best.available ? pretty(best.title) + ": " + best.available + " in" : "Not on the shelf right now",
+                           text: books.map(line).join("\n"), level: "asked", duration: 20000,
+                           actions: [best.copies[0]?.call ? { label: "Copy call number", icon: "content_copy", run: () => Ai.copy(best.copies[0].call) } : null].filter(a => a) });
+            }
+        }
     }
 
     // ── a study plan, worked out here (no model): sooner and weaker first ──

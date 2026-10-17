@@ -31,6 +31,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 HERE = os.path.dirname(os.path.realpath(__file__))
@@ -597,7 +598,7 @@ def cmd_sync(a):
 EXTRA_ROUTES = {"grades", "all-grades", "class-messages", "circulars", "fees-intimation", "library-due", "proctor",
                 "proctor-messages", "faculty-info", "marks/stats", "course-page", "curriculum", "biometric", "hostel-leave",
                 "od", "transcript", "profile-images", "student", "me", "registration-status", "wallet", "capstone",
-                "mess-selection", "credentials", "outcome-set", "late-hour", "university-day"}
+                "mess-selection", "credentials", "outcome-set", "late-hour", "university-day", "transport", "transport/track", "dayboarder"}
 
 
 def cmd_extra(a):
@@ -684,6 +685,10 @@ def cmd_extras(a):
     lib = get("library-due")
     due = ((lib.get("keyValuePairs") or {}).get("kohaDueAmount") or "")
     snap["library"] = {"due": num(re.sub(r"[^0-9.]", "", due)) or 0} if lib.get("success") else prev.get("library")
+    od = get("od")
+    snap["od"] = {"count": od.get("totalCount", len(od.get("records") or [])),
+                  "records": [{k: x.get(k, "") for k in ("type", "reason", "date", "time", "remarks")} for x in (od.get("records") or [])][-8:]} \
+        if od.get("success") else prev.get("od")
     pr = get("proctor")
     snap["proctor"] = pr.get("details") if pr.get("details") else prev.get("proctor")
     write_private(EXTRA, snap)
@@ -692,6 +697,59 @@ def cmd_extras(a):
     out({"ok": True, "updated": snap["updated"],
          "new": {"circulars": [x for x in snap["circulars"] if prev and x["id"] not in old_c][:5],
                  "messages": [x for x in snap["messages"] if prev and json.dumps(x, sort_keys=True) not in old_m][:5]}})
+
+
+def shelf(loc):
+    """I_FLOOR_STACK_R9_C20 → "1st floor · rack 9, column 20" (other codes as they are)."""
+    m = re.match(r"^([A-Z]+)_FLOOR(?:_STACK)?(?:_R(\d+))?(?:_C(\d+))?", loc or "")
+    if not m:
+        named = {"SCOPESL": "SCOPE department library", "SENSESL": "SENSE department library", "SMECSL": "SMEC department library",
+                 "SASL": "SAS department library", "VITBSSL": "VITBS department library", "SELECTSL": "SELECT department library"}
+        return named.get(loc or "", (loc or "").replace("_", " ").title())
+    floors = {"G": "Ground floor", "I": "1st floor", "II": "2nd floor", "III": "3rd floor", "IV": "4th floor"}
+    out = floors.get(m.group(1), m.group(1) + " floor")
+    if m.group(2):
+        out += " · rack " + m.group(2) + (", column " + m.group(3) if m.group(3) else "")
+    return out
+
+
+def cmd_library(a):
+    """The library catalogue (public; no sign-in): matches with each copy's status
+    and where it's shelved."""
+    q = urllib.parse.quote(" ".join(a.query))
+    try:
+        with urllib.request.urlopen(a.api.rstrip("/") + "/api/koha/search?count=30&q=" + q, timeout=40) as r:
+            books = json.load(r).get("books") or []
+        # the catalogue's order is loose: closest title first ("operating system
+        # concepts" → that book, before "advanced concepts in operating systems")
+        want = " ".join(a.query).lower()
+        words = re.findall(r"\w+", want)
+
+        def closeness(b):
+            t = (b.get("title") or "").lower().strip(" :/")
+            tw = re.findall(r"\w+", t)
+            hit = sum(1 for w in words if w in tw) / max(1, len(words))
+            return (t == want, want in t or t.startswith(want), hit, -abs(len(tw) - len(words)))
+        books = sorted(books, key=closeness, reverse=True)[:8]
+        ids = ",".join(b["biblionumber"] for b in books)
+        items = {}
+        if ids:
+            with urllib.request.urlopen(a.api.rstrip("/") + "/api/koha/availability?biblionumbers=" + ids, timeout=40) as r:
+                items = json.load(r).get("items") or {}
+    except (OSError, ValueError) as e:
+        out({"ok": False, "error": str(e)})
+        return
+    res = {}                                     # editions of one book together
+    for b in books:
+        title = (b.get("title") or "").strip(" :/")
+        key = (title.lower(), (b.get("author") or "").lower())
+        e = res.setdefault(key, {"title": title, "author": b.get("author", ""), "ids": [], "copies": []})
+        e["ids"].append(b["biblionumber"])
+        e["copies"] += [{"status": i.get("status", ""), "due": i.get("dueDate"), "where": shelf(i.get("location")),
+                         "call": i.get("callNumber", "")} for i in items.get(b["biblionumber"], [])]
+    for e in res.values():
+        e["available"] = sum(1 for c in e["copies"] if c["status"].lower() == "available")
+    out({"ok": True, "books": list(res.values())})
 
 
 def main():
@@ -706,12 +764,14 @@ def main():
     sl.add_argument("username")
     sub.add_parser("forget")
     sub.add_parser("sync")
+    lb = sub.add_parser("library", help="search the library catalogue: matches, copies, shelves")
+    lb.add_argument("query", nargs="+")
     sub.add_parser("extras", help="grades/CGPA, circulars, class messages, fees, library, proctor → amazecc-extra.json")
     ex = sub.add_parser("extra", help="one read-only VTOP page (grades, class-messages, circulars…) as JSON")
     ex.add_argument("route")
     ex.add_argument("--body", default="", help="extra JSON fields for the route")
     a = p.parse_args()
-    {"status": cmd_status, "set-login": cmd_set_login, "forget": cmd_forget, "sync": cmd_sync, "extra": cmd_extra, "extras": cmd_extras}[a.cmd](a)
+    {"status": cmd_status, "set-login": cmd_set_login, "forget": cmd_forget, "sync": cmd_sync, "extra": cmd_extra, "extras": cmd_extras, "library": cmd_library}[a.cmd](a)
 
 
 if __name__ == "__main__":
