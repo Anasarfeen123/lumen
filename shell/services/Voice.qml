@@ -59,6 +59,26 @@ Singleton {
         onExited: { root.listening = false; root.transcribing = false; root.level = 0; }
     }
 
+    // ── the wake phrase ("hey halo") — off unless you turn it on ──
+    // Only while: the setting is on, whisper.cpp is set up, plugged in (unless
+    // allowed on battery), not on a call, not locked, not already listening or
+    // speaking, Halo not quiet for a game. A dot beside Halo shows it's on.
+    readonly property bool wakeWanted: (Persist.data.haloWake ?? false) && canListen && Persist.automates
+    readonly property bool wakeActive: wakeWanted && (Battery.pluggedIn || !Battery.available || (Persist.data.haloWakeBattery ?? false))
+                                       && !Meeting.live && !Lock.locked && !listening && !transcribing && !speaking && !(GameMode.on || Context.kind === "game")
+    signal woke(string rest)
+    Process {
+        id: wakeProc
+        running: root.wakeActive
+        command: [root.script, "wake"]
+        stdout: SplitParser {
+            onRead: line => {
+                let d; try { d = JSON.parse(line); } catch (e) { return; }
+                if (d.wake) { Sounds.play("notify"); root.woke(d.rest ?? ""); }
+            }
+        }
+    }
+
     // ── speaking ──
     readonly property bool headphones: /bluez|headphone|headset|buds|airpods|\bwh-|\bwf-|earphone/i.test((Audio.sink?.name ?? "") + " " + Audio.deviceName)
     readonly property bool wanted: {

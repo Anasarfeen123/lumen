@@ -482,6 +482,8 @@ Singleton {
     }
     Connections {
         target: Voice
+        // "hey halo, …" says it all at once; "hey halo" alone: Halo listens for the rest
+        function onWoke(rest) { if (rest.length > 2) { root.heard = rest; Ai.prepare(); root.ask(rest); } else root.talk(); }
         function onHeard(text) { root.ask(text); }
         function onMissed(why) {
             if (why === "cancelled") { Island.dismiss(); return; }

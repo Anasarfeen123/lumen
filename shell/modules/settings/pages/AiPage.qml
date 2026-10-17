@@ -146,6 +146,18 @@ Page {
             }
         }
         SetRow {
+            icon: "hearing"
+            title: "Listen for “Hey " + Halo.name + "”"
+            description: !Voice.canListen ? "Needs whisper.cpp first (above)."
+                : "Say “Hey " + Halo.name + ", what's my next class?” — or “Hey " + Halo.name + "” and then your question. It listens in short bursts: sound is read on this computer by whisper.cpp's smallest model and deleted at once; nothing is kept or sent. A small red dot beside " + Halo.name + " shows whenever it's listening. Never on a call, in a game, or while locked; by default only while plugged in."
+            Row {
+                spacing: 8
+                Button { visible: Persist.data.haloWake ?? false; text: (Persist.data.haloWakeBattery ?? false) ? "Also on battery ✓" : "Also on battery"
+                         onActivated: Persist.data.haloWakeBattery = !(Persist.data.haloWakeBattery ?? false) }
+                LSwitch { enabled: Voice.canListen; checked: Persist.data.haloWake ?? false; onToggled: Persist.data.haloWake = checked }
+            }
+        }
+        SetRow {
             icon: "record_voice_over"
             title: "Speak replies"
             description: (Persist.data.haloVoice ?? "off") === "headphones" ? "Out loud only while headphones are connected" + (Voice.headphones ? " (they are now)." : ".")

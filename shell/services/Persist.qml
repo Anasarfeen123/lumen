@@ -102,6 +102,8 @@ Singleton {
             property var haloRoutines: []         // services/Routines.qml
             property var haloWorkflows: ({})      // name → [{ tool, args, say }] (services/Agent.qml)
             property bool haloAgent: true
+            property bool haloWake: false         // listen for "hey halo" (off by default; Settings → Halo → Voice)
+            property bool haloWakeBattery: false  // … also on battery
             property bool haloBreaks: true        // a nudge after about an hour at the screen
             property string haloBirthday: ""      // "MM-DD" — "my birthday is 12 March"
             property string haloLastBirthday: ""         // Halo carries out multi-step requests with Lumen's tools (services/Agent.qml)

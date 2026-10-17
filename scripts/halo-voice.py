@@ -7,6 +7,8 @@
         stop now and use what was said; SIGINT: cancel). Prints JSON lines:
         {"level": 0–1} while recording · {"speech": true} once you start ·
         {"state": "transcribing"} · then {"heard": "…"} or {"error": "…"}.
+  halo-voice.py wake                      listen for "hey halo" (short bursts, whisper.cpp's smallest
+                                          model, nothing kept): {"wake": true, "rest": "…"} each time
   halo-voice.py transcribe <audio file>   a long recording (a lecture) → text on stdout
   halo-voice.py say <rate> <voice-hint> <text>
         Speaks the text and exits when done (SIGTERM stops it). Prints
@@ -56,6 +58,14 @@ def stt_model():
     rank = lambda p: (0 if re.search(r"(base|small)\.en", p) else 1 if re.search(r"base|small", p) else 2, os.path.getsize(p))
     cands = [c for c in cands if os.path.getsize(c) > 1_000_000]
     return sorted(cands, key=rank)[0] if cands else ""
+
+
+def wake_model():
+    """The smallest model for the wake phrase (tiny.en if you have it)."""
+    cands = []
+    for d in (DATA + "/whisper", "/usr/share/whisper-cpp/models", "/usr/share/whisper.cpp/models", HOME + "/.cache/whisper"):
+        cands += [c for c in glob.glob(d + "/ggml-*.bin") if os.path.getsize(c) > 1_000_000]
+    return sorted(cands, key=os.path.getsize)[0] if cands else ""
 
 
 def piper_voice():
@@ -180,6 +190,100 @@ def cmd_listen(args):
     out({"heard": text} if text else {"error": "nothing"})
 
 
+# ── the wake phrase ("hey halo") ────────────────────────────────────────────
+# Listens in short bursts: the loudness is watched; only when someone speaks
+# (a short burst, under 4 s) is it written to RAM, read by whisper.cpp's
+# smallest model, and deleted at once. Prints {"wake": true, "rest": "…"}
+# when the phrase starts the burst ("hey halo, what's my next class").
+
+WAKE = re.compile(r"^\W*(?:hey|hi|okay|ok|yo)?[\s,]*(?:halo|hello halo|hey hello|hailo|helo|hayley|haylo)\b[\s,.!?]*(.*)$", re.I)
+
+
+def burst(src_args, maxs=4.0):
+    """One utterance: record until a short pause; None if nobody spoke."""
+    os.makedirs(RUN, mode=0o700, exist_ok=True)
+    wav = os.path.join(RUN, "wake-%d.wav" % os.getpid())
+    ff = subprocess.Popen(["ffmpeg", "-hide_banner", "-nostats", "-loglevel", "info", *src_args, "-ac", "1", "-ar", "16000",
+                           "-af", "astats=metadata=1:reset=1,ametadata=mode=print:key=lavfi.astats.Overall.RMS_level",
+                           "-t", "30", "-y", wav], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, bufsize=1)
+    floor, samples, t, speech_at, quiet_since, loud = None, [], 0.0, None, None, 0
+    try:
+        for line in ff.stderr:
+            m = re.search(r"pts_time:([\d.]+)", line)
+            if m:
+                t = float(m.group(1))
+                continue
+            m = re.search(r"RMS_level=(-?[\d.]+|-inf)", line)
+            if not m:
+                continue
+            db = -90.0 if m.group(1) == "-inf" else float(m.group(1))
+            if floor is None:
+                samples.append(db)
+                if t < 0.4:
+                    continue
+                floor = min(-32.0, max(-62.0, sorted(samples)[len(samples) // 2]))
+            loud = loud + 1 if db > floor + 13 else 0
+            if speech_at is None:
+                if loud >= 4:
+                    speech_at = t
+                elif t > 25:                         # restart now and then (the floor drifts)
+                    break
+                continue
+            if db < floor + 7:
+                quiet_since = quiet_since if quiet_since is not None else t
+                if t - quiet_since >= 0.7:
+                    break
+            else:
+                quiet_since = None
+            if t - speech_at > maxs:
+                break
+    finally:
+        try:
+            ff.stdin.write("q")
+            ff.stdin.flush()
+        except (BrokenPipeError, OSError, ValueError):
+            pass
+        try:
+            ff.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            ff.kill()
+    if speech_at is None or t - speech_at > maxs + 1:
+        _rm(wav)
+        return None
+    return wav
+
+
+def cmd_wake():
+    b, model = stt_bin(), wake_model()
+    test = os.environ.get("HALO_VOICE_TEST", "")
+    if (not b or not model) and not test:
+        out({"error": "no-stt"})
+        return
+    stop = {"now": False}
+    signal.signal(signal.SIGTERM, lambda *_: stop.update(now=True))
+    src = ["-f", "lavfi", "-re", "-i", test] if test else ["-f", "pulse", "-i", "default"]
+    out({"state": "listening"})
+    while not stop["now"]:
+        wav = burst(src)
+        if stop["now"] or wav is None:
+            if test:
+                break
+            continue
+        if test:
+            _rm(wav)
+            out({"heard": "(test burst)"})
+            break
+        try:
+            r = subprocess.run([b, "-m", model, "-f", wav, "-nt", "-np", "-l", "en", "-t", "2"], capture_output=True, text=True, timeout=30)
+            text = re.sub(r"\[[^\]]*\]|\([^)]*\)", " ", r.stdout).strip()
+        except (OSError, subprocess.TimeoutExpired):
+            text = ""
+        _rm(wav)
+        m = WAKE.match(text)
+        if m:
+            out({"wake": True, "rest": m.group(1).strip()})
+
+
 def _rm(p):
     try:
         os.remove(p)
@@ -290,6 +394,8 @@ def main():
         cmd_status()
     elif a[0] == "listen":
         cmd_listen(a[1:])
+    elif a[0] == "wake":
+        cmd_wake()
     elif a[0] == "transcribe" and len(a) >= 2:
         cmd_transcribe(a[1])
     elif a[0] == "say" and len(a) >= 4:

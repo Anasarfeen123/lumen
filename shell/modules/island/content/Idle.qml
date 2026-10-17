@@ -111,6 +111,14 @@ Item {
             // looks up at you when you come close; back from a card, it hops into its seat
             lookY: orbArea.containsMouse ? -0.6 : 0
             Component.onCompleted: if (Date.now() - Halo.cardClosedAt < 1500) pop()
+            // listening for "hey halo": a small dot, always visible while it is
+            Rectangle {
+                visible: Voice.wakeActive
+                width: 5; height: 5; radius: 2.5
+                anchors { right: parent.right; top: parent.top; rightMargin: -2; topMargin: -1 }
+                color: Theme.error
+                border.width: 1; border.color: Theme.bg
+            }
         }
     }
 }
