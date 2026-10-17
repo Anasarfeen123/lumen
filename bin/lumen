@@ -8,7 +8,7 @@
 #   lumen clock <12h|24h>  ·  lumen motion <full|reduced>  ·  lumen reload
 #   lumen set <gaps|corners|border|anim_speed|follow_mouse|cursor|cursor_size|idle_lock|idle_sleep|
 #              accent_style|accent_intensity|glass_level|motion_scale|pointer_speed|accel|natural_scroll|
-#              tap_click|scroll_speed|dwt|left_handed|kb_repeat_delay|kb_repeat_rate|kb_layout> <value>
+#              tap_click|scroll_speed|dwt|left_handed|kb_repeat_delay|kb_repeat_rate|kb_layout|app_a11y> <value>
 #   lumen check                     contrast report for the active theme
 #   lumen bench [--json] [--cpu N]  what the running shell costs: memory, CPU, startup
 #   lumen rebuild                   regenerate app themes (Qt/KDE, kitty…) without reloading
@@ -111,6 +111,9 @@ case ${1:-} in
             accent_style=adaptive|accent_style=exact|accent_style=subtle|accent_style=mono)
                 set_state "$2" "$3"; reload ;;
             # Mouse, touchpad and keyboard (Settings → Mouse & touchpad / Keyboard)
+            # Apps describe their buttons (accessibility) — Halo finds icons by name; Lumen's session only
+            app_a11y=on|app_a11y=off)
+                set_state "$2" "$3"; reload ;;
             accel=adaptive|accel=flat|natural_scroll=on|natural_scroll=off|tap_click=on|tap_click=off|\
             dwt=on|dwt=off|left_handed=on|left_handed=off)
                 set_state "$2" "$3"; reload ;;

@@ -8,6 +8,14 @@
 
 hl.env("LUMEN", "1")
 
+-- Apps describe their buttons to the accessibility bus (Settings → Halo →
+-- Hands), so Halo can find icons by name. Qt and Chromium/Electron apps keep it
+-- off unless asked; GTK 4 always has it. Apps opened after the switch use it.
+if LM.app_a11y then
+    hl.env("QT_LINUX_ACCESSIBILITY_ALWAYS_ON", "1")
+    hl.env("ACCESSIBILITY_ENABLED", "1")
+end
+
 -- Session identity (portals, screen sharing, file pickers)
 hl.env("XDG_CURRENT_DESKTOP", "Hyprland")
 hl.env("XDG_SESSION_TYPE", "wayland")

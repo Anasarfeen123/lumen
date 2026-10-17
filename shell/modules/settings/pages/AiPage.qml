@@ -248,6 +248,12 @@ Page {
             LSwitch { checked: Persist.data.haloHands ?? true; onToggled: Persist.data.haloHands = checked }
         }
         SetRow {
+            icon: "accessibility_new"
+            title: "Let apps describe their buttons"
+            description: "Halo finds icons without text (a gear, a ×, “New chat”) by the names apps give them for screen readers — exact, and on this computer. GTK 4 apps always do; with this on, Qt, KDE, Chromium, Brave and Electron apps do too (inside Lumen only, for apps opened after; browsers get a little slower)."
+            LSwitch { checked: (Theme.tokens.prefs?.app_a11y ?? "off") === "on"; onToggled: SettingsState.lumen(["set", "app_a11y", checked ? "on" : "off"]) }
+        }
+        SetRow {
             icon: Hands.canClick ? "check_circle" : "info"
             title: Hands.canClick ? "Clicks and scrolling are ready" : "Clicks need ydotool"
             description: Hands.canClick ? "Through your ydotool service (its socket in your runtime folder). Typing and keys use wtype."

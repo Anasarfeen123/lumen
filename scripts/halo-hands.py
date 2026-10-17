@@ -14,6 +14,7 @@ pointing and scrolling need no OK). Standard library only.
   halo-hands.py key <combo>               e.g. ctrl+s, alt+Left, Return (wtype)
   halo-hands.py type <text>               types the text into the focused window (wtype)
   halo-hands.py read                      the text on the focused screen (tesseract), plain
+  halo-hands.py a11y <name>               JSON: buttons/links named that, from apps' accessibility info
   halo-hands.py shot                      JSON: the focused screen as a small JPEG for a vision model
   halo-hands.py find <text>               JSON: where that text is (every screen, the focused one first),
                                           best match first [{x, y, w, h, text, score}]
@@ -158,8 +159,85 @@ def monitors():
     return sorted(ms, key=lambda m: not m.get("focused"))       # the focused one first
 
 
+ROLES = {"push button", "button", "toggle button", "link", "menu item", "page tab", "check box", "radio button", "combo box",
+         "entry", "text", "icon", "list item", "tree item", "menu", "tool bar", "spin button", "slider", "label", "heading"}
+
+
+def a11y(want, budget=3.0):
+    """Buttons and links that apps describe by name (the accessibility bus) — icons included.
+    Positions are window-relative on Wayland; Hyprland says where each window is."""
+    try:
+        import gi
+        gi.require_version("Atspi", "2.0")
+        from gi.repository import Atspi
+    except (ImportError, ValueError):
+        return []
+    try:
+        clients = json.loads(hypr("-j", "clients") or "[]")
+        mons = monitors()
+        active = {m["activeWorkspace"]["id"] for m in mons} | {m.get("specialWorkspace", {}).get("id") for m in mons if m.get("specialWorkspace", {}).get("id")}
+    except (ValueError, KeyError):
+        return []
+    by_pid = {}
+
+    def parent(pid):
+        try:
+            with open("/proc/%d/stat" % pid) as f:
+                r = f.read()
+            return int(r[r.rfind(")") + 2:].split()[1])
+        except (OSError, ValueError, IndexError):
+            return 0
+    for c in clients:
+        if c.get("workspace", {}).get("id") in active and not c.get("hidden") and c.get("mapped", True):
+            # an app's accessibility may come from a wrapper process a few levels up
+            p, hops = c["pid"], 0
+            while p > 1 and hops < 4:
+                by_pid.setdefault(p, c)
+                p, hops = parent(p), hops + 1
+    norm = lambda x: re.sub(r"[^a-z0-9 ]", "", x.lower()).strip()
+    target = norm(want)
+    if not target:
+        return []
+    t0, hits = time.monotonic(), []
+    desk = Atspi.get_desktop(0)
+    for i in range(desk.get_child_count()):
+        app = desk.get_child_at_index(i)
+        try:
+            pid = app.get_process_id()
+        except Exception:
+            continue
+        win = by_pid.get(pid)
+        if not win:
+            continue
+        stack = [(app, 0)]
+        while stack and time.monotonic() - t0 < budget:
+            o, depth = stack.pop()
+            try:
+                name, role = o.get_name() or "", o.get_role_name()
+                if name and role in ROLES:
+                    n = norm(name)
+                    score = 1.0 if n == target else 0.85 if n.startswith(target) or target in n.split() else 0.7 if target in n else 0
+                    if score:
+                        comp = o.get_component_iface()
+                        e = comp.get_extents(Atspi.CoordType.WINDOW) if comp else None
+                        if e and e.width > 0 and e.height > 0:
+                            hits.append({"x": round(win["at"][0] + e.x + e.width / 2), "y": round(win["at"][1] + e.y + e.height / 2),
+                                         "w": e.width, "h": e.height, "text": name, "score": score + (0.05 if role in ("push button", "button", "link") else 0)})
+                if depth < 40:
+                    for k in range(min(o.get_child_count(), 400)):
+                        stack.append((o.get_child_at_index(k), depth + 1))
+            except Exception:
+                continue
+    hits.sort(key=lambda h: -h["score"])
+    return hits[:6]
+
+
 def find(want):
-    """Every monitor, the focused one first; best match wins (ties: the focused screen)."""
+    """Named buttons first (accessibility), then the text on every monitor (the focused one
+    first); best match wins (ties: the focused screen)."""
+    named = [h for h in a11y(want) if h["score"] >= 0.85]
+    if named:
+        return named
     hits = []
     for i, mon in enumerate(monitors()):
         for h in find_on(mon, want):
@@ -286,6 +364,8 @@ def main():
     elif c == "read":
         text = re.sub(r"\n{3,}", "\n\n", read_screen()).strip()
         sys.stdout.write(text[:8000] + "\n")
+    elif c == "a11y" and len(a) >= 2:
+        out(a11y(" ".join(a[1:])))
     elif c == "shot":
         out(shot())
     elif c == "find" and len(a) >= 2:
