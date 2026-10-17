@@ -29,6 +29,7 @@ Singleton {
         { title: "Circle to search", glyph: "gesture", keys: "circle to search lens look up what is this screen google lens ocr", fn: () => Lens.start() },
         { title: "Talk to Halo", glyph: "mic", keys: "talk voice speak halo jarvis listen", fn: () => Halo.talk() },
         { title: "Screenshot (region)", glyph: "screenshot_region", keys: "screenshot capture snip", cmd: [Theme.lumenRoot + "/scripts/screenshot.sh", "region"], delay: true },
+        { title: "Scrolling screenshot", glyph: "swipe_down", keys: "scrolling screenshot long screenshot full page capture scroll", cmd: [Theme.lumenRoot + "/scripts/screenshot.sh", "scroll"], delay: true },
         { title: "Record screen", glyph: "screen_record", keys: "record screen recording video", cmd: [Theme.lumenRoot + "/scripts/screen-record.sh", "toggle", "screen"], delay: true },
         { title: "Colour picker", glyph: "colorize", keys: "color colour picker eyedropper hex", cmd: ["hyprpicker", "-a"], delay: true },
         { title: "Dark theme", glyph: "dark_mode", keys: "theme dark", cmd: [Theme.lumenRoot + "/bin/lumen", "theme", "dark"] },
