@@ -270,6 +270,7 @@ Singleton {
         + "Be concise and practical; answer in Markdown. Use fenced code blocks with a language for commands and code. "
         + "When given selected text, a screenshot, a system snapshot or a diff, focus on it. "
         + "For commands, prefer Fedora (dnf) and say clearly before anything destructive. " + Halo.style
+        + (Halo.memoryText ? "\n\n" + Halo.memoryText : "")
 
     function clear() { stop(); messages = []; error = ""; speed = 0; }
     function stop() { if (ask.running) ask.running = false; ctxProc.running = false; busy = false; phase = ""; slow = false; if (Agent.running) Agent.stop(); }

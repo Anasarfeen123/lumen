@@ -69,7 +69,52 @@ Singleton {
         calls = []; blocked = 0; misses = 0; dry = 0;
         think();
     }
+    // ── workflows: a job's steps, saved under a name, replayed exactly (no model) ──
+    property var lastCalls: []
+    property bool replaying: false
+    property var replayQueue: []
+    function lastSteps() { return lastCalls; }
+    function saveWorkflow(name) {
+        const w = Object.assign({}, Persist.data.haloWorkflows ?? {});
+        w[name.trim()] = lastCalls;
+        Persist.data.haloWorkflows = w;
+    }
+    function workflow(name) {
+        const all = Persist.data.haloWorkflows ?? {}, q = name.trim().toLowerCase();
+        const key = Object.keys(all).find(k => k.toLowerCase() === q) ?? Object.keys(all).find(k => k.toLowerCase().replace(/ mode$/, "") === q.replace(/ mode$/, ""));
+        return key ? { name: key, steps: all[key] } : null;
+    }
+    function removeWorkflow(name) { const w = Object.assign({}, Persist.data.haloWorkflows ?? {}); delete w[name]; Persist.data.haloWorkflows = w; }
+    function replay(name) {
+        const w = workflow(name);
+        if (!w || !w.steps.length) return;
+        if (running) stop();
+        const id = "run" + (++count);
+        const r = Object.assign({}, runs);
+        r[id] = { goal: "Run “" + w.name + "”", steps: [], answer: "", state: "running", where: Ai.open ? "panel" : "island" };
+        runs = r;
+        current = id;
+        if (r[id].where === "panel") Ai.messages = Ai.messages.concat([{ role: "assistant", kind: "agent", text: "", runId: id }]);
+        else { Halo.heard = r[id].goal; Halo.live({ duration: 120000 }); }
+        replaying = true;
+        replayQueue = w.steps.slice();
+        replayName = w.name;
+        nextReplay();
+    }
+    property string replayName: ""
+    function nextReplay() {
+        if (!replayQueue.length) { finish("Done — “" + replayName + "”."); return; }
+        const s = replayQueue[0];
+        replayQueue = replayQueue.slice(1);
+        const tool = tools.find(t => t.name === s.tool);
+        if (!tool) { nextReplay(); return; }
+        update(r => r.steps.push({ tool: tool.name, say: s.say || tool.label(s.args), icon: tool.icon, state: "running", result: "", args: s.args }));
+        if (tool.ask && tool.ask(s.args)) { pending = { tool, args: s.args }; update(r => { r.state = "waiting"; r.steps[r.steps.length - 1].state = "waiting"; }); return; }
+        exec(tool, s.args);
+    }
+
     function stop() {
+        replaying = false; replayQueue = [];
         if (brain.running) brain.running = false;
         if (waitTimer.running) waitTimer.stop();
         pending = null;
@@ -94,7 +139,8 @@ Singleton {
             + "(result) {\"say\": \"Checking your next class\", \"tool\": \"college\", \"args\": {\"question\": \"next class\"}}\n"
             + "(result) {\"answer\": \"Your 50-minute timer is running. Next class: Database Systems at 2:00 PM in SJT 418.\"}\n"
             + "Now: " + Qt.formatDateTime(now, "dddd d MMMM yyyy, h:mm AP") + ". The user: " + (Halo.you || "unknown") + ". "
-            + "Focused window: " + (Hyprland.activeToplevel?.title || "none") + ". " + Halo.style;
+            + "Focused window: " + (Hyprland.activeToplevel?.title || "none") + ". " + Halo.style
+            + (Halo.memoryText ? "\n" + Halo.memoryText : "");
     }
     function think() {
         if (!current || active?.state !== "running") return;
@@ -165,7 +211,7 @@ Singleton {
         }
         calls = calls.concat([sig]);
         const say = (d.say && String(d.say).length < 90) ? String(d.say) : tool.label(args);
-        update(r => r.steps.push({ tool: tool.name, say, icon: tool.icon, state: "running", result: "" }));
+        update(r => r.steps.push({ tool: tool.name, say, icon: tool.icon, state: "running", result: "", args }));
         if (tool.ask && tool.ask(args)) { pending = { tool, args }; update(r => { r.state = "waiting"; r.steps[r.steps.length - 1].state = "waiting"; }); return; }
         exec(tool, args);
     }
@@ -192,6 +238,11 @@ Singleton {
     }
     function observe(result, state) {
         if (!current || (active?.state !== "running" && active?.state !== "waiting")) return;
+        if (replaying) {
+            update(r => { const s = r.steps[r.steps.length - 1]; if (s) { s.state = state ?? "done"; s.result = String(result ?? "").split("\n")[0].slice(0, 140); } });
+            nextReplay();
+            return;
+        }
         const short = String(result ?? "").slice(0, 2500);
         const empty = state === "failed" || /^(no |nothing |couldn't|didn't happen)/i.test(short);
         dry = empty ? dry + 1 : 0;
@@ -210,6 +261,10 @@ Singleton {
     function summary() { return (active?.steps ?? []).map(s => s.say + (s.state === "done" ? " ✓" : " (" + s.state + ")")).join("; "); }
     function finish(answer) {
         update(r => { r.answer = answer; r.state = "done"; });
+        replaying = false;
+        // what worked, for "save that as …"
+        const good = (active?.steps ?? []).filter(s => s.state === "done" && s.args && s.tool !== "shell").map(s => ({ tool: s.tool, args: s.args, say: s.say }));
+        if (good.length) lastCalls = good;
         const r = active;
         if (r?.where === "island")
             Halo.say({ key: "live", icon: "auto_awesome", title: "“" + r.goal + "”", text: Voice.speakable(answer) || answer, level: "asked", tone: "happy", duration: 14000,

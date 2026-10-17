@@ -170,6 +170,60 @@ Page {
     }
 
     Group {
+        title: "Memory"
+        SetRow {
+            icon: "bookmarks"
+            title: Halo.memory.length ? "Remembering " + Halo.memory.length + (Halo.memory.length === 1 ? " thing" : " things") : "Nothing remembered yet"
+            description: "Say “remember that my roll number is 25BCE…” or “remember I study best at night”. It's kept on this computer, and used in answers only while this is on. “Forget …” removes one; everything is listed here."
+            LSwitch { checked: Persist.data.haloUseMemory ?? true; onToggled: Persist.data.haloUseMemory = checked }
+        }
+        Repeater {
+            model: Halo.memory
+            SetRow {
+                required property var modelData
+                icon: "bookmark"
+                title: modelData.text
+                description: "Since " + Qt.formatDate(new Date(modelData.at), "d MMM yyyy")
+                Button { text: "Forget"; onActivated: Halo.forgetItem(modelData) }
+            }
+        }
+    }
+
+    Group {
+        title: "Routines and watches"
+        SetRow {
+            icon: "schedule"
+            title: Routines.list.length ? Routines.list.length + (Routines.list.length === 1 ? " routine" : " routines") : "No routines yet"
+            description: "Tell " + Halo.name + ": “every weekday at 8:30, brief me”, “whenever I plug in the charger, battery saver off”, “when I connect a monitor, focus work”, “when the battery drops to 20%, dim the screen”, “tell me when the download finishes”, “tell me when Arya replies”. Actions are things " + Halo.name + " does directly — routines never start open-ended jobs on their own."
+        }
+        Repeater {
+            model: Routines.list
+            SetRow {
+                required property var modelData
+                icon: modelData.once ? "notifications_active" : "repeat"
+                title: Routines.describe(modelData)
+                description: modelData.once ? "Once, then it's gone" : "Keeps going"
+                Button { text: "Remove"; onActivated: Routines.remove(modelData.id) }
+            }
+        }
+    }
+
+    Group {
+        visible: Object.keys(Persist.data.haloWorkflows ?? {}).length > 0
+        title: "Workflows"
+        Repeater {
+            model: Object.keys(Persist.data.haloWorkflows ?? {})
+            SetRow {
+                required property string modelData
+                icon: "playlist_play"
+                title: modelData
+                description: ((Persist.data.haloWorkflows ?? {})[modelData] ?? []).map(s => s.say).join(" → ") + " · say “run " + modelData + "”"
+                Button { text: "Remove"; onActivated: Agent.removeWorkflow(modelData) }
+            }
+        }
+    }
+
+    Group {
         title: "Hands"
         SetRow {
             icon: "pan_tool_alt"

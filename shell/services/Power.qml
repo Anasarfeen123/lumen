@@ -27,6 +27,8 @@ Singleton {
                                   : profile === PowerProfile.Performance ? "bolt" : "balance"
 
     function saverOn() { PowerProfiles.profile = PowerProfile.PowerSaver; }
+    function balanced() { PowerProfiles.profile = PowerProfile.Balanced; }
+    function performance() { PowerProfiles.profile = PowerProfiles.hasPerformanceProfile ? PowerProfile.Performance : PowerProfile.Balanced; }
     // Balanced → Performance → Saver → Balanced
     function cycle() {
         if (profile === PowerProfile.Balanced)

@@ -158,7 +158,8 @@ Singleton {
     function done(what) {
         if (character === "calm") return what;
         if (character === "jarvis") return ["Done — ", "Very good — ", "Taken care of — "][Math.floor(Math.random() * 3)] + what.charAt(0).toLowerCase() + what.slice(1);
-        return "Got it — " + what.charAt(0).toLowerCase() + what.slice(1);
+        // keep names as they are ("Do Not Disturb on"); lowercase a plain first word
+        return "Got it — " + (/^[A-Z][a-z]+ [A-Z]/.test(what) ? what : what.charAt(0).toLowerCase() + what.slice(1));
     }
 
     // ── Jarvis: things Lumen can simply do ──
@@ -177,6 +178,35 @@ Singleton {
             return { glyph: "stethoscope", title: "Checking", own: () => Doctor.checkNow(true) };
         if (/^(circle|search) (to search|my screen|the screen|this)|^what'?s this on (my|the) screen|^lens$/i.test(lower))
             return { glyph: "gesture", title: "Circle to search", own: () => Lens.start() };
+        // Memory: "remember that …", "what do you remember", "forget …"
+        let mm;
+        if ((mm = /^(?:please )?remember (?:that |this: ?)?(.{3,300})$/i.exec(q)) && !/^remember me\b/i.test(q))
+            return { glyph: "bookmark_add", title: "I'll remember that", plain: true, run: () => root.remember(mm[1]) };
+        if (/^(what do you (remember|know) about me|what have i told you|show (my )?memor(y|ies)|my memor(y|ies))$/.test(lower))
+            return { glyph: "bookmarks", title: "What I remember", own: () => root.say({ key: "memory", icon: "bookmarks", title: memory.length ? "What I remember (" + memory.length + ")" : "Nothing yet",
+                     text: memory.length ? memory.map(x => "• " + x.text).join("\n") : "Tell me “remember that my roll number is …” and I'll keep it — you can see and delete everything in Settings → Halo.",
+                     level: "asked", duration: 15000, actions: memory.length ? [{ label: "Manage", icon: "settings", run: () => SettingsState.launch("ai") }] : [] }) };
+        if ((mm = /^forget (?:that |about |the fact that )?(.+)$/i.exec(q))) {
+            const what = mm[1].toLowerCase();
+            if (/^(everything|all of it|all)$/.test(what))
+                return { glyph: "delete_sweep", title: "Forget everything I remember", ask: true, run: () => { Persist.data.haloMemory = []; } };
+            const hit = memory.find(x => x.text.toLowerCase().includes(what)) ?? memory.find(x => what.split(/\s+/).filter(w => w.length > 3).some(w => x.text.toLowerCase().includes(w)));
+            return hit ? { glyph: "bookmark_remove", title: "Forgotten: " + hit.text, plain: true, run: () => root.forgetItem(hit) }
+                       : { glyph: "bookmark", title: "I don't remember anything like that", already: true };
+        }
+        // Routines and watches: "every weekday at 8:30, …", "when I …, …", "tell me when …"
+        const routine = Routines.intent(q);
+        if (routine) return routine;
+        // Workflows: "save that as study mode", "run study mode"
+        if ((mm = /^(?:save|remember|keep) (?:that|this|it|those steps) as (?:a |my )?(?:workflow )?["“]?(.+?)["”]?$/i.exec(q)))
+            return Agent.lastSteps().length ? { glyph: "playlist_add", title: "Saved “" + mm[1] + "”", plain: true, run: () => Agent.saveWorkflow(mm[1]) }
+                                            : { glyph: "playlist_add", title: "Nothing to save yet — ask me to do something first", already: true };
+        if ((mm = /^(?:run|do|start|play|replay|launch)(?: the| my)? (.+?)(?: workflow)?$/i.exec(q)) && Agent.workflow(mm[1]))
+            return { glyph: "playlist_play", title: "Running “" + Agent.workflow(mm[1]).name + "”", own: () => Agent.replay(mm[1]) };
+        if (/^(what are |show |list )?(my )?workflows$/.test(lower))
+            return { glyph: "playlist_play", title: "Workflows", own: () => root.say({ key: "workflows", icon: "playlist_play", title: Object.keys(Persist.data.haloWorkflows ?? {}).length ? "Your workflows" : "No workflows yet",
+                     text: Object.keys(Persist.data.haloWorkflows ?? {}).map(n => "• " + n + " — " + (Persist.data.haloWorkflows[n] ?? []).map(s => s.say).join(", ")).join("\n") || "Ask me to do a job, then say “save that as <name>”.",
+                     level: "asked", duration: 15000 }) };
         // College (AmazeCC): next class, attendance, skipping, marks, FAT targets, exams
         const college = HaloCollege.intent(q);
         if (college) return college;
@@ -196,7 +226,8 @@ Singleton {
         if (!/^(turn|switch|set|open|launch|start|stop|show|hide|lock|mute|unmute|enable|disable|toggle|play|pause|resume|next|previous|skip|take|record|go|put|make|close|end|kill|restore|save|dim|brighten|raise|lower|increase|decrease|change|run|timer|volume|vol|brightness|bright|caffeine|awake|stay awake|keep awake|screenshot|night light|dark mode|light mode|wifi|wi-fi|bluetooth|airplane|do not disturb|dnd|focus|sleep|suspend|restart|reboot|shut ?down|power off|log ?out)\b/i.test(lower))
             return null;
         let s = lower.replace(/^(please |can you |could you |hey |ok |okay )+/, "").replace(/ please$/, "");
-        const want = /\b(on|enable|start)\b/.test(s) ? true : /\b(off|disable|stop)\b/.test(s) ? false : null;
+        const want = /\bunmute\b/.test(s) ? false : /\bmute\b/.test(s) ? true
+                   : /\b(on|enable|start)\b/.test(s) ? true : /\b(off|disable|stop)\b/.test(s) ? false : null;
         s = s.replace(/^(turn|switch) (on|off) (the )?/, "").replace(/^(turn|switch|toggle|enable|disable) (the )?/, "").replace(/ (on|off)$/, "")
              .replace(/^(set|change) (the )?(volume|brightness) (to )?(\d+)%?$/, "$3 $5").replace(/^(open|launch|start) (the )?/, "")
              .replace(/^(go|put) (to )?/, "").replace(/^make (it|the screen) /, "");
@@ -254,6 +285,30 @@ Singleton {
             const t = Hyprland.activeToplevel?.title ?? "this window";
             return { glyph: "close", title: "Close “" + t.slice(0, 50) + "”", ask: true, run: () => hyprDo("hl.dsp.window.close()") };
         }
+
+        // ── sound ──
+        if ((m = /^(un)?mute( the)?( (sound|audio|volume|speakers?|laptop|everything))?$/.exec(lower))) {
+            const want = !m[1];
+            return Audio.muted === want ? { glyph: want ? "volume_off" : "volume_up", title: "Sound is already " + (want ? "muted" : "on"), already: true }
+                                        : { glyph: want ? "volume_off" : "volume_up", title: want ? "Sound muted" : "Sound on", plain: true, run: () => Audio.toggleMute() };
+        }
+        if ((m = /^(un)?mute( the| my)? (mic|microphone)$/.exec(lower))) {
+            const want = !m[1];
+            return Audio.micMuted === want ? { glyph: want ? "mic_off" : "mic", title: "Microphone is already " + (want ? "off" : "on"), already: true }
+                                           : { glyph: want ? "mic_off" : "mic", title: want ? "Microphone off" : "Microphone on", plain: true, run: () => Audio.toggleMicMute() };
+        }
+        // ── power and the screen ──
+        if (/^(turn |switch )?(on )?(battery|power) saver( mode)?( on)?$|^save (the )?battery$|^(turn on|enable) (battery|power) saver$/.test(lower))
+            return Power.saver ? { glyph: "energy_savings_leaf", title: "Battery saver is already on", already: true }
+                               : { glyph: "energy_savings_leaf", title: "Battery saver on", plain: true, run: () => Power.saverOn() };
+        if (/^(turn |switch )?(off )?(battery|power) saver( mode)? off$|^(turn off|disable) (battery|power) saver$|^balanced( mode)?$/.test(lower))
+            return { glyph: "balance", title: "Balanced power", plain: true, run: () => Power.balanced() };
+        if (/^(performance|turbo|full power)( mode)?( on)?$/.test(lower))
+            return { glyph: "bolt", title: "Performance mode", plain: true, run: () => Power.performance() };
+        if (/^(dim|darken)( the)?( screen| display)?( a bit| a little)?$|^(lower|reduce|decrease)( the)? brightness$|^(make )?(the )?screen darker$/.test(lower))
+            return { glyph: "brightness_low", title: "Screen dimmed", plain: true, run: () => Brightness.set(Math.max(0.05, (Brightness.value ?? 0.5) - 0.25)) };
+        if (/^(brighten|lighten)( the)?( screen| display)?( a bit| a little)?$|^(raise|increase)( the)? brightness$|^(make )?(the )?screen brighter$/.test(lower))
+            return { glyph: "brightness_high", title: "Screen brighter", plain: true, run: () => Brightness.set(Math.min(1, (Brightness.value ?? 0.5) + 0.25)) };
 
         // ── music ──
         if (/^(pause|stop)( the)? (music|song|playback|it)$|^pause$/.test(lower) && Media.playing)
@@ -450,6 +505,18 @@ Singleton {
         Voice.say(answer);
     }
 
+    // ── memory: what you asked Halo to keep (Settings → Halo shows and deletes it) ──
+    readonly property var memory: Persist.data.haloMemory ?? []
+    function remember(text) {
+        text = text.trim().replace(/[.]+$/, "");
+        if (!text) return;
+        Persist.data.haloMemory = memory.filter(x => x.text.toLowerCase() !== text.toLowerCase()).concat([{ text, at: Date.now() }]).slice(-60);
+    }
+    function forgetItem(item) { Persist.data.haloMemory = memory.filter(x => x.text !== item.text); }
+    // for the model: only if you allow it (Settings → Halo → Memory)
+    readonly property string memoryText: (Persist.data.haloUseMemory ?? true) && memory.length
+        ? "Things the user asked you to remember:\n" + memory.map(x => "- " + x.text).join("\n") : ""
+
     // ── reminders (kept across restarts) ──
     readonly property var reminders: Persist.data.haloReminders ?? []
     function addReminder(at, text) { Persist.data.haloReminders = reminders.concat([{ at, text }]).sort((a, b) => a.at - b.at); }
@@ -474,6 +541,8 @@ Singleton {
         target: "halo"
         function say(title: string, text: string): void { root.say({ key: "ipc", icon: "auto_awesome", title, text, level: "asked" }); }
         function handle(text: string): bool { return root.handle(text, "island"); }
+        // what Halo would do with it, without doing it
+        function check(text: string): string { const it = root.intent(text); return it ? (it.ask ? "asks: " : "") + (it.doneTitle ?? it.title) : "(not mine — the model)"; }
         function mood(): string { return root.mood; }
         function state(): string { return JSON.stringify({ mood: root.mood, quiet: root.quietWhy, orbHovered: Island.orbHovered, islandHovered: Island.hovered, variant: Island.variant }); }
         function react(m: string): void { root.react(m, 3000); }
