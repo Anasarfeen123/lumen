@@ -19,6 +19,8 @@ its runtime PM status already says "active".
   monitor.py service <unit> start|stop|restart     (user services only)
   monitor.py usage-snap                   add CPU/GPU time per app since the last snapshot (run every few minutes)
   monitor.py usage                        JSON: {date: {app: [cpu seconds, gpu seconds]}}, 35 days
+  monitor.py doctor                       JSON: one look for Halo (CPU per app since the last look, memory, battery,
+                                          heat, disk space, failed services, crashes since the last look)
 """
 import argparse
 import glob
@@ -584,6 +586,11 @@ USAGE = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.
 
 def app_names():
     """pid → app name, through the window each process descends from."""
+    return {pid: g[0] for pid, g in app_groups().items()}
+
+
+def app_groups():
+    """pid → (app name, the window's pid or None): a browser's helpers belong to the browser."""
     parent, names = {}, {}
     for e in os.scandir("/proc"):
         if e.name.isdigit():
@@ -620,14 +627,12 @@ def app_names():
         p, hops = pid, 0
         while p > 1 and hops < 64:
             if p in wins:
-                res[pid] = pretty(wins[p])
+                res[pid] = (pretty(wins[p]), p)
                 break
             p, hops = parent.get(p, 0), hops + 1
-        else:
-            res[pid] = names[pid]
-        res.setdefault(pid, names[pid])
+        res.setdefault(pid, (names[pid], None))
         if parent.get(pid) == 2:                   # kernel workers by kind: "kworker/u48:6-btrfs" → "kworker"
-            res[pid] = re.sub(r"[/:].*$", "", names[pid])
+            res[pid] = (re.sub(r"[/:].*$", "", names[pid]), None)
     return res
 
 
@@ -684,6 +689,82 @@ def read_json_file(path):
             return json.load(f)
     except (OSError, ValueError):
         return None
+
+
+# ── Halo's watchful doctor: one cheap look, every minute or two ─────────────
+# CPU per app since the previous look (state in $XDG_RUNTIME_DIR), memory per
+# app, battery draw, heat, disk space, failed user services and programs that
+# crashed since the last look. Read-only. The shell decides what's worth saying.
+
+DOCTOR_STATE = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or "/tmp", "lumen-doctor.json")
+BROWSERS = re.compile(r"brave|chrom|msedge|vivaldi|opera", re.I)
+
+
+def cmd_doctor(a):
+    now = time.time()
+    st = read_json_file(DOCTOR_STATE) or {}
+    prev, prev_t = st.get("ticks", {}), st.get("t", 0)
+    dt = now - prev_t if prev_t else 0
+    groups = app_groups()
+    apps, ticks_now = {}, {}
+    for pid, (name, root) in groups.items():
+        try:
+            if os.stat("/proc/%d" % pid).st_uid != ME:
+                continue
+        except OSError:
+            continue
+        raw = read("/proc/%d/stat" % pid)
+        q = raw[raw.rfind(")") + 2:].split()
+        statm = read("/proc/%d/statm" % pid).split()
+        if len(q) < 20 or len(statm) < 3:
+            continue
+        key = "%d:%s" % (pid, q[19])
+        ticks = int(q[11]) + int(q[12])
+        ticks_now[key] = ticks
+        cores = max(0, ticks - prev[key]) / HZ / dt if dt > 0 and key in prev else 0.0
+        g = apps.setdefault(name, {"name": name, "pid": root or pid, "window": root is not None,
+                                   "cores": 0.0, "mem": 0, "procs": 0, "tabs": 0})
+        g["cores"] += cores
+        g["mem"] += max(0, int(statm[1]) - int(statm[2])) * PAGE
+        g["procs"] += 1
+        if root is not None and BROWSERS.search(name) and "--type=renderer" in read("/proc/%d/cmdline" % pid) \
+                and "--extension-process" not in read("/proc/%d/cmdline" % pid):
+            g["tabs"] += 1
+    for g in apps.values():
+        g["cores"] = round(g["cores"], 2)
+    m = meminfo()
+    temps = [t["c"] for t in hwmon_temps() if t["chip"] in ("k10temp", "coretemp", "zenpower", "acpitz", "cpu_thermal")]
+    fs = []
+    for mnt in ("/", os.path.expanduser("~")):
+        try:
+            v = os.statvfs(mnt)
+            fs.append({"mount": mnt, "free": v.f_bavail * v.f_frsize, "size": v.f_blocks * v.f_frsize})
+        except OSError:
+            pass
+    failed = [l.split()[0] for l in run(["systemctl", "--user", "--failed", "--plain", "--no-legend"], timeout=3).splitlines() if l.strip()]
+    crashes = []
+    since = int(prev_t) if prev_t else int(now - 120)
+    try:
+        for c in json.loads(run(["coredumpctl", "list", "--since=@%d" % since, "--json=short", "--no-pager", "-q"], timeout=4) or "[]"):
+            crashes.append({"exe": os.path.basename(c.get("exe", "")), "sig": c.get("sig"), "mine": c.get("uid") == ME,
+                            "time": c.get("time", 0) // 1000})        # µs → ms
+    except ValueError:
+        pass
+    os.makedirs(os.path.dirname(DOCTOR_STATE), exist_ok=True)
+    tmp = DOCTOR_STATE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump({"t": now, "ticks": ticks_now}, f, separators=(",", ":"))
+    os.replace(tmp, DOCTOR_STATE)
+    ranked = sorted(apps.values(), key=lambda g: -g["cores"])
+    by_mem = sorted(apps.values(), key=lambda g: -g["mem"])
+    top = {g["name"]: g for g in ranked[:6] + by_mem[:4]}
+    out({"t": int(now * 1000), "interval": round(dt, 1), "ncpu": NCPU,
+         "cpu": round(sum(g["cores"] for g in apps.values()), 2),
+         "apps": sorted(top.values(), key=lambda g: -g["cores"]),
+         "mem": {"total": m.get("MemTotal", 0) * 1024, "available": m.get("MemAvailable", 0) * 1024,
+                 "swapTotal": m.get("SwapTotal", 0) * 1024, "swapFree": m.get("SwapFree", 0) * 1024},
+         "battery": battery(), "temp": max(temps) if temps else None, "fs": fs,
+         "failed": failed, "crashes": crashes})
 
 
 # ── one process in depth ────────────────────────────────────────────────────
@@ -908,6 +989,7 @@ def main():
     sub.add_parser("services")
     sub.add_parser("usage-snap")
     sub.add_parser("usage")
+    sub.add_parser("doctor")
     s = sub.add_parser("service"); s.add_argument("unit"); s.add_argument("action")
     a = p.parse_args()
     try:

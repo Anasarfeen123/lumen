@@ -133,6 +133,10 @@ Singleton {
         warmCheck.restart();
     }
     Timer { id: warmCheck; interval: 6000; onTriggered: root.refreshStatus() }
+    // Before a question arrives from elsewhere (circle to search, voice): know
+    // what's set up, and start loading a local model
+    function prepare() { refreshStatus(); prepTimer.restart(); }
+    Timer { id: prepTimer; interval: 900; onTriggered: root.warm() }
 
     // ── skills ──
     // prompt: what's sent (arg = text after the command); ctx: chips turned on
@@ -237,13 +241,33 @@ Singleton {
     property real speed: 0              // tokens/s of the last local answer
     property var history: []            // what you typed, for ↑
     readonly property string runDir: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/lumen-ai"
-    readonly property string system: "You are Halo, the assistant built into Lumen, the user's Linux desktop (Fedora, Hyprland). "
+    readonly property string system: "You are " + Halo.name + ", the assistant built into Lumen, the user's Linux desktop (Fedora, Hyprland)"
+        + (Halo.you ? "; the user's name is " + Halo.you : "") + ". "
         + "Be concise and practical; answer in Markdown. Use fenced code blocks with a language for commands and code. "
         + "When given selected text, a screenshot, a system snapshot or a diff, focus on it. "
-        + "For commands, prefer Fedora (dnf) and say clearly before anything destructive."
+        + "For commands, prefer Fedora (dnf) and say clearly before anything destructive. " + Halo.style
 
     function clear() { stop(); messages = []; error = ""; speed = 0; }
     function stop() { if (ask.running) ask.running = false; ctxProc.running = false; busy = false; phase = ""; slow = false; }
+
+    // A card from Halo itself (an action it did, a brief, a check) as an answer
+    //   { icon, title, text, tone, actions: [{ label, icon, run }] }
+    function note(card) {
+        const m = messages.slice();
+        if (!m.length || m[m.length - 1].role !== "user") m.push({ role: "user", text: card.title, shown: "", local: true, hidden: true });
+        m.push({ role: "assistant", kind: "act", text: "", card, state: (card.actions ?? []).length ? "ask" : "done" });
+        messages = m;
+    }
+    function actDecide(index, j) {
+        const m = messages.slice(), msg = Object.assign({}, m[index]);
+        if (msg.kind !== "act" || msg.state !== "ask") return;
+        const a = msg.card.actions[j];
+        msg.state = "done";
+        msg.chose = a?.label ?? "";
+        m[index] = msg;
+        messages = m;
+        a?.run?.();
+    }
 
     // ── WhatsApp (services/Inbox.qml) ──
     // "tell Arya I'll send the build tonight" · "/wa Arya: on my way"
@@ -339,6 +363,15 @@ Singleton {
         raw = raw.trim();
         if (!raw || busy) return;
         if (whatsappDraft(raw)) return;
+        // Things Lumen can simply do ("turn on dark mode", "remind me at 9 to…"):
+        // Halo does them itself, no model needed
+        if (!raw.startsWith("/") && Halo.intent(raw)) {
+            error = "";
+            history = history.filter(h => h !== raw).concat([raw]).slice(-30);
+            messages = messages.concat([{ role: "user", text: raw, shown: raw, local: true }]);
+            Halo.handle(raw, "panel");
+            return;
+        }
         if (!configured) { error = provider === "off" ? "Choose where answers come from — Settings → Halo." : "Halo isn't ready yet — Settings → Halo."; return; }
         error = "";
         history = history.filter(h => h !== raw).concat([raw]).slice(-30);
@@ -439,10 +472,25 @@ Singleton {
         askStarted = Date.now();
         slowTimer.restart();
         const req = { provider, model: modelFor(!!image), system,
-                      messages: messages.slice(0, -1).filter(m => m.kind !== "wa").map(m => Object.assign({ role: m.role, text: m.text }, m.image ? { image: m.image } : {})) };
+                      messages: messages.slice(0, -1).filter(m => m.kind !== "wa" && m.kind !== "act" && !m.local).map(m => Object.assign({ role: m.role, text: m.text }, m.image ? { image: m.image } : {})) };
         reqFile.setText(JSON.stringify(req));
         ask.command = [Theme.lumenRoot + "/scripts/ai.sh", "ask", reqFile.path];
         ask.running = true;
+    }
+    // Circle to search: a fresh question about a piece of the screen. Vision
+    // models see the picture; others get the text read from it (tesseract).
+    function askImage(question, image, ocr) {
+        if (busy) stop();
+        if (!configured) { error = "Choose where answers come from — Settings → Halo."; return; }
+        const q = (question ?? "").trim();
+        if (!vision && !ocr) { error = "The current model can't see pictures and there's no text in that piece — pick a vision model (e.g. Gemma 3) in Halo."; return; }
+        messages = []; error = ""; speed = 0;
+        const text = (ocr ? "Text read from the circled part of my screen (OCR, may have mistakes):\n```\n" + ocr + "\n```\n\n" : "")
+                   + (vision ? "The image is the part of my screen I circled. " : "")
+                   + (q || "What is this? Explain briefly and point out anything useful (a definition, an answer, what to do next).");
+        pending = { text, shown: q || "What is this?", chips: ["lens"], ctx: [], ctxText: "", screen: false, image: vision ? image : "", fileNames: [] };
+        busy = true;
+        nextContext();
     }
     // Ask the last question again (a new answer)
     function retry() {
@@ -487,14 +535,18 @@ Singleton {
             root.refreshStatus();
             // Drop an empty answer bubble if the request failed
             const m = root.messages;
-            if (m.length && m[m.length - 1].role === "assistant" && m[m.length - 1].text === "") root.messages = m.slice(0, -1);
+            if (m.length && m[m.length - 1].role === "assistant" && m[m.length - 1].text === "" && !m[m.length - 1].kind) {
+                root.messages = m.slice(0, -1);
+                if (Halo.session) { Halo.session = false; Halo.say({ key: "live", icon: "error", title: "I couldn't answer that", text: root.error, level: "asked", tone: "concerned", speak: false }); }
+            }
             else if (m.length >= 2 && m[m.length - 2].renameFor) root.parseRenames(m.length - 1);
+            else if (Halo.session && m.length && m[m.length - 1].role === "assistant") Halo.answered(m[m.length - 1].text);
             else if (!root.open && m.length) root.announceDone();
         }
     }
 
     // Thinking in the background: the island shows it, then says when it's done
-    readonly property bool islandBusy: busy && !open
+    readonly property bool islandBusy: busy && !open && !Halo.session
     onIslandBusyChanged: if (islandBusy) Island.progress("halo", "auto_awesome", "Halo is thinking", -1, local ? "On this computer" : providerLabel)
     function announceDone() {
         Island.push({ kind: "system", key: "progress:halo", priority: Island.priority.system, duration: 3500, queueable: true, force: true,

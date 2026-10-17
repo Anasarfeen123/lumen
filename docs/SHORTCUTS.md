@@ -20,6 +20,8 @@
 | <kbd>Super</kbd> + <kbd>O</kbd> | Notes |
 | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>O</kbd> | New note |
 | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd> | Lumen Halo (AI) |
+| <kbd>Super</kbd> + <kbd>Z</kbd> | Circle to search (draw round anything) |
+| <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>H</kbd> | Talk to Halo (press again to stop) |
 | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>W</kbd> | Messages: reply, find a chat (WhatsApp) |
 
 ## Windows
@@ -154,6 +156,7 @@
 |---|---|
 | <kbd>Super</kbd> + <kbd>R</kbd> | Run a command (the overview, ready) |
 | <kbd>Super</kbd> + <kbd>X</kbd> | Drop Zone shelf |
+| <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>C</kbd> | Caffeine: keep awake (right-click its toggle for a timer) |
 | <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>Space</kbd> | Ask Halo about the screen |
 | <kbd>Super</kbd> + <kbd>B</kbd> | Your day (planner) |
 | <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>W</kbd> | Send the clipboard to WhatsApp |

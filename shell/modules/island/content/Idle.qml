@@ -1,8 +1,10 @@
 // idle — the island at rest, with a little life in it:
 //
-//   ( ◉ )  23:45  · Fri 26        ◉ = context: spinning album-art vinyl while
+//   ( ◉ )  23:45  · Fri 26  ⓗ     ◉ = context: spinning album-art vinyl while
 //                                     music plays · bolt when charging ·
 //                                     moon when Do Not Disturb is on
+//                                 ⓗ = Halo, resting (it breathes, blinks,
+//                                     listens, thinks — services/Halo.qml)
 //
 // The clock rolls its digits when the minute changes (RollingClock). While
 // music plays, the island's background also carries the album-tinted
@@ -78,6 +80,23 @@ Item {
             font.pixelSize: 13
             font.variableAxes: ({ "wght": 500, "ROND": 100 })
             renderType: Text.NativeRendering
+        }
+
+        // Halo, resting beside the clock (Settings → Halo → "Show Halo").
+        // Click: open Halo · right-click: talk to it
+        HaloOrb {
+            id: orb
+            anchors.verticalCenter: parent.verticalCenter
+            visible: Halo.present
+            size: 17
+            face: Persist.data.haloFace ?? true
+            mood: Halo.mood
+            level: Voice.level
+            scale: orbTap.pressed ? 0.85 : orbHover.hovered ? 1.12 : 1
+            Behavior on scale { NumberAnimation { duration: Theme.motion.micro } }
+            HoverHandler { id: orbHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { id: orbTap; onTapped: Ai.toggle() }
+            TapHandler { acceptedButtons: Qt.RightButton; onTapped: Halo.talk() }
         }
     }
 }

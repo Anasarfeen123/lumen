@@ -26,6 +26,7 @@ Singleton {
     readonly property string icon: profile === PowerProfile.PowerSaver ? "energy_savings_leaf"
                                   : profile === PowerProfile.Performance ? "bolt" : "balance"
 
+    function saverOn() { PowerProfiles.profile = PowerProfile.PowerSaver; }
     // Balanced → Performance → Saver → Balanced
     function cycle() {
         if (profile === PowerProfile.Balanced)

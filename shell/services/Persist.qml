@@ -80,6 +80,23 @@ Singleton {
             property bool lockMessages: true          // unread chats — counts only, never names or text
             // ── Screen time (services/ScreenTime.qml) ──
             property bool screenTime: true        // record which apps you use, on this machine only
+            // ── Halo, in person (services/Halo.qml · Settings → Halo) ──
+            property bool haloPresence: true      // the ring beside the island's clock, and Halo's cards
+            property bool haloFace: true          // eyes on the ring
+            property string haloName: "Halo"
+            property string haloCall: ""          // what Halo calls you ("" = your first name)
+            property string haloCharacter: "friendly"   // "calm" | "friendly" | "jarvis"
+            property string haloChattiness: "helpful"   // "silent" | "helpful" | "companion"
+            property string haloVoice: "off"      // spoken replies: "off" | "on" | "headphones"
+            property real haloVoiceRate: 1.0
+            property bool haloDoctor: true        // the watchful doctor: hogs, drain, heat, disk, crashes
+            property var haloDoctorIgnore: []     // apps it never mentions
+            property bool haloAway: true          // "while you were away", on your return
+            property bool haloMorning: true       // a short brief at the first unlock of the day
+            property string haloWrapUp: "21:30"   // the evening wrap-up ("" = off)
+            property string haloLastMorning: ""   // the day the morning brief last ran (yyyy-MM-dd)
+            property string haloLastWrap: ""      // … and the evening wrap-up
+            property var haloReminders: []        // [{ at: ms, text }] — "remind me at 9 to …"
         }
     }
 }

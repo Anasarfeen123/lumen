@@ -55,6 +55,173 @@ Page {
         }
     }
 
+    // ── Halo, in person (services/Halo.qml, Voice.qml, Brief.qml, Doctor.qml) ──
+    Group {
+        title: Halo.name + ", in person"
+        SetRow {
+            icon: "radio_button_unchecked"
+            title: "Show " + Halo.name + " beside the clock"
+            description: "A small ring in the island that breathes, blinks, listens and thinks. Click it to open " + Halo.name + ", right-click to talk. Its cards (the doctor, wrap-ups, reminders) appear in the island either way."
+            LSwitch { checked: Persist.data.haloPresence ?? true; onToggled: Persist.data.haloPresence = checked }
+        }
+        SetRow {
+            icon: "sentiment_satisfied"
+            title: "A face"
+            description: "Two quiet eyes on the ring — they blink, glance, smile when something works and narrow when something's wrong."
+            LSwitch { checked: Persist.data.haloFace ?? true; onToggled: Persist.data.haloFace = checked }
+        }
+        SetRow {
+            icon: "badge"
+            title: "Names"
+            description: "What it's called, and what it calls you" + (Halo.firstName ? " (otherwise " + Halo.firstName + ")" : "") + ". Press Enter to save."
+            Row {
+                spacing: 8
+                LField { width: 120; icon: "auto_awesome"; placeholder: "Halo"; text: Persist.data.haloName ?? ""; clearOnAccept: false
+                         onAccepted: t => Persist.data.haloName = t.trim().slice(0, 24) }
+                LField { width: 130; icon: "person"; placeholder: Halo.firstName || "Your name"; text: Persist.data.haloCall ?? ""; clearOnAccept: false
+                         onAccepted: t => Persist.data.haloCall = t.trim().slice(0, 32) }
+            }
+        }
+        SetRow {
+            icon: "theater_comedy"
+            title: "Character"
+            description: ({ calm: "Calm: plain and brief, no exclamation marks.",
+                            friendly: "Friendly: warm and encouraging, still brief.",
+                            jarvis: "Jarvis: composed, polite, a little dry — and a British voice when it speaks." })[Halo.character] ?? ""
+            Segmented {
+                width: 260
+                options: [{ id: "calm", label: "Calm" }, { id: "friendly", label: "Friendly" }, { id: "jarvis", label: "Jarvis" }]
+                current: Halo.character
+                onPicked: id => Persist.data.haloCharacter = id
+            }
+        }
+        SetRow {
+            icon: "campaign"
+            title: "Speaks up"
+            description: ({ silent: "Only when it's urgent (a reminder, a call outlasting the battery) or when you ask.",
+                            helpful: "When something deserves it: a hog draining the battery, low disk, a crash, your wrap-ups.",
+                            companion: "Also small things: a welcome back when nothing's new, a goodnight." })[Halo.chattiness] ?? ""
+                         + " Always quiet on calls, in games, fullscreen, presenting, Focus and Do Not Disturb — what waits comes back as one card."
+            Segmented {
+                width: 300
+                options: [{ id: "silent", label: "Silent" }, { id: "helpful", label: "Helpful" }, { id: "companion", label: "Companion" }]
+                current: Halo.chattiness
+                onPicked: id => Persist.data.haloChattiness = id
+            }
+        }
+    }
+
+    Group {
+        title: "Voice"
+        SetRow {
+            icon: Voice.canListen ? "mic" : "mic_off"
+            title: Voice.canListen ? "Talk to " + Halo.name : "Talking needs whisper.cpp"
+            description: Voice.canListen
+                ? "Super+Alt+H (or right-click " + Halo.name + "), then just speak — it stops when you pause. Heard and written down on this computer; the recording is deleted at once. No wake word: it never listens until you ask."
+                : "Speech is recognised on this computer by whisper.cpp (Fedora's own package) with a small English model (~140 MB, from the whisper.cpp project on Hugging Face). In a terminal:\n"
+                  + "  sudo dnf install whisper-cpp\n  mkdir -p ~/.local/share/lumen/whisper\n"
+                  + "  curl -L -o ~/.local/share/lumen/whisper/ggml-base.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin"
+            Row {
+                spacing: 8
+                Button { visible: !Voice.canListen; text: "Copy commands"; icon: "content_copy"
+                         onActivated: Quickshell.execDetached(["sh", "-c", 'printf %s "$1" | wl-copy', "sh",
+                             "sudo dnf install whisper-cpp\nmkdir -p ~/.local/share/lumen/whisper\ncurl -L -o ~/.local/share/lumen/whisper/ggml-base.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin\n"]) }
+                Button { text: "Check again"; onActivated: Voice.refresh() }
+            }
+        }
+        SetRow {
+            icon: "record_voice_over"
+            title: "Speak replies"
+            description: (Persist.data.haloVoice ?? "off") === "headphones" ? "Out loud only while headphones are connected" + (Voice.headphones ? " (they are now)." : ".")
+                       : (Persist.data.haloVoice ?? "off") === "on" ? "Out loud through the speakers too. Never during a call or while muted."
+                       : "Answers stay on screen."
+            Segmented {
+                width: 260
+                options: [{ id: "off", label: "Off" }, { id: "on", label: "On" }, { id: "headphones", label: "Headphones" }]
+                current: Persist.data.haloVoice ?? "off"
+                onPicked: id => Persist.data.haloVoice = id
+            }
+        }
+        SetRow {
+            icon: "graphic_eq"
+            title: "How it sounds"
+            description: Voice.status.tts === "piper" ? "Piper — a natural voice, on this computer."
+                : Voice.status.tts === "espeak" ? "espeak-ng — clear but robotic. For a natural voice (offline): pip install --user piper-tts, then put a Piper voice (.onnx and its .json, e.g. en_GB-alan-medium from the Piper project) in ~/.local/share/lumen/voices."
+                : "No speech engine — install espeak-ng (sudo dnf install espeak-ng) or Piper."
+            Row {
+                spacing: 8
+                LSlider { width: 120; anchors.verticalCenter: parent.verticalCenter; icon: "speed"
+                          value: ((Persist.data.haloVoiceRate ?? 1) - 0.7) / 0.7
+                          onMoved: v => Persist.data.haloVoiceRate = Math.round((0.7 + v * 0.7) * 20) / 20 }
+                Button { text: Voice.speaking ? "Stop" : "Test"; icon: Voice.speaking ? "stop" : "play_arrow"; enabled: Voice.canSpeak
+                         onActivated: Voice.speaking ? Voice.stop() : Voice.say(Halo.greeting() + " This is how I sound.", true) }
+            }
+        }
+    }
+
+    Group {
+        title: "Wrap-ups"
+        SetRow {
+            icon: "wb_sunny"
+            title: "Morning brief"
+            description: "At the first unlock of the day: the weather, your classes and events, an exam coming up, what came in overnight."
+            LSwitch { checked: Persist.data.haloMorning ?? true; onToggled: Persist.data.haloMorning = checked }
+        }
+        SetRow {
+            icon: "inbox"
+            title: "While you were away"
+            description: "Back after 10 minutes or more: notifications by app, WhatsApp chats, finished downloads, what's next — with Summarise if there's a lot."
+            LSwitch { checked: Persist.data.haloAway ?? true; onToggled: Persist.data.haloAway = checked }
+        }
+        SetRow {
+            icon: "nights_stay"
+            title: "Evening wrap-up"
+            description: "Your screen time and focus, what's still unread, tomorrow's first class and events — and Sleep mode one tap away. Ask any time: “wrap up my day”."
+            Segmented {
+                width: 300
+                options: [{ id: "", label: "Off" }, { id: "20:00", label: "8 pm" }, { id: "21:30", label: "9:30 pm" }, { id: "23:00", label: "11 pm" }]
+                current: Persist.data.haloWrapUp ?? "21:30"
+                onPicked: id => Persist.data.haloWrapUp = id
+            }
+        }
+    }
+
+    Group {
+        title: "Watchful doctor"
+        SetRow {
+            icon: "stethoscope"
+            title: "Keep an eye on this computer"
+            description: "A light look every minute or two: an app hogging the processor or draining the battery, memory or disk running out, overheating, a service that failed, a program that crashed — each said once, with a fix you can tap. Ask any time: “how's my computer?”"
+            LSwitch { checked: Persist.data.haloDoctor ?? true; onToggled: Persist.data.haloDoctor = checked }
+        }
+        Repeater {
+            model: Persist.data.haloDoctorIgnore ?? []
+            SetRow {
+                required property string modelData
+                icon: "visibility_off"
+                title: modelData
+                description: "Never mentioned as a hog"
+                Button { text: "Mention again"; onActivated: Persist.data.haloDoctorIgnore = (Persist.data.haloDoctorIgnore ?? []).filter(a => a !== modelData) }
+            }
+        }
+    }
+
+    Group {
+        visible: Halo.reminders.length > 0
+        title: "Reminders"
+        Repeater {
+            model: Halo.reminders
+            SetRow {
+                required property var modelData
+                required property int index
+                icon: "alarm"
+                title: modelData.text
+                description: Planner.whenLabel(modelData.at, false)
+                Button { text: "Remove"; onActivated: Halo.removeReminder(index) }
+            }
+        }
+    }
+
     // ── Which provider ──
     Group {
         title: "On this computer"

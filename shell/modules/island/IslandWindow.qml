@@ -47,7 +47,7 @@ PanelWindow {
     readonly property bool expanded: ["mediaExpanded", "notification", "critical"].includes(variant)
 
     // Over fullscreen apps, stay invisible unless something is actually happening.
-    readonly property bool hidden: fullscreenBelow && ["idle", "idlePeek", "recording"].includes(variant)
+    readonly property bool hidden: (fullscreenBelow && ["idle", "idlePeek", "recording"].includes(variant)) || Lens.open
 
     anchors.top: true
     color: "transparent"
@@ -100,7 +100,7 @@ PanelWindow {
         return ({
             idle: idleC, idlePeek: peekC, osd: osdC, workspace: wsC, system: sysC,
             screenshot: shotC, recording: recC, mediaCompact: mediaCompactC,
-            mediaExpanded: mediaExpandedC, notification: notifC, critical: critC, timer: timerC, progress: progressC, context: contextC, device: deviceC, timeline: timelineC, message: messageC
+            mediaExpanded: mediaExpandedC, notification: notifC, critical: critC, timer: timerC, progress: progressC, context: contextC, device: deviceC, timeline: timelineC, message: messageC, halo: haloC
         })[v] ?? idleC;
     }
 
@@ -121,12 +121,13 @@ PanelWindow {
     Component { id: deviceC; Device { info: win.shownData } }
     Component { id: messageC; Message { info: win.shownData } }
     Component { id: timelineC; Timeline {} }
+    Component { id: haloC; HaloCard { info: win.shownData } }
 
     // ── The body ──
     GlassSurface {
         id: body
 
-        readonly property bool bodyExpanded: ["mediaExpanded", "notification", "critical", "screenshot", "context", "device", "timeline", "message"].includes(win.shown)
+        readonly property bool bodyExpanded: ["mediaExpanded", "notification", "critical", "screenshot", "context", "device", "timeline", "message", "halo"].includes(win.shown)
         readonly property int padX: bodyExpanded ? Theme.space.s4 : Theme.space.s4
         readonly property int padY: bodyExpanded ? Theme.space.s4 : 0
         readonly property real targetW: bodyExpanded

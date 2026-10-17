@@ -768,6 +768,29 @@ The assistant is a panel under the island, not a window: it belongs to the deskt
   memory, so it's fast) and a vision model only when a screenshot is attached.
 - Closing Halo never loses an answer: the island shows it thinking and says when it's ready.
 
+### 29.1 Halo, in person
+
+Halo has a body: the same **ring**, small, beside the island's clock, with two quiet eyes. Its mood
+is only ever shown through motion, never words: it breathes at rest, blinks, glances about; its eyes
+widen and the ring swells with your voice while listening; a point of light circles it while
+thinking; ripples go out while it speaks; `^ ^` and one bright spin when something worked; amber
+and a small shake when something's wrong; dimmed and slow in quiet hours. Rules:
+
+- **It speaks up rarely, and never in the way.** Chattiness is Silent · Helpful · Companion. It is
+  quiet on calls, in games, fullscreen, presenting, Focus and Do Not Disturb; what waited comes back
+  as **one** card afterwards, never a burst.
+- **Every card carries its fix.** The watchful doctor (a hog draining the battery, memory, heat,
+  disk, a failed service, a crash) says it once and offers the tap that helps (Close it, Battery
+  saver, Ask Halo, Not now, Never for this app).
+- **Wrap-ups are made from what Lumen already knows** (notifications, chats, classes, planner,
+  screen time, weather), built on this computer; a model sees them only when you press Summarise.
+- **Doing beats chatting.** "dark mode on", "volume 40", "remind me at 9 to…" are done by Lumen
+  directly, no model; destructive things (shut down, log out) always ask first.
+- **Voice is offline and on request.** Push-to-talk (Super+Alt+H), whisper.cpp to hear, Piper or
+  espeak-ng to speak. There is no wake word: nothing listens until you ask.
+- **Circle to search** (Super+Z) freezes the screen; you draw round anything and a sheet rises with
+  what you can do with it. The circled piece lifts out of a dim; the stroke is light, and fades.
+
 ## 30. The Ribbon and Peek
 
 With windows open, the bar is the island stretched edge to edge: the **Ribbon**. It should never

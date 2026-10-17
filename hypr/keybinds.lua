@@ -50,6 +50,8 @@ key("SUPER + I", global("lumen:settings"), "Lumen Settings")
 key("SUPER + O", global("lumen:notes"), "Notes")
 key("SUPER + SHIFT + O", global("lumen:notesNew"), "New note")
 key("SUPER + SHIFT + Space", global("lumen:ai"), "Lumen Halo (AI)")
+key("SUPER + Z", global("lumen:lens"), "Circle to search (draw round anything)")
+key("SUPER + ALT + H", exec(ipc .. " voice talk"), "Talk to Halo (press again to stop)")
 key("SUPER + SHIFT + W", global("lumen:inbox"), "Messages: reply, find a chat (WhatsApp)")
 
 -- ── Windows ──

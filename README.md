@@ -63,6 +63,8 @@ Tap <kbd>Super</kbd> to search apps and windows, do maths, run commands or start
 ### Lumen Halo
 The assistant built into the desktop (<kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd>). Select an error and ask, let it read your screen, or type `/` for skills: `/diagnose` checks your system, `/cmd` writes a command you can run, `/commit` writes a commit message from your diff. Answers come from a **local model through Ollama** (it picks a fast one automatically) or from **Claude** with your own key. Nothing is sent until you press Enter, and conversations are never saved.
 
+Halo also lives beside the island's clock as a small **ring with a face** that breathes, listens and thinks. It **does things** ("dark mode on", "remind me at 9 to call home"), keeps a **watchful eye** on the system ("Brave · 32 tabs · 6 GB is draining the battery — close it?"), gives a **morning brief, "while you were away" and an evening wrap-up**, offers **circle to search** (<kbd>Super</kbd>+<kbd>Z</kbd>), and can be **talked to** offline (<kbd>Super</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd>, whisper.cpp).
+
 </td>
 </tr>
 <tr>
@@ -127,12 +129,13 @@ Inside any Wayland desktop, `bin/lumen-session` runs Lumen in a window, so nothi
 | <kbd>Alt</kbd>+<kbd>Tab</kbd> | Switch windows |
 | <kbd>Super</kbd>+<kbd>V</kbd> | Clipboard history |
 | <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd> | Lumen Halo (assistant) |
+| <kbd>Super</kbd>+<kbd>Z</kbd> · <kbd>Super</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd> | Circle to search · Talk to Halo |
 | <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> · <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> | Screenshot a region · Copy text from the screen |
 | <kbd>F12</kbd> · <kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd> | Drop-down terminal · Music |
 | <kbd>Super</kbd>+<kbd>L</kbd> · <kbd>Super</kbd>+<kbd>I</kbd> | Lock · Settings |
 | <kbd>Super</kbd>+<kbd>/</kbd> | Every shortcut |
 
-All 109 shortcuts and the gestures: **[docs/SHORTCUTS.md](docs/SHORTCUTS.md)**.
+All 115 shortcuts and the gestures: **[docs/SHORTCUTS.md](docs/SHORTCUTS.md)**.
 
 ## Documentation
 

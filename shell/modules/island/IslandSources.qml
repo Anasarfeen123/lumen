@@ -23,9 +23,10 @@ Scope {
     // ── Memory running low: what's using it, before the system starts to crawl ──
     // Available under 10 % with swap over half full, two minutes running; then
     // at most once an hour. Programs are summed by name (34 browser helpers = one line).
+    // With Halo's watchful doctor on (services/Doctor.qml), Halo says this instead.
     property int memLow: 0
     property real memWarned: 0
-    Timer { interval: 60000; repeat: true; running: Persist.automates; onTriggered: if (!memProbe.running) memProbe.running = true }
+    Timer { interval: 60000; repeat: true; running: Persist.automates && !Doctor.enabled; onTriggered: if (!memProbe.running) memProbe.running = true }
     Process {
         id: memProbe
         command: ["sh", "-c", 'awk \'/^MemTotal:/{t=$2} /^MemAvailable:/{a=$2} /^SwapTotal:/{st=$2} /^SwapFree:/{sf=$2} END{print t, a, st, sf}\' /proc/meminfo; ps -u "$(id -u)" -o rss=,comm= | awk \'{m[$2]+=$1} END{for (k in m) print m[k], k}\' | sort -rn | head -3']
@@ -54,6 +55,8 @@ Scope {
     }
     // The NVIDIA GPU stuck awake is watched by Power (it speaks for itself)
     readonly property bool _dgpuWatch: Power.dgpuStuck || true
+    // Halo's wrap-ups and reminders run in the background (singletons start when first named)
+    readonly property bool _halo: Brief.active || Halo.present || Doctor.enabled || true
 
     // ── Now playing: announce briefly on play/track change, then back to the
     //    clock (which shows an equalizer while music plays) ──

@@ -27,6 +27,7 @@ import qs.modules.ai
 import qs.modules.dropzone
 import qs.modules.inbox
 import qs.modules.welcome
+import qs.modules.lens
 
 ShellRoot {
     id: root
@@ -170,6 +171,14 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: AiPanel {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    // Circle to search (Super+Z)
+    Variants {
+        model: Quickshell.screens
+        delegate: LensWindow {
             required property var modelData
             screen: modelData
         }

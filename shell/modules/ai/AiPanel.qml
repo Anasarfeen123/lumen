@@ -143,8 +143,8 @@ PanelWindow {
                 Row {
                     spacing: Theme.space.s2
                     anchors.verticalCenter: parent.verticalCenter
-                    HaloMark { anchors.verticalCenter: parent.verticalCenter; active: Ai.busy }
-                    LText { role: "heading"; text: "Halo"; anchors.verticalCenter: parent.verticalCenter }
+                    HaloOrb { anchors.verticalCenter: parent.verticalCenter; size: 24; mood: Halo.mood; level: Voice.level; face: Persist.data.haloFace ?? true }
+                    LText { role: "heading"; text: Halo.name; anchors.verticalCenter: parent.verticalCenter }
                     // Model: click to switch
                     HoverTarget {
                         id: modelChip
@@ -211,20 +211,101 @@ PanelWindow {
 
             // ── Empty state: a greeting and where to start ──
             Column {
-                visible: Ai.configured && Ai.messages.length === 0 && !Ai.busy
+                visible: Ai.messages.length === 0 && !Ai.busy
                 width: parent.width
                 spacing: Theme.space.s3
                 topPadding: Theme.space.s2
-                LText {
-                    font.pixelSize: 22; font.weight: Font.DemiBold
-                    text: "Hi" + (Quickshell.env("USER") ? ", " + Quickshell.env("USER") : "") + ". What can I help with?"
+                Row {
+                    width: parent.width
+                    spacing: Theme.space.s4
+                    HaloOrb {
+                        id: bigOrb
+                        anchors.verticalCenter: parent.verticalCenter
+                        size: 52; mood: Halo.mood; level: Voice.level; face: Persist.data.haloFace ?? true
+                        // glances toward the prompt you're typing in
+                        lookY: prompt.activeFocus && prompt.text !== "" ? 0.8 : 0
+                    }
+                    Column {
+                        width: parent.width - bigOrb.width - Theme.space.s4
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 4
+                        LText {
+                            width: parent.width; wrapMode: Text.Wrap
+                            font.pixelSize: 22; font.weight: Font.DemiBold
+                            text: Halo.greeting().replace(/[.!]$/, "") + ". What can I help with?"
+                        }
+                        LText {
+                            width: parent.width; wrapMode: Text.Wrap; color: Theme.textMuted
+                            text: Voice.listening ? "Listening — I'll stop when you pause."
+                                : Ai.selection ? "You've selected " + Ai.selection.split(/\s+/).length + " words — ask about them, or pick a skill."
+                                : "Ask anything, tell me to do something (“dark mode on”, “remind me at 9 to…”), or type / for skills."
+                        }
+                    }
                 }
-                LText {
-                    width: parent.width; wrapMode: Text.Wrap; color: Theme.textMuted
-                    text: Ai.selection ? "You've selected " + Ai.selection.split(/\s+/).length + " words — ask about them, or pick a skill."
-                                       : "Ask anything, select text first, or type / for skills."
+                // What Halo can do right now, model or not
+                Flow {
+                    width: parent.width
+                    spacing: 6
+                    Repeater {
+                        model: [
+                            { icon: "inbox", label: "What did I miss?", q: "what did I miss" },
+                            { icon: new Date().getHours() >= 17 ? "nights_stay" : "wb_sunny", label: new Date().getHours() >= 17 ? "Wrap up my day" : "Brief me", q: new Date().getHours() >= 17 ? "wrap up my day" : "brief me" },
+                            { icon: "stethoscope", label: "How's my computer?", q: "how's my computer" },
+                            { icon: "gesture", label: "Circle to search", lens: true },
+                        ].concat(Voice.canListen ? [{ icon: "mic", label: "Talk", talk: true }] : [])
+                        delegate: ActionPill {
+                            required property var modelData
+                            outlined: true
+                            icon: modelData.icon; text: modelData.label
+                            onClicked: modelData.lens ? Lens.start() : modelData.talk ? Voice.toggle() : Ai.send(modelData.q)
+                        }
+                    }
+                }
+                // What Halo noticed lately (the doctor, wrap-ups, things held while you were busy)
+                Column {
+                    readonly property var recent: Halo.log.filter(c => Date.now() - (c.time ?? 0) < 6 * 3600000 && c.key !== "live" && c.key !== "act").slice(-3).reverse()
+                    visible: recent.length > 0
+                    width: parent.width
+                    spacing: 6
+                    LText { role: "caption"; color: Theme.textMuted; text: "Lately" }
+                    Repeater {
+                        model: parent.recent
+                        delegate: Rectangle {
+                            id: noticed
+                            required property var modelData
+                            width: parent.width
+                            height: nCol.implicitHeight + Theme.space.s3 * 2
+                            radius: Theme.radius.md
+                            color: Theme.withAlpha(Theme.surfaceElevated, 0.6)
+                            border.width: 1; border.color: modelData.tone === "concerned" ? Theme.withAlpha(Theme.warning, 0.35) : Theme.border
+                            LIcon { id: nIco; x: Theme.space.s3; y: Theme.space.s3 + 1; icon: noticed.modelData.icon ?? "auto_awesome"; size: 18; fill: 1
+                                    color: noticed.modelData.tone === "concerned" ? Theme.warning : Theme.accent }
+                            Column {
+                                id: nCol
+                                anchors { left: nIco.right; leftMargin: Theme.space.s3; right: parent.right; rightMargin: Theme.space.s3; top: parent.top; topMargin: Theme.space.s3 }
+                                spacing: 4
+                                Row {
+                                    width: parent.width
+                                    LText { role: "bodyStrong"; text: noticed.modelData.title ?? ""; elide: Text.ElideRight; width: parent.width - when.width; textFormat: Text.PlainText }
+                                    LText { id: when; role: "caption"; color: Theme.textMuted; text: win.ago(Math.round((noticed.modelData.time ?? Date.now()) / 1000)) }
+                                }
+                                LText { visible: text !== ""; width: parent.width; wrapMode: Text.Wrap; role: "caption"; color: Theme.textSecondary
+                                        text: noticed.modelData.text ?? ""; maximumLineCount: 3; elide: Text.ElideRight; textFormat: Text.PlainText }
+                                Flow {
+                                    visible: (noticed.modelData.actions ?? []).length > 0
+                                    width: parent.width; spacing: 4
+                                    Repeater {
+                                        model: (noticed.modelData.actions ?? []).filter(a => a)
+                                        delegate: ActionPill { required property var modelData; outlined: true; icon: modelData.icon ?? ""; text: modelData.label
+                                                               onClicked: { const key = noticed.modelData.key; modelData.run?.(); Halo.forget(key); } }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 Grid {
+                    visible: Ai.configured
                     width: parent.width
                     columns: 3
                     columnSpacing: Theme.space.s2; rowSpacing: Theme.space.s2
@@ -298,7 +379,8 @@ PanelWindow {
                     readonly property bool live: last && !mine && Ai.busy
                     readonly property var blocks: mine || live ? [] : Ai.codeBlocks(modelData.text)
                     width: transcript.width
-                    height: mine ? userBubble.height : answerCol.height
+                    height: modelData.hidden ? 0 : mine ? userBubble.height : answerCol.height
+                    visible: !modelData.hidden
                     // Arrives with a small rise and fade (only when it's new)
                     opacity: 0
                     transform: Translate { id: rise; y: 10 }
@@ -375,7 +457,7 @@ PanelWindow {
                         width: parent.width
                         spacing: Theme.space.s2
                         Rectangle {
-                            visible: !msg.modelData.renames && msg.modelData.kind !== "wa"
+                            visible: !msg.modelData.renames && msg.modelData.kind !== "wa" && msg.modelData.kind !== "act"
                             width: parent.width
                             radius: Theme.radius.md
                             color: Theme.withAlpha(Theme.surfaceElevated, 0.7)
@@ -470,6 +552,46 @@ PanelWindow {
                                                 from: -waiting.width * 0.45; to: waiting.width; duration: 1400; loops: Animation.Infinite
                                             }
                                         }
+                                    }
+                                }
+                            }
+                        }
+                        // Halo did (or offers to do) something itself: an action, a brief, a check
+                        Rectangle {
+                            id: actCard
+                            visible: msg.modelData.kind === "act"
+                            readonly property var c: msg.modelData.card ?? ({})
+                            readonly property bool asking: msg.modelData.state === "ask"
+                            readonly property color tone: c.tone === "concerned" ? Theme.warning : Theme.accent
+                            width: answerCol.width
+                            height: visible ? actCol.implicitHeight + Theme.space.s3 * 2 : 0
+                            radius: Theme.radius.md
+                            color: Theme.withAlpha(Theme.surfaceElevated, 0.7)
+                            border.width: 1; border.color: asking ? Theme.withAlpha(tone, 0.4) : Theme.border
+                            Rectangle {
+                                id: actTile
+                                x: Theme.space.s3; y: Theme.space.s3
+                                width: 32; height: 32; radius: Theme.radius.sm
+                                color: Theme.withAlpha(actCard.tone, 0.14)
+                                LIcon { anchors.centerIn: parent; icon: actCard.c.icon ?? "auto_awesome"; size: 18; fill: 1; color: actCard.tone }
+                                scale: 0.7
+                                Component.onCompleted: scale = 1
+                                Behavior on scale { NumberAnimation { duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveOvershoot } }
+                            }
+                            Column {
+                                id: actCol
+                                anchors { left: actTile.right; leftMargin: Theme.space.s3; right: parent.right; rightMargin: Theme.space.s3; top: parent.top; topMargin: Theme.space.s3 }
+                                spacing: 4
+                                LText { width: parent.width; wrapMode: Text.Wrap; role: "bodyStrong"; text: actCard.c.title ?? ""; textFormat: Text.PlainText }
+                                LText { visible: text !== ""; width: parent.width; wrapMode: Text.Wrap; color: Theme.textSecondary; text: actCard.c.text ?? ""; textFormat: Text.PlainText }
+                                LText { visible: !actCard.asking && (msg.modelData.chose ?? "") !== ""; role: "caption"; color: Theme.textMuted; text: "✓ " + (msg.modelData.chose ?? "") }
+                                Flow {
+                                    visible: actCard.asking
+                                    width: parent.width; spacing: 4; topPadding: 2
+                                    Repeater {
+                                        model: (actCard.c.actions ?? []).filter(a => a)
+                                        delegate: ActionPill { required property var modelData; required property int index; outlined: true
+                                                               icon: modelData.icon ?? ""; text: modelData.label; onClicked: Ai.actDecide(msg.index, index) }
                                     }
                                 }
                             }
@@ -680,17 +802,17 @@ PanelWindow {
                 color: Theme.withAlpha(Theme.text, 0.05)
                 border.width: 1
                 border.color: prompt.activeFocus ? Theme.withAlpha(Theme.accent, 0.6) : Theme.border
-                enabled: Ai.configured
-                opacity: enabled ? 1 : 0.5
                 property int histIdx: -1
                 QQC.ScrollView {
-                    anchors { left: parent.left; right: sendBtn.left; top: parent.top; bottom: parent.bottom; leftMargin: Theme.space.s4; topMargin: 12; bottomMargin: 8 }
+                    anchors { left: parent.left; right: micBtn.visible ? micBtn.left : sendBtn.left; top: parent.top; bottom: parent.bottom; leftMargin: Theme.space.s4; topMargin: 12; bottomMargin: 8 }
                     QQC.TextArea {
                         id: prompt
                         wrapMode: TextEdit.Wrap
                         color: Theme.text
-                        placeholderText: Ai.busy ? ({ reading: "Reading context…", looking: "Looking at your screen…" })[Ai.phase] ?? "Thinking…"
-                                       : Ai.messages.length ? "Ask a follow-up" : "Ask Halo anything, or type / for skills"
+                        placeholderText: Voice.listening ? "Listening…" : Voice.transcribing ? "Writing down what you said…"
+                                       : Ai.busy ? ({ reading: "Reading context…", looking: "Looking at your screen…" })[Ai.phase] ?? "Thinking…"
+                                       : !Ai.configured ? "Tell " + Halo.name + " what to do — answers need a model (⚙)"
+                                       : Ai.messages.length ? "Ask a follow-up" : "Ask " + Halo.name + " anything, or type / for skills"
                         placeholderTextColor: Theme.textMuted
                         selectionColor: Theme.withAlpha(Theme.accent, 0.4)
                         font.family: Theme.fontUi
@@ -727,6 +849,20 @@ PanelWindow {
                             else if (event.key === Qt.Key_R && ctrl) { Ai.retry(); event.accepted = true; }
                         }
                     }
+                }
+                // Talk instead of typing (whisper.cpp, on this computer)
+                HoverTarget {
+                    id: micBtn
+                    visible: Voice.canListen
+                    anchors { right: sendBtn.left; rightMargin: 4; verticalCenter: parent.verticalCenter }
+                    width: 32; height: 32
+                    onClicked: Voice.toggle()
+                    Rectangle { anchors.fill: parent; radius: 16; color: Voice.listening ? Theme.withAlpha(Theme.accent, 0.22) : "transparent"
+                                border.width: Voice.listening ? 1 : 0; border.color: Theme.withAlpha(Theme.accent, 0.5)
+                                scale: 1 + (Voice.listening ? Voice.level * 0.25 : 0)
+                                Behavior on scale { NumberAnimation { duration: 90 } } }
+                    LIcon { anchors.centerIn: parent; icon: Voice.transcribing ? "hourglass_top" : "mic"; size: 18; fill: Voice.listening ? 1 : 0
+                            color: Voice.listening ? Theme.accent : Theme.textMuted }
                 }
                 HoverTarget {
                     id: sendBtn
@@ -799,8 +935,8 @@ PanelWindow {
     }
 
     // ── pieces ──
-    function ctxIcon(k) { return ({ selection: "format_quote", clipboard: "content_paste", screen: "screenshot_monitor", window: "select_window", system: "monitor_heart", project: "commit", file: "attach_file", college: "school", notes: "edit_note" })[k] ?? "attach_file"; }
-    function ctxLabel(k) { return ({ selection: "Selection", clipboard: "Clipboard", screen: "Screen", window: "Window", system: "System", project: "Project", file: "Files", college: "Classes & marks", notes: "Notes" })[k] ?? k; }
+    function ctxIcon(k) { return ({ selection: "format_quote", clipboard: "content_paste", screen: "screenshot_monitor", window: "select_window", system: "monitor_heart", project: "commit", file: "attach_file", college: "school", notes: "edit_note", lens: "gesture" })[k] ?? "attach_file"; }
+    function ctxLabel(k) { return ({ selection: "Selection", clipboard: "Clipboard", screen: "Screen", window: "Window", system: "System", project: "Project", file: "Files", college: "Classes & marks", notes: "Notes", lens: "Circled" })[k] ?? k; }
     function fileIcon(name) {
         const e = (name.match(/\.([^.\/]+)$/)?.[1] ?? "").toLowerCase();
         if (e === "pdf") return "picture_as_pdf";
@@ -837,10 +973,13 @@ PanelWindow {
         id: ap
         property string icon
         property string text
-        width: apRow.implicitWidth + 16; height: 26
-        Row { id: apRow; anchors.centerIn: parent; spacing: 4
-              LIcon { icon: ap.icon; size: 14; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
-              LText { role: "caption"; color: Theme.textSecondary; text: ap.text; anchors.verticalCenter: parent.verticalCenter } }
+        property bool outlined: false
+        width: apRow.implicitWidth + (outlined ? 22 : 16); height: outlined ? 30 : 26
+        Rectangle { visible: ap.outlined; anchors.fill: parent; radius: height / 2; z: -1; color: Theme.withAlpha(Theme.text, 0.04)
+                    border.width: 1; border.color: ap.containsMouse ? Theme.withAlpha(Theme.accent, 0.45) : Theme.border }
+        Row { id: apRow; anchors.centerIn: parent; spacing: ap.outlined ? 6 : 4
+              LIcon { visible: ap.icon !== ""; icon: ap.icon; size: ap.outlined ? 15 : 14; color: ap.outlined ? Theme.accent : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+              LText { role: "caption"; color: ap.outlined ? Theme.text : Theme.textSecondary; text: ap.text; anchors.verticalCenter: parent.verticalCenter } }
     }
     component ContextChip: HoverTarget {
         id: chip

@@ -214,7 +214,8 @@ Item {
             }
         }
         Chip {
-            want: Ai.provider !== "off"
+            // With Halo shown beside the island's clock, that ring is the way in
+            want: Ai.provider !== "off" && !Halo.present
             onClicked: Ai.toggle()
             HaloRing { anchors.verticalCenter: parent.verticalCenter }
             LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"; text: "Halo"; color: Theme.textSecondary }
