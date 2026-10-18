@@ -47,9 +47,10 @@ Page {
                         : page.info.group === "custom" ? "add your server's address below" : "add your API key below"))
             LSwitch {
                 checked: Ai.provider !== "off"
+                // (the switch reports a click; checked is still the old state)
                 onToggled: {
-                    if (checked) page.choose(page.lastProvider);
-                    else { Persist.data.aiProvider = "off"; Ai.refreshStatus(); }
+                    if (checked) { page.lastProvider = Ai.provider; Persist.data.aiProvider = "off"; Ai.refreshStatus(); }
+                    else page.choose(page.lastProvider);
                 }
             }
         }
@@ -62,13 +63,13 @@ Page {
             icon: "radio_button_unchecked"
             title: "Show " + Halo.name + " beside the clock"
             description: "A small ring in the island that breathes, blinks, listens and thinks. Click it to open " + Halo.name + ", right-click to talk. Its cards (the doctor, wrap-ups, reminders) appear in the island either way."
-            LSwitch { checked: Persist.data.haloPresence ?? true; onToggled: Persist.data.haloPresence = checked }
+            LSwitch { checked: Persist.data.haloPresence ?? true; onToggled: Persist.data.haloPresence = !checked }
         }
         SetRow {
             icon: "sentiment_satisfied"
             title: "A face"
             description: "Two quiet eyes on the ring — they blink, glance, smile when something works and narrow when something's wrong."
-            LSwitch { checked: Persist.data.haloFace ?? true; onToggled: Persist.data.haloFace = checked }
+            LSwitch { checked: Persist.data.haloFace ?? true; onToggled: Persist.data.haloFace = !checked }
         }
         SetRow {
             icon: "badge"
@@ -117,7 +118,7 @@ Page {
             icon: "self_improvement"
             title: "Break nudges"
             description: "After about an hour at the screen, " + Halo.name + " suggests a short break (stretch, look away, water). Never in quiet hours or during a timer."
-            LSwitch { checked: Persist.data.haloBreaks ?? true; onToggled: Persist.data.haloBreaks = checked }
+            LSwitch { checked: Persist.data.haloBreaks ?? true; onToggled: Persist.data.haloBreaks = !checked }
         }
         SetRow {
             icon: "cake"
@@ -154,7 +155,7 @@ Page {
                 spacing: 8
                 Button { visible: Persist.data.haloWake ?? false; text: (Persist.data.haloWakeBattery ?? false) ? "Also on battery ✓" : "Also on battery"
                          onActivated: Persist.data.haloWakeBattery = !(Persist.data.haloWakeBattery ?? false) }
-                LSwitch { enabled: Voice.canListen; checked: Persist.data.haloWake ?? false; onToggled: Persist.data.haloWake = checked }
+                LSwitch { enabled: Voice.canListen; checked: Persist.data.haloWake ?? false; onToggled: Persist.data.haloWake = !checked }
             }
         }
         SetRow {
@@ -194,7 +195,7 @@ Page {
             icon: "smart_toy"
             title: "Let " + Halo.name + " carry out jobs"
             description: "Ask for a job, not just an answer — “start a 50-minute study timer and tell me my next class”, “find my DBMS notes and summarise them”, “add a to-do for the lab record and remind me at 9”. " + Halo.name + " plans it and uses Lumen's tools one step at a time; you see every step, can stop it, and anything that clicks, types, runs a command or can't be undone waits for your OK. Type /agent to ask for it directly. Works best with a larger model (Claude, or a 7B+ local one)."
-            LSwitch { checked: Persist.data.haloAgent ?? true; onToggled: Persist.data.haloAgent = checked }
+            LSwitch { checked: Persist.data.haloAgent ?? true; onToggled: Persist.data.haloAgent = !checked }
         }
     }
 
@@ -204,7 +205,7 @@ Page {
             icon: "bookmarks"
             title: Halo.memory.length ? "Remembering " + Halo.memory.length + (Halo.memory.length === 1 ? " thing" : " things") : "Nothing remembered yet"
             description: "Say “remember that my roll number is 25BCE…” or “remember I study best at night”. It's kept on this computer, and used in answers only while this is on. “Forget …” removes one; everything is listed here."
-            LSwitch { checked: Persist.data.haloUseMemory ?? true; onToggled: Persist.data.haloUseMemory = checked }
+            LSwitch { checked: Persist.data.haloUseMemory ?? true; onToggled: Persist.data.haloUseMemory = !checked }
         }
         Repeater {
             model: Halo.memory
@@ -300,13 +301,13 @@ Page {
             icon: "pan_tool_alt"
             title: "Let " + Halo.name + " use the mouse and keyboard"
             description: "Ask “click Download”, “point at the settings”, “scroll down”, “press ctrl+s”, “type …”, “close this window”. It finds things by reading the screen on this computer. Pointing and scrolling just happen; every click, key and bit of typing asks first, right where it will happen (Enter allows, Esc cancels, or allow it for 2 minutes). Move the mouse and it lets go. Never on the lock screen or over a password prompt."
-            LSwitch { checked: Persist.data.haloHands ?? true; onToggled: Persist.data.haloHands = checked }
+            LSwitch { checked: Persist.data.haloHands ?? true; onToggled: Persist.data.haloHands = !checked }
         }
         SetRow {
             icon: "accessibility_new"
             title: "Let apps describe their buttons"
             description: "Halo finds icons without text (a gear, a ×, “New chat”) by the names apps give them for screen readers — exact, and on this computer. GTK 4 apps always do; with this on, Qt, KDE, Chromium, Brave and Electron apps do too (inside Lumen only, for apps opened after; browsers get a little slower)."
-            LSwitch { checked: (Theme.tokens.prefs?.app_a11y ?? "off") === "on"; onToggled: SettingsState.lumen(["set", "app_a11y", checked ? "on" : "off"]) }
+            LSwitch { checked: (Theme.tokens.prefs?.app_a11y ?? "off") === "on"; onToggled: SettingsState.lumen(["set", "app_a11y", checked ? "off" : "on"]) }
         }
         SetRow {
             icon: Hands.canClick ? "check_circle" : "info"
@@ -323,13 +324,13 @@ Page {
             icon: "wb_sunny"
             title: "Morning brief"
             description: "At the first unlock of the day: the weather, your classes and events, an exam coming up, what came in overnight."
-            LSwitch { checked: Persist.data.haloMorning ?? true; onToggled: Persist.data.haloMorning = checked }
+            LSwitch { checked: Persist.data.haloMorning ?? true; onToggled: Persist.data.haloMorning = !checked }
         }
         SetRow {
             icon: "inbox"
             title: "While you were away"
             description: "Back after 10 minutes or more: notifications by app, WhatsApp chats, finished downloads, what's next — with Summarise if there's a lot."
-            LSwitch { checked: Persist.data.haloAway ?? true; onToggled: Persist.data.haloAway = checked }
+            LSwitch { checked: Persist.data.haloAway ?? true; onToggled: Persist.data.haloAway = !checked }
         }
         SetRow {
             icon: "nights_stay"
@@ -350,7 +351,7 @@ Page {
             icon: "stethoscope"
             title: "Keep an eye on this computer"
             description: "A light look every minute or two: an app hogging the processor or draining the battery, memory or disk running out, overheating, a service that failed, a program that crashed — each said once, with a fix you can tap. Ask any time: “how's my computer?”"
-            LSwitch { checked: Persist.data.haloDoctor ?? true; onToggled: Persist.data.haloDoctor = checked }
+            LSwitch { checked: Persist.data.haloDoctor ?? true; onToggled: Persist.data.haloDoctor = !checked }
         }
         Repeater {
             model: Persist.data.haloDoctorIgnore ?? []
