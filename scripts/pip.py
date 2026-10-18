@@ -219,15 +219,21 @@ def video_rect(addr, ignore=None):
     def edge_cols(lo, hi, rows):
         d = np.abs(np.diff(img[rows[0]:rows[1], :], axis=1)) > 18
         return d.mean(axis=0)
-    reach_y, reach_x = max(3, h // 4), max(3, w // 4)
+    # Near edges always count; far ones only across a plain band (a letterbox,
+    # black bars) — never across page UI like a toolbar or a banner.
+    near_y, near_x, far_y, far_x = max(3, h // 12), max(3, w // 12), h // 4, w // 4
+
+    def plain(band):
+        return band.size == 0 or float(band.std()) < 8
+
     er = edge_rows(0, h, (c0, c1))
-    top = [i + 1 for i in range(max(0, r0 - reach_y), r0) if er[i] > 0.6]
-    bot = [i + 1 for i in range(r1 - 1, min(h - 1, r1 + reach_y)) if er[i] > 0.6]
+    top = [i + 1 for i in range(max(0, r0 - far_y), r0) if er[i] > 0.6 and (r0 - i <= near_y or plain(img[i + 1:r0, c0:c1]))]
+    bot = [i + 1 for i in range(r1 - 1, min(h - 1, r1 + far_y)) if er[i] > 0.6 and (i - r1 <= near_y or plain(img[r1:i + 1, c0:c1]))]
     r0 = top[-1] if top else r0
     r1 = bot[0] if bot else r1
     ec = edge_cols(0, w, (r0, r1))
-    left = [i + 1 for i in range(max(0, c0 - reach_x), c0) if ec[i] > 0.6]
-    right = [i + 1 for i in range(c1 - 1, min(w - 1, c1 + reach_x)) if ec[i] > 0.6]
+    left = [i + 1 for i in range(max(0, c0 - far_x), c0) if ec[i] > 0.6 and (c0 - i <= near_x or plain(img[r0:r1, i + 1:c0]))]
+    right = [i + 1 for i in range(c1 - 1, min(w - 1, c1 + far_x)) if ec[i] > 0.6 and (i - c1 <= near_x or plain(img[r0:r1, c1:i + 1]))]
     c0 = left[-1] if left else c0
     c1 = right[0] if right else c1
     return {"x": round(c0 / w, 4), "y": round(r0 / h, 4), "w": round((c1 - c0) / w, 4), "h": round((r1 - r0) / h, 4)}

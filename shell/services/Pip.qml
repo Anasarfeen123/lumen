@@ -13,6 +13,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import Quickshell.Services.Mpris
 import qs.theme
 
 Singleton {
@@ -76,14 +77,24 @@ Singleton {
             video = null;                                 // one at a time (and out of the way of the measuring)
             const c = crops[norm(address)], t = toplevelOf(address);
             if (visible_(t) && !(c && t?.lastIpcObject?.size && c.size[0] === t.lastIpcObject.size[0] && c.size[1] === t.lastIpcObject.size[1])) {
-                pending = { address, player: Media.active };
+                pending = { address, player: playerFor(address) };
                 findCrop(address);
                 return;
             }
         }
-        video = { address, player: Media.active, auto: !!auto };
+        video = { address, player: playerFor(address), auto: !!auto };
     }
     property var pending: null        // a manual pop waiting for its video to be found
+    // The window's own player — not just whichever is "active": Chromium names its
+    // player after the browser's process (brave.instance<pid>), so match on that,
+    // then on the window title carrying the track title.
+    function playerFor(address) {
+        const o = toplevelOf(address)?.lastIpcObject ?? {}, pid = String(o.pid ?? ""), title = (o.title ?? "").toLowerCase();
+        const ps = Mpris.players.values;
+        return ps.find(p => pid && (p.dbusName ?? "").endsWith("instance" + pid))
+            ?? ps.find(p => (p.trackTitle ?? "").length > 3 && title.includes(p.trackTitle.toLowerCase().slice(0, 40)))
+            ?? Media.active;
+    }
     function closeVideo() {
         if (video?.auto) dismissed = Media.title;
         video = null;
@@ -223,7 +234,7 @@ Singleton {
         function toggle(): void { root.toggle(); }
         function corner(c: string): void { root.corner(c); }
         function size(s: string): void { root.size(s); }
-        function state(): string { return JSON.stringify({ window: root.state, video: root.video ? { address: root.video.address, auto: root.video.auto, shown: root.videoShown, crop: root.videoCrop } : null, native: root.native_, candidate: root.candidate?.address ?? "", crops: root.crops }); }
+        function state(): string { return JSON.stringify({ window: root.state, video: root.video ? { address: root.video.address, auto: root.video.auto, shown: root.videoShown, crop: root.videoCrop, player: root.video.player?.dbusName ?? "" } : null, native: root.native_, candidate: root.candidate?.address ?? "", crops: root.crops }); }
         function video(address: string): void { root.popVideo(address, false); }
     }
 }
