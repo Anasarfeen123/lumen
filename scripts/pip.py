@@ -8,7 +8,8 @@
   pip.py corner <tl|tr|bl|br|next>   move the PiP window to a corner
   pip.py size <small|medium|large|bigger|smaller>
   pip.py state                  JSON: {address, title, class, corner, size} or {}
-  pip.py video-rect <address>   where the video is inside that window, from what moves over
+  pip.py video-rect <address> [x,y,w,h]   (optional: a screen area to ignore — Lumen's own PiP)
+                                where the video is inside that window, from what moves over
                                 ~0.6 s: {"x","y","w","h"} as fractions of the window, or {}
                                 (paused, nothing moving, or the window isn't on screen)
 Browser picture-in-picture windows are already floated and pinned by
@@ -143,7 +144,7 @@ def current():
     return {}
 
 
-def video_rect(addr):
+def video_rect(addr, ignore=None):
     """The moving part of a visible window — the video in a browser tab. Six
     quick captures; pixels that change between them are the video. The longest
     run of busy columns, then of busy rows inside them, is its rectangle."""
@@ -174,6 +175,18 @@ def video_rect(addr):
     for a, b in zip(frames, frames[1:]):
         moved |= np.abs(a - b) > 10
     h, w = moved.shape
+    # What covers the window moves too, and isn't its video: Lumen's own PiP
+    # (passed in), and floating or pinned windows on top (a browser's PiP…)
+    covers = [ignore] if ignore else []
+    for o in j("clients") or []:
+        if o["address"] != c["address"] and o.get("mapped", True) and not o.get("hidden") and o.get("floating") \
+                and (o.get("pinned") or o["workspace"]["id"] == c["workspace"]["id"]):
+            covers.append([o["at"][0], o["at"][1], o["size"][0], o["size"][1]])
+    for ix, iy, iw, ih in covers:
+        x0, y0 = max(0, (ix - c["at"][0]) // 4 - 2), max(0, (iy - c["at"][1]) // 4 - 2)
+        x1, y1 = (ix + iw - c["at"][0]) // 4 + 2, (iy + ih - c["at"][1]) // 4 + 2
+        if x1 > 0 and y1 > 0:
+            moved[y0:y1, x0:x1] = False
     if moved.mean() < 0.01:
         return {}
 
@@ -206,7 +219,7 @@ def video_rect(addr):
     def edge_cols(lo, hi, rows):
         d = np.abs(np.diff(img[rows[0]:rows[1], :], axis=1)) > 18
         return d.mean(axis=0)
-    reach_y, reach_x = max(3, h // 10), max(3, w // 10)
+    reach_y, reach_x = max(3, h // 4), max(3, w // 4)
     er = edge_rows(0, h, (c0, c1))
     top = [i + 1 for i in range(max(0, r0 - reach_y), r0) if er[i] > 0.6]
     bot = [i + 1 for i in range(r1 - 1, min(h - 1, r1 + reach_y)) if er[i] > 0.6]
@@ -247,7 +260,7 @@ def main():
             save(s)
         print(json.dumps({"ok": True, "corner": s["corner"], "size": s["size"]}))
     elif cmd == "video-rect" and len(a) > 1:
-        print(json.dumps(video_rect(a[1])))
+        print(json.dumps(video_rect(a[1], [int(float(v)) for v in a[2].split(",")] if len(a) > 2 else None)))
     elif cmd == "state":
         print(json.dumps(current()))
     else:

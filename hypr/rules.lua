@@ -35,7 +35,7 @@ rule({ class = "^(lumen-faceid)$" }, { float = true, center = true, size = { 760
 
 -- ── Picture-in-Picture: small, pinned, bottom-right ──
 local pip = "^([Pp]icture[-\\s]?[Ii]n[-\\s]?[Pp]icture)(.*)$"
-rule({ title = pip }, { float = true, pin = true, keep_aspect_ratio = true,
+rule({ title = pip }, { float = true, pin = true, keep_aspect_ratio = true, no_initial_focus = true,
                         size = { "(monitor_w*0.25)", "(monitor_h*0.25)" }, move = { "(monitor_w*0.73)", "(monitor_h*0.72)" } })
 -- Screen-share indicator popups: out of the way, bottom-centre
 local sharing = ".*is sharing (a window|your screen).*"

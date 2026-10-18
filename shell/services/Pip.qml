@@ -40,8 +40,35 @@ Singleton {
     readonly property bool videoShown: !!videoTop && !!video && (!video.auto || !sourceVisible)
     onVideoTopChanged: if (video && !videoTop) video = null          // its window closed
 
+    // ── Firefox and its family: their own picture-in-picture (Ctrl+Shift+]) —
+    // the real video with its own controls, floated and pinned by
+    // hypr/rules.lua. Lumen opens it, puts your focus back, and ends it.
+    function firefoxish(address) { return /firefox|zen|librewolf|floorp|waterfox|mullvad/i.test(toplevelOf(address)?.lastIpcObject?.class ?? ""); }
+    property var native_: null          // { address, auto } — the window whose video is in Firefox's PiP
+    readonly property bool nativeOpen: !!state.browser
+    function nativeShortcut(address) {
+        const back = Hyprland.activeToplevel?.lastIpcObject?.address ?? "";
+        Hypr.d(`hl.dsp.send_shortcut({ mods = "CTRL SHIFT", key = "bracketright", window = ${Hypr.win(address.startsWith("0x") ? address : "0x" + address)} })`);
+        // sending the shortcut focuses the browser: give focus back to what you were using
+        if (back && norm(back) !== norm(address)) { refocus.address = back; refocus.restart(); }
+        refreshSoon.restart();
+    }
+    Timer { id: refocus; property string address: ""; interval: 450; onTriggered: Hypr.focusWindow(address) }
+    function endNative() {
+        if (native_ && toplevelOf(native_.address)) nativeShortcut(native_.address);
+        else if (state.browser && state.address) Hypr.closeWindow(state.address);
+        native_ = null;
+    }
+
     function popVideo(address, auto) {
         if (!address) return;
+        if (firefoxish(address)) {
+            if (nativeOpen) return;
+            video = null;
+            native_ = { address, auto: !!auto };
+            nativeShortcut(address);
+            return;
+        }
         if (!auto) {
             dismissed = "";
             // on screen and not measured yet: find the video first, then show it
@@ -71,10 +98,12 @@ Singleton {
     function resizeVideo(f) { Persist.data.pipSize = Math.max(0.16, Math.min(0.5, f)); }
 
     // Where the video is inside its window — looked for while it's on screen
+    property rect cardRect: Qt.rect(0, 0, 0, 0)       // where VideoPip's player is on screen (it's left out of the measuring)
     function findCrop(address) {
-        if (cropProc.running || videoShown) return;      // never measure with the PiP on screen
+        if (cropProc.running) return;
         cropProc.address = address;
-        cropProc.command = [script, "video-rect", address.startsWith("0x") ? address : "0x" + address];
+        cropProc.command = [script, "video-rect", address.startsWith("0x") ? address : "0x" + address]
+            .concat(videoShown && cardRect.width > 0 ? [[cardRect.x, cardRect.y, cardRect.width, cardRect.height].map(Math.round).join(",")] : []);
         cropProc.running = true;
     }
     Process {
@@ -108,10 +137,11 @@ Singleton {
     onCandidateVisibleChanged: {
         if (candidateVisible) {
             if (video?.auto && norm(video.address) === norm(candidate?.address)) video = null;   // back at it
+            if (native_?.auto && norm(native_.address) === norm(candidate?.address) && nativeOpen) endNative();
             dismissed = "";
             lookSoon.restart();
-        } else if (wasVisible && candidate && (Persist.data.pipAuto ?? true) && !video && Media.title !== dismissed
-                   && crops[norm(candidate.address)]) {
+        } else if (wasVisible && candidate && (Persist.data.pipAuto ?? true) && !video && !nativeOpen && Media.title !== dismissed
+                   && (crops[norm(candidate.address)] || firefoxish(candidate.address))) {   // Firefox's own PiP does nothing on a tab without video
             popVideo(candidate.address, true);
         }
         wasVisible = candidateVisible;
@@ -119,6 +149,8 @@ Singleton {
     onCandidateChanged: { wasVisible = candidateVisible; if (candidate) lookSoon.restart(); }
     Connections { target: Media; function onTitleChanged() { if (root.candidate) lookSoon.restart(); } }
     // look while it plays on screen (and again now and then: a resize, theatre mode)
+    // shown without its video found yet (it was paused, say): keep looking while its window is in view
+    Timer { interval: 3000; repeat: true; running: root.videoShown && !root.videoCrop && root.sourceVisible; onTriggered: root.findCrop(root.video.address) }
     Timer { id: lookSoon; interval: 2500; onTriggered: if (root.candidate && root.candidateVisible) root.findCrop(root.candidate.address) }
     Timer { interval: 25000; repeat: true; running: !!root.candidate && root.candidateVisible; onTriggered: root.findCrop(root.candidate.address) }
 
@@ -153,10 +185,11 @@ Singleton {
         }
     }
     function pop(address) { run(["pop"].concat(address ? [address] : []), "Picture in picture"); }
-    function back() { if (video) closeVideo(); else run(["back"], "Back in its place"); }
+    function back() { if (video) closeVideo(); else if (nativeOpen) endNative(); else run(["back"], "Back in its place"); }
     // Ctrl+Super+P: the video if you're looking at the one playing, else the focused window
     function toggle() {
         if (video) { closeVideo(); return; }
+        if (nativeOpen) { endNative(); return; }
         if (windowActive && !state.browser) { back(); return; }
         const f = Hyprland.activeToplevel?.lastIpcObject?.address ?? "", w = playerWindow();
         if (Media.playing && w && norm(w.address) === norm(f)) popVideo(w.address, false);
@@ -190,7 +223,7 @@ Singleton {
         function toggle(): void { root.toggle(); }
         function corner(c: string): void { root.corner(c); }
         function size(s: string): void { root.size(s); }
-        function state(): string { return JSON.stringify({ window: root.state, video: root.video ? { address: root.video.address, auto: root.video.auto, shown: root.videoShown, crop: root.videoCrop } : null, candidate: root.candidate?.address ?? "", crops: root.crops }); }
+        function state(): string { return JSON.stringify({ window: root.state, video: root.video ? { address: root.video.address, auto: root.video.auto, shown: root.videoShown, crop: root.videoCrop } : null, native: root.native_, candidate: root.candidate?.address ?? "", crops: root.crops }); }
         function video(address: string): void { root.popVideo(address, false); }
     }
 }

@@ -48,6 +48,9 @@ PanelWindow {
     function homeX(c) { return c[1] === "l" ? gap : width - cardW - gap; }
     function homeY(c) { return c[0] === "t" ? topGap : height - cardH - gap; }
 
+    // tell the service where the player is, so measuring the video leaves it out
+    Binding { target: Pip; property: "cardRect"; when: win.showing; value: Qt.rect((win.screen?.x ?? 0) + card.x, (win.screen?.y ?? 0) + card.y, card.width, card.height) }
+
     Item {
         id: card
         width: win.cardW; height: win.cardH
