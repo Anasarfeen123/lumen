@@ -22,7 +22,7 @@ PanelWindow {
     readonly property bool mine: Quickshell.screens.length <= 1 || (Hyprland.focusedMonitor?.name ?? "") === (monitor?.name ?? "")
     readonly property bool showing: Pip.videoShown && mine
     property real shown: showing ? 1 : 0
-    Behavior on shown { NumberAnimation { duration: Theme.reducedMotion ? 0 : (win.showing ? Theme.motion.normal : Theme.motion.fast); easing.type: win.showing ? Easing.OutBack : Easing.InQuad } }
+    Behavior on shown { NumberAnimation { duration: Theme.reducedMotion ? 0 : (win.showing ? Theme.motion.normal : Theme.motion.normal); easing.type: win.showing ? Easing.OutBack : Easing.InQuad } }
 
     visible: showing || shown > 0.01
     anchors { top: true; bottom: true; left: true; right: true }
@@ -61,8 +61,8 @@ PanelWindow {
         x: win.homeX(Pip.vCorner); y: win.homeY(Pip.vCorner)
         Behavior on x { enabled: !drag.drag.active; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
         Behavior on y { enabled: !drag.drag.active; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
-        Behavior on width { NumberAnimation { duration: Theme.motion.fast } }
-        Behavior on height { NumberAnimation { duration: Theme.motion.fast } }
+        Behavior on width { NumberAnimation { duration: Theme.motion.normal } }
+        Behavior on height { NumberAnimation { duration: Theme.motion.normal } }
         opacity: win.shown
         scale: 0.86 + 0.14 * win.shown * (drag.drag.active ? 1.03 : 1)
         transformOrigin: Pip.vCorner === "br" ? Item.BottomRight : Pip.vCorner === "bl" ? Item.BottomLeft : Pip.vCorner === "tl" ? Item.TopLeft : Item.TopRight
