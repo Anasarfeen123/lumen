@@ -9,6 +9,7 @@
 //   Enter sends · Shift+Enter new line · Esc closes · Ctrl+L new chat · Ctrl+R retry
 import QtQuick
 import QtQuick.Effects
+import QtQuick.Shapes
 import QtQuick.Controls.Basic as QQC
 import Quickshell
 import Quickshell.Wayland
@@ -432,9 +433,21 @@ PanelWindow {
                 spacing: Theme.space.s3
                 model: Ai.messages
                 boundsBehavior: Flickable.StopAtBounds
-                onCountChanged: Qt.callLater(positionViewAtEnd)
-                // Follow the answer as it grows (once per batch, not per token)
-                Connections { target: Ai; function onStreamTextChanged() { if (!transcript.moving) transcript.positionViewAtEnd(); } }
+                onCountChanged: Qt.callLater(glideToEnd)
+                // Follow the answer as it grows — gliding, never jumping (once per batch, not per token)
+                Connections { target: Ai; function onStreamTextChanged() { if (!transcript.moving) transcript.glideToEnd(); } }
+                function glideToEnd() {
+                    const to = Math.max(originY, originY + contentHeight - height);
+                    if (Theme.reducedMotion) { positionViewAtEnd(); return; }
+                    if (Math.abs(to - contentY) < 1) return;
+                    glide.to = to;
+                    glide.restart();
+                }
+                NumberAnimation { id: glide; target: transcript; property: "contentY"; duration: 340; easing.type: Easing.OutCubic }
+                onMovingChanged: if (moving) glide.stop()
+                // an answer that shrinks when its Markdown settles: don't stay past the end
+                onContentHeightChanged: if (!moving && contentY > originY + Math.max(0, contentHeight - height) + 1) glideToEnd()
+                onHeightChanged: if (!moving && contentY > originY + Math.max(0, contentHeight - height) + 1) glideToEnd()
                 QQC.ScrollBar.vertical: QQC.ScrollBar { policy: transcript.contentHeight > transcript.height ? QQC.ScrollBar.AsNeeded : QQC.ScrollBar.AlwaysOff }
                 // Scrolled up while it writes: a way back to the latest
                 HoverTarget {
@@ -446,7 +459,7 @@ PanelWindow {
                     Behavior on opacity { NumberAnimation { duration: Theme.motion.micro } }
                     anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 8 }
                     width: jumpRow.implicitWidth + 22; height: 28
-                    onClicked: transcript.positionViewAtEnd()
+                    onClicked: transcript.glideToEnd()
                     Rectangle { anchors.fill: parent; radius: height / 2; z: -1; color: Theme.surfaceElevated; border.width: 1; border.color: Theme.border }
                     Row { id: jumpRow; anchors.centerIn: parent; spacing: 4
                           LIcon { icon: "arrow_downward"; size: 14; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
@@ -466,13 +479,19 @@ PanelWindow {
                     height: modelData.hidden ? 0 : mine ? userBubble.height : answerCol.height
                     visible: !modelData.hidden
                     // Arrives with a small rise and fade (only when it's new)
+                    //   yours slides in from the right; Halo's rises and settles from a touch smaller
                     opacity: 0
-                    transform: Translate { id: rise; y: 10 }
-                    Component.onCompleted: if (Theme.reducedMotion || index < Ai.messages.length - 2) { opacity = 1; rise.y = 0; } else enter.start()
+                    transform: [
+                        Translate { id: rise; y: msg.mine ? 4 : 12; x: msg.mine ? 22 : 0 },
+                        Scale { id: settle; origin.x: msg.mine ? msg.width : 0; origin.y: 0; xScale: msg.mine ? 1 : 0.97; yScale: xScale }
+                    ]
+                    Component.onCompleted: if (Theme.reducedMotion || index < Ai.messages.length - 2) { opacity = 1; rise.y = 0; rise.x = 0; settle.xScale = 1; } else enter.start()
                     ParallelAnimation {
                         id: enter
                         NumberAnimation { target: msg; property: "opacity"; to: 1; duration: Theme.motion.normal }
                         NumberAnimation { target: rise; property: "y"; to: 0; duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
+                        NumberAnimation { target: rise; property: "x"; to: 0; duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
+                        NumberAnimation { target: settle; property: "xScale"; to: 1; duration: Theme.motion.large; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
                     }
 
                     // You: hover for Edit (back into the prompt) and Copy
@@ -1064,10 +1083,36 @@ PanelWindow {
                     anchors { right: parent.right; rightMargin: 7; verticalCenter: parent.verticalCenter }
                     width: 32; height: 32
                     onClicked: { if (Ai.busy) Ai.stop(); else prompt.submit(); }
-                    Rectangle { anchors.fill: parent; radius: 16; color: Ai.busy || prompt.text !== "" ? Theme.accent : Theme.surfaceHover
-                                Behavior on color { ColorAnimation { duration: Theme.motion.micro } } }
-                    LIcon { anchors.centerIn: parent; icon: Ai.busy ? "stop" : "arrow_upward"; size: 18; fill: 1
-                            color: Ai.busy || prompt.text !== "" ? Theme.onAccent : Theme.textMuted }
+                    readonly property bool lit: Ai.busy || prompt.text !== ""
+                    Rectangle { anchors.fill: parent; radius: 16; color: sendBtn.lit ? Theme.accent : Theme.surfaceHover
+                                scale: sendBtn.pressed ? 0.88 : sendBtn.lit ? 1 : 0.92
+                                Behavior on color { ColorAnimation { duration: Theme.motion.normal } }
+                                Behavior on scale { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.OutBack } } }
+                    // send ↔ stop: the arrow turns away as the square grows in
+                    LIcon { anchors.centerIn: parent; icon: "arrow_upward"; size: 18; fill: 1
+                            color: sendBtn.lit ? Theme.onAccent : Theme.textMuted
+                            opacity: Ai.busy ? 0 : 1; rotation: Ai.busy ? 90 : 0; scale: Ai.busy ? 0.4 : 1
+                            Behavior on opacity { NumberAnimation { duration: Theme.motion.normal } }
+                            Behavior on rotation { NumberAnimation { duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+                            Behavior on scale { NumberAnimation { duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } } }
+                    Rectangle { anchors.centerIn: parent; width: 11; height: 11; radius: 2.5; color: Theme.onAccent
+                                opacity: Ai.busy ? 1 : 0; scale: Ai.busy ? 1 : 0.3
+                                Behavior on opacity { NumberAnimation { duration: Theme.motion.normal } }
+                                Behavior on scale { NumberAnimation { duration: Theme.motion.large; easing.type: Easing.OutBack; easing.overshoot: 2 } } }
+                    // while Halo works: a thin arc circling the button
+                    Shape {
+                        anchors.centerIn: parent
+                        width: 40; height: 40
+                        visible: opacity > 0.01
+                        opacity: Ai.busy ? 1 : 0
+                        Behavior on opacity { NumberAnimation { duration: Theme.motion.normal } }
+                        preferredRendererType: Shape.CurveRenderer
+                        RotationAnimation on rotation { running: Ai.busy && win.showing && !Theme.reducedMotion; from: 0; to: 360; duration: 1100; loops: Animation.Infinite }
+                        ShapePath {
+                            strokeColor: Theme.accent; strokeWidth: 2; fillColor: "transparent"; capStyle: ShapePath.RoundCap
+                            PathAngleArc { centerX: 20; centerY: 20; radiusX: 19; radiusY: 19; startAngle: 0; sweepAngle: 100 }
+                        }
+                    }
                 }
             }
             LText {

@@ -36,7 +36,8 @@ function toHtml(src, c) {
         }
         const lines = parts[p].split("\n");
         let para = [], list = null;
-        const flushPara = () => { if (para.length) { out.push('<p style="margin-top:0;margin-bottom:8px;">' + para.map(l => inline(l, c)).join(" ") + "</p>"); para = []; } };
+        // a single line break stays one (chat style: poems, addresses, steps)
+        const flushPara = () => { if (para.length) { out.push('<p style="margin-top:0;margin-bottom:8px;">' + para.map(l => inline(l, c)).join("<br>") + "</p>"); para = []; } };
         const flushList = () => { if (list) { out.push("<" + list.tag + ' style="margin-top:0;margin-bottom:8px;margin-left:-14px;">' + list.items.map(i => '<li style="margin-bottom:3px;">' + inline(i, c) + "</li>").join("") + "</" + list.tag + ">"); list = null; } };
         for (let li = 0; li < lines.length; li++) {
             const line = lines[li].replace(/\s+$/, "");
