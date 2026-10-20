@@ -17,12 +17,37 @@ import ".."
 Page {
     id: page
     title: "Halo"
-    subtitle: "Lumen Halo (Super+Shift+Space) explains what you've selected, reads your screen, checks your system, writes commands and commit messages. It's off until you pick where answers come from."
+    subtitle: ({
+        general: "Lumen Halo (Super+Shift+Space): who it is, how much it says, and whether it's on at all.",
+        models: "Where Halo's answers come from — a model on this computer, a cloud, or your own server.",
+        voice: "Talking with Halo: speech to text, its voice, and the wake word.",
+        abilities: "What Halo may do for you — run tasks, point and click, remember, watch for things.",
+        day: "Wrap-ups, reminders, your calendar and mail, and the doctor keeping an eye on the system."
+    })[tab] ?? ""
+    // tabs = the sidebar's Halo entries (SettingsState: ai, ai-models, ai-voice, ai-abilities, ai-day)
+    tabs: [{ id: "general", label: "General", icon: "auto_awesome" }, { id: "models", label: "Models", icon: "neurology" },
+           { id: "voice", label: "Voice", icon: "graphic_eq" }, { id: "abilities", label: "Abilities", icon: "touch_app" },
+           { id: "day", label: "Your day", icon: "wb_twilight" }]
+    tab: SettingsState.page.startsWith("ai-") ? SettingsState.page.slice(3) : "general"
+    onTabPicked: id => SettingsState.page = id === "general" ? "ai" : "ai-" + id
     Component.onCompleted: Ai.refreshStatus()
 
     readonly property var info: Ai.providerInfo(Ai.provider) ?? ({})
     // remembered so the Halo switch can put back whatever you had before
     property string lastProvider: "ollama"
+    // whisper-cli and whisper-server from whisper.cpp's own source (the same
+    // version Fedora packages), on the GPU through Vulkan
+    readonly property string whisperBuild:
+        "sudo dnf install git cmake gcc-c++ glslc vulkan-headers vulkan-loader-devel\n"
+        + "[ -d /tmp/whisper.cpp ] || git clone --depth 1 --branch v1.8.1 https://github.com/ggml-org/whisper.cpp /tmp/whisper.cpp\n"
+        + "cmake -S /tmp/whisper.cpp -B /tmp/whisper.cpp/build-vk -DGGML_VULKAN=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release\n"
+        + "cmake --build /tmp/whisper.cpp/build-vk -j --target whisper-cli whisper-server\n"
+        + "install -Dm755 /tmp/whisper.cpp/build-vk/bin/whisper-cli ~/.local/bin/whisper-cli\n"
+        + "install -Dm755 /tmp/whisper.cpp/build-vk/bin/whisper-server ~/.local/bin/whisper-server\n"
+    readonly property string whisperSetup:
+        whisperBuild
+        + "mkdir -p ~/.local/share/lumen/whisper\n"
+        + "[ -s ~/.local/share/lumen/whisper/ggml-base.en.bin ] || curl -L -o ~/.local/share/lumen/whisper/ggml-base.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin\n"
 
     function choose(id) {
         lastProvider = id;
@@ -35,6 +60,7 @@ Page {
 
     // ── Halo on or off ──
     Group {
+        visible: page.tab === "general"
         title: "Lumen Halo"
         SetRow {
             icon: "auto_awesome"
@@ -58,6 +84,7 @@ Page {
 
     // ── Halo, in person (services/Halo.qml, Voice.qml, Brief.qml, Doctor.qml) ──
     Group {
+        visible: page.tab === "general"
         title: Halo.name + ", in person"
         SetRow {
             icon: "radio_button_unchecked"
@@ -81,6 +108,18 @@ Page {
                          onAccepted: t => Persist.data.haloName = t.trim().slice(0, 24) }
                 LField { width: 130; icon: "person"; placeholder: Halo.firstName || "Your name"; text: Persist.data.haloCall ?? ""; clearOnAccept: false
                          onAccepted: t => Persist.data.haloCall = t.trim().slice(0, 32) }
+            }
+        }
+        SetRow {
+            icon: "record_voice_over"
+            title: "Say my name as"
+            description: "If the voice says " + (Halo.you || "your name") + " wrong, spell it the way it sounds (\"Uh-nahs\", \"Ah nas\"), press Enter, then Hear it. Only the voice uses this; written answers keep your name."
+            Row {
+                spacing: 8
+                LField { width: 150; icon: "spatial_audio"; placeholder: Halo.you || "Your name"; text: Persist.data.haloSayName ?? ""; clearOnAccept: false
+                         onAccepted: t => Persist.data.haloSayName = t.trim().slice(0, 40) }
+                Button { text: "Hear it"; icon: "volume_up"; enabled: Voice.canSpeak
+                         onActivated: Voice.say("Hi " + (Halo.you || "there") + ", how can I help?", true) }
             }
         }
         SetRow {
@@ -113,6 +152,7 @@ Page {
     }
 
     Group {
+        visible: page.tab === "general"
         title: "Little things"
         SetRow {
             icon: "self_improvement"
@@ -129,21 +169,63 @@ Page {
     }
 
     Group {
+        visible: page.tab === "voice"
         title: "Voice"
         SetRow {
             icon: Voice.canListen ? "mic" : "mic_off"
             title: Voice.canListen ? "Talk to " + Halo.name : "Talking needs whisper.cpp"
             description: Voice.canListen
                 ? "Super+Alt+H (or right-click " + Halo.name + "), then just speak — it stops when you pause. Heard and written down on this computer; the recording is deleted at once. No wake word: it never listens until you ask."
-                : "Speech is recognised on this computer by whisper.cpp (Fedora's own package) with a small English model (~140 MB, from the whisper.cpp project on Hugging Face). In a terminal:\n"
-                  + "  sudo dnf install whisper-cpp\n  mkdir -p ~/.local/share/lumen/whisper\n"
-                  + "  curl -L -o ~/.local/share/lumen/whisper/ggml-base.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin"
+                  + (Voice.canStream ? "" : "\n\nFaster, with your words appearing as you speak: rebuild whisper.cpp for the GPU with its server (Copy commands), then Check again.")
+                : "Speech is recognised on this computer by whisper.cpp with a small English model (~140 MB, from the whisper.cpp project on Hugging Face). Fedora's whisper-cpp package has only the library, so whisper-cli and whisper-server are built from the project's source into ~/.local/bin, on the GPU (a few minutes, no sudo beyond the build tools). In a terminal:\n"
+                  + page.whisperSetup.trim().split("\n").map(l => "  " + l).join("\n")
             Row {
                 spacing: 8
-                Button { visible: !Voice.canListen; text: "Copy commands"; icon: "content_copy"
-                         onActivated: Quickshell.execDetached(["sh", "-c", 'printf %s "$1" | wl-copy', "sh",
-                             "sudo dnf install whisper-cpp\nmkdir -p ~/.local/share/lumen/whisper\ncurl -L -o ~/.local/share/lumen/whisper/ggml-base.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin\n"]) }
+                Button { visible: !Voice.canListen || !Voice.canStream; text: "Copy commands"; icon: "content_copy"
+                         onActivated: Quickshell.execDetached(["sh", "-c", 'printf %s "$1" | wl-copy', "sh", Voice.canListen ? page.whisperBuild : page.whisperSetup]) }
                 Button { text: "Check again"; onActivated: Voice.refresh() }
+            }
+        }
+        SetRow {
+            icon: "headset_mic"
+            title: "Microphone"
+            description: (Persist.data.haloMic ?? "auto") === "auto"
+                ? "With Bluetooth headphones on, " + Halo.name + " listens through the laptop's mic, so your headphones keep their sound quality and replies aren't cut off."
+                : "Always the headphones' mic. Bluetooth headphones switch to headset mode to use it: a second of silence each way, and mono sound while they're in it."
+            Segmented {
+                width: 260
+                options: [{ id: "auto", label: "Automatic" }, { id: "headset", label: "Headphones' mic" }]
+                current: Persist.data.haloMic ?? "auto"
+                onPicked: id => Persist.data.haloMic = id
+            }
+        }
+        SetRow {
+            icon: "graphic_eq"
+            title: "Recognition"
+            readonly property var have: Voice.status.models ?? []
+            readonly property string pick: Persist.data.haloStt ?? "balanced"
+            description: (pick === "fast" ? "Quickest, but often mishears names, accents and noisy rooms (base.en)."
+                        : pick === "best" ? "The most accurate, on the discrete GPU: wakes it while you talk to " + Halo.name + ", which uses more battery (large-v3-turbo)."
+                        : "Accurate for most accents and still quick on the GPU (small.en).")
+                + (have.indexOf(pick) < 0 ? "\nThis model isn't downloaded yet; Copy command, run it, then Check again." : "")
+                + "\nApplies from your next conversation."
+            Row {
+                spacing: 8
+                Segmented {
+                    width: 280
+                    options: [{ id: "fast", label: "Fast" }, { id: "balanced", label: "Balanced" }, { id: "best", label: "Best" }]
+                    current: Persist.data.haloStt ?? "balanced"
+                    onPicked: id => Persist.data.haloStt = id
+                }
+                Button {
+                    visible: (Voice.status.models ?? []).indexOf(Persist.data.haloStt ?? "balanced") < 0
+                    text: "Copy command"; icon: "content_copy"
+                    onActivated: {
+                        const f = { fast: "ggml-base.en.bin", balanced: "ggml-small.en-q5_1.bin", best: "ggml-large-v3-turbo-q5_0.bin" }[Persist.data.haloStt ?? "balanced"];
+                        Quickshell.execDetached(["sh", "-c", 'printf %s "$1" | wl-copy', "sh",
+                            "curl -L -o ~/.local/share/lumen/whisper/" + f + " https://huggingface.co/ggerganov/whisper.cpp/resolve/main/" + f + "\n"]);
+                    }
+                }
             }
         }
         SetRow {
@@ -190,6 +272,7 @@ Page {
     }
 
     Group {
+        visible: page.tab === "abilities"
         title: "Doing things for you"
         SetRow {
             icon: "smart_toy"
@@ -200,6 +283,7 @@ Page {
     }
 
     Group {
+        visible: page.tab === "abilities"
         title: "Memory"
         SetRow {
             icon: "bookmarks"
@@ -220,6 +304,7 @@ Page {
     }
 
     Group {
+        visible: page.tab === "abilities"
         title: "Routines and watches"
         SetRow {
             icon: "schedule"
@@ -239,7 +324,7 @@ Page {
     }
 
     Group {
-        visible: Object.keys(Persist.data.haloWorkflows ?? {}).length > 0
+        visible: page.tab === "abilities" && (Object.keys(Persist.data.haloWorkflows ?? {}).length > 0)
         title: "Workflows"
         Repeater {
             model: Object.keys(Persist.data.haloWorkflows ?? {})
@@ -254,6 +339,7 @@ Page {
     }
 
     Group {
+        visible: page.tab === "day"
         title: "Calendar & email"
         SetRow {
             icon: "calendar_month"
@@ -296,6 +382,7 @@ Page {
     }
 
     Group {
+        visible: page.tab === "abilities"
         title: "Hands"
         SetRow {
             icon: "pan_tool_alt"
@@ -319,6 +406,7 @@ Page {
     }
 
     Group {
+        visible: page.tab === "day"
         title: "Wrap-ups"
         SetRow {
             icon: "wb_sunny"
@@ -346,6 +434,7 @@ Page {
     }
 
     Group {
+        visible: page.tab === "day"
         title: "Watchful doctor"
         SetRow {
             icon: "stethoscope"
@@ -366,7 +455,7 @@ Page {
     }
 
     Group {
-        visible: Halo.reminders.length > 0
+        visible: page.tab === "day" && (Halo.reminders.length > 0)
         title: "Reminders"
         Repeater {
             model: Halo.reminders
@@ -383,6 +472,37 @@ Page {
 
     // ── Which provider ──
     Group {
+        visible: page.tab === "models"
+        title: "Smart"
+        SetRow {
+            icon: "alt_route"
+            title: "A model for each question"
+            description: Ai.providerInfo("smart").note
+                + " Free tiers only, never a paid model. Uses the free providers you've added a key for below (Gemini, Groq, Mistral)"
+                + (Ai.isConfigured("ollama") ? " and this computer." : "; this computer too once a local model is installed.")
+                + "\nWhat you ask, and any screen, clipboard or files you share, can go to those free providers, which may use it to improve their models."
+            Button {
+                text: Ai.smart ? "In use" : (Ai.isConfigured("smart") ? "Use" : "Add a key first")
+                primary: Ai.smart
+                enabled: !Ai.smart && Ai.isConfigured("smart")
+                onActivated: page.choose("smart")
+            }
+        }
+        Repeater {
+            // today's use of each free provider
+            model: Ai.smart ? AiRouter.summary() : []
+            delegate: SetRow {
+                required property var modelData
+                icon: modelData.resting ? "hourglass_top" : "data_usage"
+                title: modelData.label
+                description: modelData.resting ? "Resting: its free limit was reached. Back at " + modelData.until + "."
+                    : modelData.req + (modelData.rpd ? " of about " + modelData.rpd : "") + " requests today"
+                      + (modelData.tpd ? " · " + Math.round(modelData.tok / 1000) + "k of about " + Math.round(modelData.tpd / 1000) + "k tokens" : "")
+            }
+        }
+    }
+    Group {
+        visible: page.tab === "models"
         title: "On this computer"
         Repeater {
             model: page.ofGroup("local")
@@ -401,6 +521,7 @@ Page {
         }
     }
     Group {
+        visible: page.tab === "models"
         title: "Cloud models"
         Repeater {
             model: page.ofGroup("cloud")
@@ -419,6 +540,7 @@ Page {
         }
     }
     Group {
+        visible: page.tab === "models"
         title: "Your own server"
         Repeater {
             model: page.ofGroup("custom")
@@ -452,7 +574,7 @@ Page {
     property bool hasKey: Ai.isConfigured(Ai.provider)
     Group {
         title: page.info.label ? page.info.label + " key" : "API key"
-        visible: page.cloudChosen
+        visible: page.tab === "models" && (page.cloudChosen)
         SetRow {
             icon: "key"
             title: page.hasKey ? "API key saved" : "API key"
@@ -494,7 +616,7 @@ Page {
     }
     Group {
         title: "Your server"
-        visible: Ai.provider === "custom"
+        visible: page.tab === "models" && (Ai.provider === "custom")
         SetRow {
             icon: "link"
             title: "Address"
@@ -545,7 +667,7 @@ Page {
     readonly property bool cloudChosenModels: Ai.provider !== "off" && Ai.provider !== "ollama"
     Group {
         title: "Model"
-        visible: page.cloudChosenModels
+        visible: page.tab === "models" && (page.cloudChosenModels)
         SetRow {
             icon: "tune"
             title: "Model"
@@ -629,7 +751,7 @@ Page {
 
     Group {
         title: "On this computer (Ollama)"
-        visible: Ai.provider === "ollama"
+        visible: page.tab === "models" && (Ai.provider === "ollama")
         SetRow {
             icon: Ai.status.ollama ? "check_circle" : "error"
             title: Ai.status.ollama ? "Ollama is running" : "Ollama isn't running"
@@ -667,7 +789,7 @@ Page {
     }
     Group {
         title: "Download a model"
-        visible: Ai.provider === "ollama" && Ai.status.ollama
+        visible: page.tab === "models" && (Ai.provider === "ollama" && Ai.status.ollama)
         SetRow {
             visible: page.pulling !== ""
             icon: "download"
@@ -693,6 +815,7 @@ Page {
     }
 
     Group {
+        visible: page.tab === "models"
         title: "Privacy"
         SetRow { icon: "shield"; title: "Only when you ask"; description: "Nothing is sent until you press Enter. Selected text and screenshots are attached only when their chips are on." }
         SetRow { icon: "history_toggle_off"; title: "No history kept"; description: "Conversations live in memory and vanish when you clear them or log out." }

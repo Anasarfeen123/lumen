@@ -188,7 +188,7 @@ FloatingWindow {
                 sourceComponent: ({
                     appearance: appearanceC, wallpaper: wallpaperC, bar: barC, display: displayC,
                     sound: soundC, faceid: faceC, power: powerC, keyboard: keyboardC, about: aboutC,
-                    windows: windowsC, notifications: notificationsC, network: networkC, bluetooth: bluetoothC, lock: lockC, ai: aiC, updates: updatesC, system: systemC, security: securityC, phone: phoneC, whatsapp: whatsappC, amazecc: amazeccC, notes: notesC, mouse: mouseC, apps: appsC, advanced: advancedC, backup: backupC
+                    windows: windowsC, notifications: notificationsC, network: networkC, bluetooth: bluetoothC, lock: lockC, ai: aiC, "ai-models": aiC, "ai-voice": aiC, "ai-abilities": aiC, "ai-day": aiC, updates: updatesC, system: systemC, security: securityC, phone: phoneC, whatsapp: whatsappC, amazecc: amazeccC, notes: notesC, mouse: mouseC, apps: appsC, advanced: advancedC, backup: backupC
                 })[shown] ?? appearanceC
 
                 // Slide + fade between pages
@@ -196,7 +196,11 @@ FloatingWindow {
                 transform: Translate { id: shift; y: 0 }
                 Connections {
                     target: SettingsState
-                    function onPageChanged() { swap.restart(); }
+                    function onPageChanged() {
+                        // between Halo's tabs the page stays; it animates its own tab change
+                        if (SettingsState.page.replace(/-.*/, "") === pageLoader.shown.replace(/-.*/, "") && SettingsState.page.startsWith("ai")) { pageLoader.shown = SettingsState.page; return; }
+                        swap.restart();
+                    }
                 }
                 SequentialAnimation {
                     id: swap
