@@ -60,6 +60,7 @@ key("SUPER + ALT + H", exec(ipc .. " converse release"), nil, { release = true }
 key("SUPER + ALT + R", exec(ipc .. " halo handle 'read this'"), "Halo: read the selection aloud")
 key("SUPER + ALT + period", exec(ipc .. " voice stop"), "Halo: stop talking / listening")
 group("Apps")
+key("CTRL + SUPER + A", global("lumen:amazecc"), "AmazeCC: your college (timetable, attendance, marks)")
 key("SUPER + SHIFT + W", global("lumen:inbox"), "Messages: reply, find a chat (WhatsApp)")
 
 -- ── Windows ──

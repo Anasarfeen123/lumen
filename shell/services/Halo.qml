@@ -184,6 +184,9 @@ Singleton {
             return { glyph: "stethoscope", title: "Checking", own: () => Doctor.checkNow(true) };
         if (/^(let me |i want to |can i )?(draw|annotate|scribble) (on|over) (the |my )?screen|^(screen )?(pen|marker|ink)( mode)?$/i.test(lower))
             return { glyph: "draw", title: "Draw on the screen", own: () => { DrawState.open = true; } };
+        const appWant = /^(?:open|show|launch|start)? ?(?:the )?(?:amazecc|college app|vtop app|vtop)(?: app)?(?: (timetable|attendance|marks|exams|grades|campus))?$/i.exec(lower);
+        if (appWant)
+            return { glyph: "school", title: "AmazeCC", own: () => Amazecc.launch(appWant[1] ?? "") };
         if (/^(circle|search) (to search|my screen|the screen|this)|^what'?s this on (my|the) screen|^lens$/i.test(lower))
             return { glyph: "gesture", title: "Circle to search", own: () => Lens.start() };
         // "Watch me" → a workflow from how you set things up

@@ -17,6 +17,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import qs.theme
 
 Singleton {
@@ -181,6 +182,21 @@ Singleton {
                 }
             }
         }
+    }
+
+    // ── the AmazeCC app (shell/amazecc.qml): its own window and process, like
+    // Settings and Notes — reused if it's open (Ctrl+Super+A, search, Halo) ──
+    readonly property bool isApp: Quickshell.env("LUMEN_AMAZECC_APP") === "1"
+    readonly property string pidFile: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/lumen-amazecc-" + (Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") || "x") + ".pid"
+    function launch(page) {
+        Quickshell.execDetached(["sh", "-c",
+            'pid=$(cat "$3" 2>/dev/null) && tr "\\0" " " < "/proc/$pid/cmdline" 2>/dev/null | grep -q amazecc.qml && ' +
+            '{ qs ipc --pid "$pid" call amazeccApp open "$2" >/dev/null 2>&1; hyprctl dispatch "hl.dsp.focus({ window = \\"pid:$pid\\" })" >/dev/null 2>&1; exit 0; }; ' +
+            'LUMEN_AMAZECC_PAGE="$2" exec qs -p "$1/shell/amazecc.qml"', "sh", Theme.lumenRoot, page ?? "", pidFile]);
+    }
+    LazyLoader {
+        active: !root.isApp && !Quickshell.env("LUMEN_SETTINGS_APP")
+        GlobalShortcut { appid: "lumen"; name: "amazecc"; description: "AmazeCC (college)"; onPressed: root.launch("") }
     }
 
     // ── sync ──
