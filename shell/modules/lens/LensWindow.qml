@@ -12,6 +12,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Widgets
+import Quickshell.Io
 import qs.theme
 import qs.components
 import qs.services
@@ -159,7 +160,7 @@ PanelWindow {
             anchors.centerIn: parent
             spacing: 10
             HaloOrb { size: 20; mood: "rest"; anchors.verticalCenter: parent.verticalCenter; face: Persist.data.haloFace ?? true }
-            LText { text: "Circle anything · click a window · Esc to close"; anchors.verticalCenter: parent.verticalCenter }
+            LText { text: "Circle, scribble or highlight anything · click a window · Esc to close"; anchors.verticalCenter: parent.verticalCenter }
         }
     }
 
@@ -199,7 +200,7 @@ PanelWindow {
             r = Qt.rect(x, y, Math.max(24, Math.min(win.width - x, r.x + r.width - x)), Math.max(24, Math.min(win.height - y, r.y + r.height - y)));
             win.box = r;
             fadeStroke.restart();
-            Lens.pick(Qt.rect(r.x * win.px, r.y * win.px, r.width * win.px, r.height * win.px));
+            win.pickBox();
             Qt.callLater(() => question.forceActiveFocus());
         }
     }
@@ -216,6 +217,19 @@ PanelWindow {
         target: Lens
         function onSelChanged() { if (win.showing && !win.hasBox && Lens.picked) win.box = Qt.rect(Lens.sel.x / win.px, Lens.sel.y / win.px, Lens.sel.width / win.px, Lens.sel.height / win.px); }
     }
+    // dev sessions only (LUMEN_DEV): trace a circle, as if drawn, to check the stroke
+    IpcHandler {
+        target: "lensDev"
+        enabled: win.showing && Quickshell.env("LUMEN_DEV") === "1"
+        function circle(): void {
+            if (Quickshell.env("LUMEN_DEV") !== "1" || !win.showing) return;
+            const pts = [];
+            for (let a = 0; a <= 2 * Math.PI * 1.08; a += 0.08) pts.push(Qt.point(win.width / 2 + 260 * Math.cos(a), win.height / 2 + 170 * Math.sin(a)));
+            win.drawing = true; win.points = pts;
+        }
+    }
+    function pickBox() { const r = win.box; Lens.pick(Qt.rect(r.x * win.px, r.y * win.px, r.width * win.px, r.height * win.px)); }
+    property bool adjusting: false        // dragging a corner or the selection itself
     function redo() { points = []; box = Qt.rect(0, 0, 0, 0); question.text = ""; Lens.reset(); keys.forceActiveFocus(); }
 
     // The stroke: a glowing line that follows the pointer, fading once you let go
@@ -223,23 +237,53 @@ PanelWindow {
         id: stroke
         anchors.fill: parent
         preferredRendererType: Shape.CurveRenderer
-        opacity: 1
         layer.enabled: true
         layer.samples: 4
-        layer.effect: MultiEffect { shadowEnabled: true; shadowColor: Theme.accent; shadowBlur: 0.8; shadowOpacity: 1; shadowHorizontalOffset: 0; shadowVerticalOffset: 0 }
+        visible: false            // drawn through the flowing gradient below
         ShapePath {
-            strokeColor: Qt.tint(Theme.accent, "#55ffffff")
-            strokeWidth: 6
+            strokeColor: "#ffffff"
+            strokeWidth: 7
             fillColor: "transparent"
             capStyle: ShapePath.RoundCap
             joinStyle: ShapePath.RoundJoin
             PathPolyline { path: win.smooth }
         }
     }
+    // the stroke's colour: the accent, lighter and warmer, flowing along as you draw
+    Item {
+        id: strokeInk
+        anchors.fill: parent
+        opacity: 1
+        layer.enabled: true
+        layer.effect: MultiEffect { shadowEnabled: true; shadowColor: Theme.accent; shadowBlur: 0.9; shadowOpacity: 1; shadowHorizontalOffset: 0; shadowVerticalOffset: 0 }
+        Item {
+            id: inkColour
+            anchors.fill: parent
+            visible: false
+            layer.enabled: true
+            Rectangle {
+                width: parent.width * 2; height: parent.height
+                x: -parent.width * inkColour.flow
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.00; color: Theme.accent }
+                    GradientStop { position: 0.17; color: Qt.lighter(Theme.accent, 1.45) }
+                    GradientStop { position: 0.33; color: Qt.tint(Theme.accent, "#66ffd27a") }
+                    GradientStop { position: 0.50; color: Theme.accent }
+                    GradientStop { position: 0.67; color: Qt.lighter(Theme.accent, 1.45) }
+                    GradientStop { position: 0.83; color: Qt.tint(Theme.accent, "#66ffd27a") }
+                    GradientStop { position: 1.00; color: Theme.accent }
+                }
+            }
+            property real flow: 0
+            NumberAnimation on flow { running: win.showing && !Theme.reducedMotion; from: 0; to: 1; duration: 2600; loops: Animation.Infinite }
+        }
+        MultiEffect { anchors.fill: parent; source: inkColour; maskEnabled: true; maskSource: stroke; maskThresholdMin: 0.3; maskSpreadAtMin: 0.4 }
+    }
     SequentialAnimation {
         id: fadeStroke
-        NumberAnimation { target: stroke; property: "opacity"; to: 0; duration: Theme.reducedMotion ? 0 : 420; easing.type: Easing.OutCubic }
-        ScriptAction { script: { win.points = []; stroke.opacity = 1; } }
+        NumberAnimation { target: strokeInk; property: "opacity"; to: 0; duration: Theme.reducedMotion ? 0 : 420; easing.type: Easing.OutCubic }
+        ScriptAction { script: { win.points = []; strokeInk.opacity = 1; } }
     }
 
     // The circled part: a glowing frame with corner brackets
@@ -247,10 +291,10 @@ PanelWindow {
         id: frame
         visible: win.hasBox
         x: win.box.x; y: win.box.y; width: win.box.width; height: win.box.height
-        Behavior on x { enabled: !Theme.reducedMotion; SpringAnimation { spring: 4; damping: 0.4 } }
-        Behavior on y { enabled: !Theme.reducedMotion; SpringAnimation { spring: 4; damping: 0.4 } }
-        Behavior on width { enabled: !Theme.reducedMotion; SpringAnimation { spring: 4; damping: 0.4 } }
-        Behavior on height { enabled: !Theme.reducedMotion; SpringAnimation { spring: 4; damping: 0.4 } }
+        Behavior on x { enabled: !Theme.reducedMotion && !win.adjusting; SpringAnimation { spring: 4; damping: 0.4 } }
+        Behavior on y { enabled: !Theme.reducedMotion && !win.adjusting; SpringAnimation { spring: 4; damping: 0.4 } }
+        Behavior on width { enabled: !Theme.reducedMotion && !win.adjusting; SpringAnimation { spring: 4; damping: 0.4 } }
+        Behavior on height { enabled: !Theme.reducedMotion && !win.adjusting; SpringAnimation { spring: 4; damping: 0.4 } }
         // the circled piece, lifted a little off the screen with a soft shadow
         property real pop: 0
         onVisibleChanged: if (visible) { pop = 0; popIn.restart(); }
@@ -271,6 +315,47 @@ PanelWindow {
                     live: true
                 }
                 Rectangle { anchors.fill: parent; radius: 12; color: "transparent"; border.width: 1; border.color: Theme.withAlpha("#ffffff", 0.25) }
+            }
+        }
+        // adjust it, as on a phone: drag inside to move · drag a corner to resize
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+            enabled: !win.drawing
+            property point from
+            property rect start
+            onPressed: m => { from = mapToItem(stage, m.x, m.y); start = win.box; win.adjusting = true; }
+            onPositionChanged: m => {
+                if (!pressed) return;
+                const p = mapToItem(stage, m.x, m.y);
+                win.box = Qt.rect(Math.max(0, Math.min(stage.width - start.width, start.x + p.x - from.x)),
+                                  Math.max(0, Math.min(stage.height - start.height, start.y + p.y - from.y)), start.width, start.height);
+            }
+            onReleased: { win.adjusting = false; if (win.box !== start) win.pickBox(); }
+        }
+        Repeater {
+            model: 4
+            MouseArea {
+                required property int index
+                readonly property bool atRight: index % 2 === 1
+                readonly property bool atBottom: index >= 2
+                width: 34; height: 34
+                x: atRight ? frame.width - 17 : -17
+                y: atBottom ? frame.height - 17 : -17
+                z: 5
+                cursorShape: (atRight !== atBottom) ? Qt.SizeBDiagCursor : Qt.SizeFDiagCursor
+                preventStealing: true
+                property rect start
+                onPressed: { start = win.box; win.adjusting = true; }
+                onPositionChanged: m => {
+                    if (!pressed) return;
+                    const p = mapToItem(stage, m.x, m.y);
+                    let l = start.x, t = start.y, r = start.x + start.width, b = start.y + start.height;
+                    if (atRight) r = Math.max(l + 24, Math.min(stage.width, p.x)); else l = Math.min(r - 24, Math.max(0, p.x));
+                    if (atBottom) b = Math.max(t + 24, Math.min(stage.height, p.y)); else t = Math.min(b - 24, Math.max(0, p.y));
+                    win.box = Qt.rect(l, t, r - l, b - t);
+                }
+                onReleased: { win.adjusting = false; win.pickBox(); }
             }
         }
         // accent corner brackets that spring into place
