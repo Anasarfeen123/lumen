@@ -184,8 +184,9 @@ PanelWindow {
             if (!win.drawing) return;
             const p = win.points, l = p[p.length - 1];
             if (Math.hypot(m.x - l.x, m.y - l.y) < 3) return;
-            p.push(Qt.point(m.x, m.y));
-            win.points = p;
+            // a new list each time: assigning the same (pushed-to) array isn't seen as a
+            // change, so the stroke never redrew while you drew
+            win.points = p.concat([Qt.point(m.x, m.y)]);
         }
         onReleased: m => {
             if (!win.drawing) return;

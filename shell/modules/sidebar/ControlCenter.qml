@@ -196,8 +196,8 @@ Item {
                 }
             }
 
-            // Everything else: one calm grid of round toggles and actions.
-            // Toggles fill with the accent when on; actions never do.
+            // Quick settings: one calm grid of round toggles (they fill with the accent when on)
+            SectionLabel { text: "Quick settings" }
             Grid {
                 id: toggles
                 width: parent.width
@@ -295,40 +295,10 @@ Item {
                     active: glassOn
                     onToggled: Quickshell.execDetached([Theme.lumenRoot + "/bin/lumen", "transparency", "toggle"])
                 }
-                RoundToggle {
-                    action: true
-                    icon: "lock"
-                    label: "Lock"
-                    onToggled: { Sidebar.hide(); root.later([Theme.lumenRoot + "/bin/lumen-shell-ipc", "lock", "lock"]); }
-                }
-                RoundToggle {
-                    action: true
-                    icon: Island.recording ? "stop_circle" : "screen_record"
-                    label: Island.recording ? "Stop" : "Record"
-                    active: Island.recording
-                    onToggled: { Sidebar.hide(); root.later([Theme.lumenRoot + "/scripts/screen-record.sh", Island.recording ? "stop" : "toggle", "region"]); }
-                }
-                RoundToggle {
-                    action: true
-                    icon: "screenshot_region"
-                    label: "Screenshot"
-                    onToggled: { Sidebar.hide(); root.later([Theme.lumenRoot + "/scripts/screenshot.sh", "region"]); }
-                }
-                RoundToggle {
-                    action: true
-                    icon: "document_scanner"
-                    label: "Copy text"
-                    onToggled: { Sidebar.hide(); root.later([Theme.lumenRoot + "/scripts/screen-text.sh"]); }
-                }
-                RoundToggle {
-                    action: true
-                    icon: "colorize"
-                    label: "Pick colour"
-                    onToggled: { Sidebar.hide(); root.later(["hyprpicker", "-a"]); }
-                }
             }
 
-            // Sliders
+            // Sound & light
+            SectionLabel { text: "Sound & light" }
             Column {
                 width: parent.width
                 spacing: Theme.space.s2
@@ -361,13 +331,37 @@ Item {
                 }
             }
 
+            // Tools: one tap, and the sidebar steps aside for them
+            SectionLabel { text: "Tools" }
+            Grid {
+                id: tools
+                width: parent.width
+                columns: 5
+                rowSpacing: Theme.space.s2
+                columnSpacing: Theme.space.s2
+                readonly property real cell: (width - columnSpacing * (columns - 1)) / columns
+                readonly property string ipc: Theme.lumenRoot + "/bin/lumen-shell-ipc"
+                readonly property string scripts: Theme.lumenRoot + "/scripts"
+                Tool { icon: "screenshot_region"; label: "Screenshot"; run: [tools.scripts + "/screenshot.sh", "region"] }
+                Tool { icon: "swipe_down"; label: "Long shot"; run: [tools.scripts + "/screenshot.sh", "scroll"] }
+                Tool { icon: Island.recording ? "stop_circle" : "screen_record"; label: Island.recording ? "Stop" : "Record"; on: Island.recording
+                       run: [tools.scripts + "/screen-record.sh", Island.recording ? "stop" : "toggle", "region"] }
+                Tool { icon: "document_scanner"; label: "Copy text"; run: [tools.scripts + "/screen-text.sh"] }
+                Tool { icon: "gesture"; label: "Circle"; run: [tools.ipc, "lens", "start"] }
+                Tool { icon: "draw"; label: "Draw"; run: [tools.ipc, "draw", "toggle"] }
+                Tool { icon: "picture_in_picture"; label: "PiP"; on: Pip.active; run: [tools.ipc, "pip", "toggle"] }
+                Tool { icon: "colorize"; label: "Colour"; run: ["hyprpicker", "-a"] }
+                Tool { icon: "wallpaper"; label: "Wallpaper"; run: [tools.ipc, "wallpapers", "toggle"] }
+                Tool { icon: "lock"; label: "Lock"; run: [tools.ipc, "lock", "lock"] }
+            }
+
+            // This computer: your phone, what's playing, how it's doing
+            SectionLabel { text: "This computer" }
             PhoneCard { width: parent.width }
 
             NowPlayingCard { width: parent.width; visible: Media.present }
 
             SystemStats { width: parent.width }
-
-            MonthCard { width: parent.width; today: clock.date }
         }
 
         Loader {
@@ -386,6 +380,40 @@ Item {
     }
 
     // "42%" at the slider's right end, over the track (muted → "Muted")
+    component SectionLabel: LText {
+        leftPadding: Theme.space.s1
+        topPadding: Theme.space.s1
+        role: "caption"; color: Theme.textMuted
+        font.weight: Font.DemiBold; font.letterSpacing: 0.8
+        font.capitalization: Font.AllUppercase
+    }
+    // a tool: icon over a short label on a soft tile; it lifts on hover
+    component Tool: HoverTarget {
+        id: tl
+        property string icon
+        property string label
+        property bool on: false
+        property var run: []
+        width: tools.cell; height: 60
+        radius: Theme.radius.md
+        onClicked: { Sidebar.hide(); root.later(run); }
+        Rectangle {
+            anchors.fill: parent; radius: Theme.radius.md; z: -1
+            color: tl.on ? Theme.withAlpha(Theme.accent, 0.2) : Theme.withAlpha(Theme.surfaceElevated, tl.containsMouse ? 1 : 0.7)
+            border.width: 1; border.color: tl.on ? Theme.withAlpha(Theme.accent, 0.5) : Theme.border
+            Behavior on color { ColorAnimation { duration: Theme.motion.micro } }
+        }
+        Column {
+            anchors.centerIn: parent
+            spacing: 3
+            LIcon { anchors.horizontalCenter: parent.horizontalCenter; icon: tl.icon; size: 20; fill: tl.on ? 1 : 0
+                    color: tl.on ? Theme.accent : Theme.text
+                    scale: tl.containsMouse ? 1.1 : 1
+                    Behavior on scale { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.OutBack } } }
+            LText { anchors.horizontalCenter: parent.horizontalCenter; role: "caption"; font.pixelSize: 11
+                    color: tl.on ? Theme.accent : Theme.textSecondary; text: tl.label }
+        }
+    }
     component Percent: LText {
         property real value: 0
         anchors { right: parent.right; rightMargin: Theme.space.s3; verticalCenter: parent.verticalCenter }
