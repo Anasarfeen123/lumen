@@ -1,4 +1,7 @@
-// Left sidebar — your day: weather, agenda, to-dos, notes (Super+Shift+A).
+// Left sidebar — your day (Super+Shift+A). A hero (the date, the weather, what's
+// next with a countdown) over four tabs:
+//   Today      classes and the weather      Calendar   the month and your agenda
+//   To-do      to-dos and notes             Week       screen time and focus
 // Mirrors the right sidebar's glass and motion, sliding in from the left.
 // Esc or clicking elsewhere closes it. Data: services/Planner, services/Weather.
 import QtQuick
@@ -10,6 +13,7 @@ import Quickshell.Hyprland
 import qs.theme
 import qs.components
 import qs.services
+import qs.modules.sidebar
 
 PanelWindow {
     id: win
@@ -33,6 +37,31 @@ PanelWindow {
 
     HyprlandFocusGrab { active: win.showing; windows: [win]; onCleared: Planner.open = false }
     SystemClock { id: clock; precision: SystemClock.Minutes }
+    property string tab: "today"
+    readonly property var tabs: [{ id: "today", label: "Today", icon: "wb_sunny" }, { id: "calendar", label: "Calendar", icon: "calendar_month" },
+                                 { id: "todo", label: "To-do", icon: "checklist" }, { id: "week", label: "Week", icon: "insights" }]
+    // What's next today: the class you're in or the next one, or the next event
+    readonly property var nextUp: {
+        clock.date;
+        const now = clock.date.getTime(), d0 = new Date(clock.date.getFullYear(), clock.date.getMonth(), clock.date.getDate()).getTime();
+        const c = Amazecc.cfg?.enabled && Amazecc.ready ? (Amazecc.current ?? Amazecc.next) : null;
+        const cls = c ? { title: c.title, where: c.venue, at: d0 + c.start * 60000, end: d0 + c.end * 60000, now: Amazecc.isCurrent(c), icon: "school" } : null;
+        const ev = Planner.upcoming.find(e => !e.allDay && e.when > now && e.when < d0 + 86400000);
+        const evn = ev ? { title: ev.title, where: ev.detail ?? "", at: ev.when, end: 0, now: false, icon: "event" } : null;
+        const today = cls && (!evn || cls.now || cls.at <= evn.at) ? cls : evn;
+        if (today) return today;
+        // done for today: the first class of the next day with any
+        const nd = Amazecc.cfg?.enabled && Amazecc.ready ? Amazecc.nextDay : null;
+        if (!nd) return null;
+        const at = nd.date.getTime() + nd.first.start * 60000;
+        const tomorrow = nd.date.getTime() - d0 === 86400000;
+        return { title: nd.first.title, where: nd.first.venue, at, end: 0, now: false, icon: "school",
+                 label: tomorrow ? "TOMORROW" : Qt.formatDate(nd.date, "dddd").toUpperCase(), when: Qt.formatTime(new Date(at), Theme.clock12h ? "h:mm AP" : "HH:mm") };
+    }
+    function untilText(ms) {
+        const m = Math.round((ms - clock.date.getTime()) / 60000);
+        return m <= 0 ? "now" : m < 60 ? "in " + m + " min" : "in " + Math.floor(m / 60) + " h" + (m % 60 ? " " + (m % 60) + " min" : "");
+    }
 
     component Card: Rectangle {
         id: card
@@ -88,14 +117,96 @@ PanelWindow {
             e.accepted = true;
         }
         // Opening starts at the top: your day at a glance
-        Connections { target: win; function onShowingChanged() { if (win.showing) { flick.cancelFlick(); flick.contentY = 0; classes.dayOffset = 0; classes.whatIf = false; } } }
+        Connections { target: win; function onShowingChanged() { if (win.showing) { win.tab = "today"; flick.cancelFlick(); flick.contentY = 0; classes.dayOffset = 0; classes.whatIf = false; } } }
+        Connections { target: win; function onTabChanged() { flick.cancelFlick(); flick.contentY = 0; tabSwap.restart(); } }
+        SequentialAnimation {
+            id: tabSwap
+            PropertyAction { target: col; property: "opacity"; value: 0.3 }
+            PropertyAction { target: colShift; property: "y"; value: 12 }
+            ParallelAnimation {
+                NumberAnimation { target: col; property: "opacity"; to: 1; duration: Theme.reducedMotion ? 0 : Theme.motion.normal }
+                NumberAnimation { target: colShift; property: "y"; to: 0; duration: Theme.reducedMotion ? 0 : Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
+            }
+        }
 
-        // ── Date (stays put while the rest scrolls) ──
+        // ── The hero (stays put while the rest scrolls): the date, the weather,
+        //    what's next, and the tabs ──
         Column {
             id: header
             anchors { top: parent.top; left: parent.left; right: parent.right; margins: Theme.space.s4 }
-            LText { role: "caption"; color: Theme.textMuted; text: Qt.formatDate(clock.date, "dddd").toUpperCase(); font.letterSpacing: 1.2 }
-            LText { role: "title"; font.pixelSize: 24; text: Qt.formatDate(clock.date, "d MMMM") }
+            spacing: Theme.space.s3
+            Item {
+                width: parent.width; height: dateCol.height
+                Column {
+                    id: dateCol
+                    LText { role: "caption"; color: Theme.accent; text: Qt.formatDate(clock.date, "dddd").toUpperCase(); font.letterSpacing: 1.4; font.weight: Font.DemiBold }
+                    LText { role: "title"; font.pixelSize: 30; text: Qt.formatDate(clock.date, "d MMMM") }
+                }
+                // the weather at a glance (tap: Today)
+                HoverTarget {
+                    visible: Weather.ready
+                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                    width: wxRow.implicitWidth + 18; height: 44; radius: 22
+                    onClicked: win.tab = "today"
+                    Rectangle { anchors.fill: parent; radius: 22; z: -1; color: Theme.withAlpha(Theme.surfaceElevated, 0.7); border.width: 1; border.color: Theme.border }
+                    Row { id: wxRow; anchors.centerIn: parent; spacing: 6
+                          LIcon { icon: Weather.icon(Weather.now?.code ?? 0, Weather.now?.isDay); size: 24; fill: 1; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                          LText { role: "heading"; text: Math.round(Weather.now?.temp ?? 0) + "°"; anchors.verticalCenter: parent.verticalCenter } }
+                }
+            }
+            // what's next, with a countdown
+            Rectangle {
+                visible: !!win.nextUp
+                width: parent.width; height: 52; radius: Theme.radius.md
+                color: Theme.withAlpha(Theme.accent, win.nextUp?.now ? 0.16 : 0.09)
+                border.width: 1; border.color: Theme.withAlpha(Theme.accent, 0.3)
+                Rectangle { width: 4; radius: 2; height: parent.height - 18; x: 9; anchors.verticalCenter: parent.verticalCenter; color: Theme.accent }
+                Column {
+                    anchors { left: parent.left; leftMargin: 22; right: nextWhen.left; rightMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
+                    LText { role: "caption"; color: Theme.accent; text: win.nextUp?.label ?? (win.nextUp?.now ? "NOW" : "NEXT UP"); font.letterSpacing: 1; font.weight: Font.DemiBold }
+                    LText { width: parent.width; elide: Text.ElideRight; role: "bodyStrong"; text: (win.nextUp?.title ?? "") + (win.nextUp?.where ? "  ·  " + win.nextUp.where : "") }
+                }
+                LText {
+                    id: nextWhen
+                    anchors { right: parent.right; rightMargin: Theme.space.s3; verticalCenter: parent.verticalCenter }
+                    role: "bodyStrong"; color: Theme.accent
+                    font.features: ({ "tnum": 1 })
+                    text: win.nextUp ? win.nextUp.when ?? (win.nextUp.now ? "till " + Qt.formatTime(new Date(win.nextUp.end), Theme.clock12h ? "h:mm AP" : "HH:mm") : win.untilText(win.nextUp.at)) : ""
+                }
+            }
+            // the tabs: a track with the open one's pill gliding to it
+            Rectangle {
+                width: parent.width; height: 38; radius: 19
+                color: Theme.withAlpha(Theme.bg, 0.45)
+                border.width: 1; border.color: Theme.border
+                Rectangle {
+                    readonly property int i: Math.max(0, win.tabs.findIndex(t => t.id === win.tab))
+                    y: 4; height: 30; radius: 15
+                    width: (parent.width - 8) / win.tabs.length
+                    x: 4 + i * width
+                    color: Theme.surfaceHover
+                    border.width: 1; border.color: Theme.withAlpha(Theme.text, 0.08)
+                    Behavior on x { NumberAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+                    Rectangle { anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 1 } width: parent.width * 0.4; height: 1; color: Theme.withAlpha(Theme.accent, 0.5) }
+                }
+                Row {
+                    anchors { fill: parent; margins: 4 }
+                    Repeater {
+                        model: win.tabs
+                        delegate: MouseArea {
+                            required property var modelData
+                            readonly property bool on: win.tab === modelData.id
+                            width: parent.width / win.tabs.length; height: parent.height
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: win.tab = modelData.id
+                            Row { anchors.centerIn: parent; spacing: 5
+                                  LIcon { icon: modelData.icon; size: 15; fill: parent.parent.on ? 1 : 0; color: parent.parent.on ? Theme.accent : Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
+                                  LText { role: parent.parent.on ? "bodyStrong" : "body"; font.pixelSize: 12; text: modelData.label
+                                          color: parent.parent.on ? Theme.text : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter } }
+                        }
+                    }
+                }
+            }
         }
         // A hairline under the date once the cards have scrolled beneath it
         Rectangle {
@@ -151,11 +262,15 @@ PanelWindow {
             x: Theme.space.s4
             width: flick.width - Theme.space.s4 * 2
             spacing: Theme.space.s3
+            transform: Translate { id: colShift }
+
+            // ── Calendar: the month ──
+            MonthCard { visible: win.tab === "calendar"; width: parent.width; today: clock.date }
 
             // ── Classes (AmazeCC: today's timetable, attendance that needs care) ──
             Card {
                 id: classes
-                visible: Amazecc.cfg.enabled
+                visible: Amazecc.cfg.enabled && win.tab === "today"
                 property int dayOffset: 0                  // 0 today, 1 tomorrow…
                 property bool whatIf: false
                 readonly property var day: { clock.date; return new Date(clock.date.getFullYear(), clock.date.getMonth(), clock.date.getDate() + dayOffset); }
@@ -310,6 +425,7 @@ PanelWindow {
 
             // ── Weather ──
             Card {
+                visible: win.tab === "today"
                 title: Weather.place ? Weather.place.name : "Weather"
                 icon: "location_on"
                 headerRight: [
@@ -365,6 +481,7 @@ PanelWindow {
 
             // ── Agenda ──
             Card {
+                visible: win.tab === "calendar"
                 title: "Agenda"
                 icon: "event"
                 Column {
@@ -416,6 +533,7 @@ PanelWindow {
 
             // ── To-do ──
             Card {
+                visible: win.tab === "todo"
                 title: "To-do"
                 icon: "checklist"
                 headerRight: [
@@ -459,6 +577,7 @@ PanelWindow {
             // ── Your week: screen time & focus (services/ScreenTime, this machine only) ──
             Card {
                 id: weekCard
+                visible: win.tab === "week"
                 title: "Your week"
                 icon: "insights"
                 property bool menu: false
@@ -598,6 +717,7 @@ PanelWindow {
             //    there's room, and as long as what you've written ──
             Rectangle {
                 id: notesCard
+                visible: win.tab === "todo"
                 width: parent.width
                 readonly property real minH: 180
                 // `y` doesn't depend on this height, so no binding loop
