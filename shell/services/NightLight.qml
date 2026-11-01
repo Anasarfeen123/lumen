@@ -52,26 +52,37 @@ Singleton {
     readonly property string focusedClass: (Hyprland.activeToplevel?.lastIpcObject?.class ?? "").toLowerCase()
     readonly property bool excepted: focusedClass !== "" && exceptions.some(e => e && focusedClass.includes(e.toLowerCase()))
     // One hyprsunset for both night light and extra dim (Brightness.extraDim:
-    // the picture dimmed below the backlight's lowest). It starts with the
-    // values of the moment; later changes go to it live over its socket.
+    // the picture dimmed below the backlight's lowest). hyprsunset 0.4.0
+    // crashes when told a new value over its socket (CHyprsunset::reload →
+    // commitCTMs, SIGSEGV), so a change restarts it with the new values —
+    // after a short pause, so a burst of key presses is one restart.
     readonly property bool warm: root.enabled && !root.excepted
     readonly property int gamma: Brightness.extraDim
+    readonly property var args: warm ? ["hyprsunset", "-t", String(root.temperature), "-g", String(root.gamma)]
+                                     : ["hyprsunset", "-i", "-g", String(root.gamma)]
+    readonly property bool need: (warm || gamma < 100) && Quickshell.env("LUMEN_SETTINGS_APP") !== "1"
+    // driven in steps, never by bindings racing each other: settle → (stop →
+    // wait for it to exit →) start with the values of now
+    property var cmd: args
+    property bool want: false
+    property bool startAfterExit: false
+    onArgsChanged: settle.restart()
+    onNeedChanged: settle.restart()
+    Component.onCompleted: settle.restart()
+    Timer {
+        id: settle; interval: 180
+        onTriggered: {
+            if (!root.need) { root.startAfterExit = false; root.want = false; return; }
+            const same = JSON.stringify(root.cmd) === JSON.stringify(root.args);
+            if (sunset.running && same) return;
+            if (sunset.running) { root.startAfterExit = true; root.want = false; return; }
+            root.cmd = root.args; root.want = true;
+        }
+    }
     SupervisedProcess {
         id: sunset
-        // (never in the Settings app: the shell runs the one hyprsunset)
-        wanted: (root.warm || root.gamma < 100) && Quickshell.env("LUMEN_SETTINGS_APP") !== "1"
-        command: root.warm ? ["hyprsunset", "-t", String(root.temperature), "-g", String(root.gamma)]
-                           : ["hyprsunset", "-i", "-g", String(root.gamma)]
+        wanted: root.want
+        command: root.cmd
+        onRunningChanged: if (!running && root.startAfterExit) { root.startAfterExit = false; settle.restart(); }
     }
-    function live(args) { if (sunset.running) Quickshell.execDetached(["hyprctl", "hyprsunset"].concat(args)); }
-    // once it's up, make sure it has the values of now (it may have started a
-    // moment before they changed)
-    Connections { target: sunset; function onRunningChanged() { if (sunset.running) syncSoon.restart(); } }
-    Timer {
-        id: syncSoon; interval: 400
-        onTriggered: { root.live(root.warm ? ["temperature", String(root.temperature)] : ["identity"]); root.live(["gamma", String(root.gamma)]); }
-    }
-    onGammaChanged: live(["gamma", String(gamma)])
-    onWarmChanged: live(warm ? ["temperature", String(temperature)] : ["identity"])
-    onTemperatureChanged: if (warm) live(["temperature", String(temperature)])
 }
