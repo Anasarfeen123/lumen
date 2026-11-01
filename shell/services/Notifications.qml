@@ -63,6 +63,9 @@ Singleton {
     // ── intake ──
     function iconSource(n) {
         const img = n.image || "";
+        // a theme icon by name (image://icon/…): through the launcher's icon index, as
+        // app icons are — Qt's icon provider drew it blank after a shell reload
+        if (img.startsWith("image://icon/")) return Apps.iconNamed(decodeURIComponent(img.slice(13)).replace(/\?.*$/, ""), "dialog-information");
         if (img) return img.startsWith("/") ? "file://" + img : img;
         const icon = n.appIcon || "";
         if (icon.startsWith("/")) return "file://" + icon;
@@ -430,7 +433,9 @@ Singleton {
 
     FileView {
         id: store
-        path: root.stateDir + "/notifications.json"
+        // a test session (LUMEN_NESTED) keeps its own history: it never reads or
+        // overwrites yours — as its settings live in shell-test.json
+        path: root.stateDir + (Persist.testing ? "/notifications-test.json" : "/notifications.json")
         // The client follows the shell's writes live
         watchChanges: root.isClient
         onFileChanged: reload()
@@ -448,7 +453,9 @@ Singleton {
                 if (root.isClient) history.clear();
                 for (const e of (d.items ?? []))
                     if (root.indexOf(e.nid) < 0)
-                        history.append(Object.assign({ hasActions: false, canReply: false, chatKey: "", privateMsg: false }, e));
+                        history.append(Object.assign({ hasActions: false, canReply: false, chatKey: "", privateMsg: false }, e,
+                                                     // saved before theme icons went through the index
+                                                     (e.icon ?? "").startsWith("image://icon/") ? { icon: Apps.iconNamed(decodeURIComponent(e.icon.slice(13)).replace(/\?.*$/, ""), "dialog-information") } : {}));
             } catch (err) {
                 console.warn("Notifications: history unreadable:", err);
             }

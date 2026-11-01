@@ -53,14 +53,20 @@ Item {
         spacing: Theme.space.s2
         Repeater {
             model: root.actions
+            // the app's first action is the main one: in the accent; the rest quieter
             delegate: HoverTarget {
                 required property var modelData
+                required property int index
+                readonly property bool primary: index === 0
                 width: lbl.implicitWidth + Theme.space.s4 * 2
                 height: 32
-                radius: Theme.radius.sm
-                Rectangle { anchors.fill: parent; radius: parent.radius; color: Theme.surfaceElevated; z: -1 }
+                radius: 16
+                Rectangle { anchors.fill: parent; radius: parent.radius; z: -1
+                            color: parent.primary ? Theme.withAlpha(Theme.accent, parent.containsMouse ? 0.32 : 0.22) : Theme.surfaceElevated
+                            border.width: 1; border.color: parent.primary ? Theme.withAlpha(Theme.accent, 0.5) : Theme.border
+                            Behavior on color { ColorAnimation { duration: Theme.motion.micro } } }
                 onClicked: root.info.invoke?.(modelData.id)
-                LText { id: lbl; anchors.centerIn: parent; role: "bodyStrong"; text: modelData.text }
+                LText { id: lbl; anchors.centerIn: parent; role: "bodyStrong"; text: modelData.text; color: parent.primary ? Theme.accent : Theme.text }
             }
         }
     }
