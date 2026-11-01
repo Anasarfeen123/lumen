@@ -23,6 +23,9 @@ stage() {   # copy what's exported into $1 (a temp dir)
     mkdir -p "$1/state" "$1/config"
     for f in $FILES; do [ -e "$STATE/$f" ] && cp -a "$STATE/$f" "$1/state/"; done
     for f in local.lua session.env; do [ -e "$LUMEN_ROOT/$f" ] && cp -a "$LUMEN_ROOT/$f" "$1/config/"; done
+    # your widgets and their lockfile
+    W=${XDG_DATA_HOME:-$HOME/.local/share}/lumen/widgets
+    [ -d "$W" ] && cp -a "$W" "$1/widgets"
     # notes, without the trash or Syncthing's folder markers (they belong to this computer's sync)
     if [ -d "$NOTES" ]; then
         cp -a "$NOTES" "$1/notes"
@@ -84,6 +87,7 @@ import)
     mkdir -p "$STATE"
     for f in $FILES; do [ -e "$src/state/$f" ] && cp -a "$src/state/$f" "$STATE/"; done
     for f in local.lua session.env; do [ -e "$src/config/$f" ] && cp -a "$src/config/$f" "$LUMEN_ROOT/"; done
+    if [ -d "$src/widgets" ]; then W=${XDG_DATA_HOME:-$HOME/.local/share}/lumen/widgets; mkdir -p "$W"; cp -a -n "$src/widgets/." "$W/"; fi
     if [ -d "$src/notes" ]; then mkdir -p "$NOTES"; cp -a --update=older "$src/notes/." "$NOTES/" 2>/dev/null || cp -a -u "$src/notes/." "$NOTES/"; fi
     if [ -d "$src/wallpaper" ]; then
         d=$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME/Pictures")/Wallpapers; mkdir -p "$d"

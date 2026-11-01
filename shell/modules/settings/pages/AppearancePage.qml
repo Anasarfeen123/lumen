@@ -68,6 +68,32 @@ Page {
         }
     }
 
+    // ── your own widgets (services/Widgets.qml, docs/WIDGETS.md) ──
+    Group {
+        title: "Your widgets"
+        SetRow {
+            icon: "folder_open"
+            title: Widgets.all.length ? Widgets.all.length + (Widgets.all.length === 1 ? " widget found" : " widgets found") : "No widgets yet"
+            description: "Folders in ~/.local/share/lumen/widgets — a widget runs inside the shell, so turn on only ones you trust. lumen widgets new <name> starts one."
+            Row {
+                spacing: Theme.space.s2
+                IconButton { icon: "refresh"; onActivated: Widgets.rescan() }
+                IconButton { icon: "folder_open"; onActivated: Widgets.openFolder() }
+            }
+        }
+        Repeater {
+            model: Widgets.all
+            SetRow {
+                required property var modelData
+                icon: modelData.kind === "card" ? "view_agenda" : "wallpaper"
+                title: modelData.name
+                description: (modelData.kind === "card" ? "Sidebar card" : "On the wallpaper") + (modelData.description ? " · " + modelData.description : "")
+                             + (modelData.source && modelData.source !== "local" ? " · from " + modelData.source.replace(/^https?:\/\//, "") : "")
+                LSwitch { checked: Widgets.isOn(modelData.id); onToggled: Widgets.setOn(modelData.id, !checked) }
+            }
+        }
+    }
+
     // ── Theme by time of day (services/ThemeSchedule.qml) ──
     readonly property var themeOptions: (SettingsState.previews.themes ?? []).map(t => ({ id: t.id, label: t.name ?? (t.id.charAt(0).toUpperCase() + t.id.slice(1)) }))
     Group {

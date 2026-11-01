@@ -20,6 +20,7 @@
 #   lumen ipc [<target> <function> [args…]]   list everything the shell exposes, or call one
 #   lumen sync export [file] | import <file> | list <file>   your whole setup as one file
 #   lumen sync theme-export [file] | theme-import <file>     just the look (theme, accent, glass, wallpaper)
+#   lumen widgets list|new <id>|examples|add <git-url>|sync|remove <id>|check <id>   your own widgets
 #   lumen recovery [command]        Lumen Recovery: a menu that works from a TTY (safe mode, restore settings…)
 #   lumen backup [now|status|…]     back up your files to a drive or folder (scripts/backup.sh)
 set -eu
@@ -203,6 +204,9 @@ case ${1:-} in
             exec qs ipc --pid "$pid" show
         fi
         exec "$LUMEN_ROOT/bin/lumen-shell-ipc" "$@" ;;
+    widgets)
+        # your own widgets: list · new <id> · examples · add <git-url> · sync · remove <id> · check <id>
+        shift; exec "$LUMEN_ROOT/scripts/lumen-widgets.sh" "$@" ;;
     sync)
         # your whole setup as one file: lumen sync export [file] · import <file> · list <file>
         shift; exec "$LUMEN_ROOT/scripts/lumen-sync.sh" "$@" ;;

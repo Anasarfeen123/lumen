@@ -1,0 +1,1 @@
+{ "name": "System glance", "description": "CPU, memory and temperature as rings", "kind": "card", "entry": "main.qml", "needs": ["system"], "version": "1.0" }

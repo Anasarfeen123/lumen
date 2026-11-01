@@ -1,0 +1,1 @@
+{ "name": "Exam countdown", "description": "Days to your next exam, on the wallpaper", "kind": "desktop", "entry": "main.qml", "version": "1.0" }

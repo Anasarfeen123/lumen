@@ -33,6 +33,7 @@ import qs.modules.pip
 import qs.modules.snap
 import qs.modules.captions
 import qs.modules.expose
+import qs.modules.widgets
 
 ShellRoot {
     id: root
@@ -96,6 +97,13 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: DesktopVisualizer {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    Variants {
+        model: Quickshell.screens
+        delegate: DesktopPlugins {
             required property var modelData
             screen: modelData
         }

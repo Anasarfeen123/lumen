@@ -12,6 +12,7 @@ import Quickshell.Widgets
 import qs.theme
 import qs.components
 import qs.services
+import qs.modules.widgets
 
 Item {
     id: root
@@ -200,8 +201,8 @@ Item {
             Item {
                 id: secs
                 width: main.width
-                readonly property var order: { const o = Persist.data.sidebarOrder ?? []; return o.concat(["quick", "sound", "tools", "computer"].filter(x => !o.includes(x))); }
-                readonly property var items: ({ quick: sec_quick, sound: sec_sound, tools: sec_tools, computer: sec_computer })
+                readonly property var order: { const o = Persist.data.sidebarOrder ?? []; return o.concat(["quick", "sound", "tools", "computer", "widgets"].filter(x => !o.includes(x))); }
+                readonly property var items: ({ quick: sec_quick, sound: sec_sound, tools: sec_tools, computer: sec_computer, widgets: sec_widgets })
                 function yOf(id) { let y = 0; for (const k of order) { if (k === id) return y; const it = items[k]; if (it && it.visible) y += it.height + main.spacing; } return y; }
                 height: { let h = 0; for (const k of order) { const it = items[k]; if (it && it.visible) h += it.height + main.spacing; } return Math.max(0, h - main.spacing); }
                 Column {
@@ -397,6 +398,19 @@ Item {
                     NowPlayingCard { width: parent.width; visible: Media.present }
 
                     SystemStats { width: parent.width }
+                }
+                // your own widgets (services/Widgets.qml), the ones turned on
+                Column {
+                    id: sec_widgets
+                    width: main.width
+                    y: secs.yOf("widgets")
+                    spacing: Theme.space.s3
+                    visible: Widgets.cards.length > 0 && !(Persist.data.sidebarHidden ?? []).includes("widgets")
+                    SectionLabel { text: "Your widgets" }
+                    Repeater {
+                        model: Widgets.cards
+                        WidgetHost { required property var modelData; widget: modelData; width: parent.width; live: Sidebar.open }
+                    }
                 }
             }
         }

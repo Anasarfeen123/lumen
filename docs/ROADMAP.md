@@ -174,8 +174,10 @@ Tick items off as they land.
       pins, planner, Halo memory, notes, wallpaper, local.lua — no keys or private history; import
       saves what it replaces first. Was: one-click export/import of the whole setup (settings, pins, notes, Halo
       memory, accent, wallpaper), building on `backup.sh` and `cloud-backup.sh`.
-- [ ] Widget API: island states and sidebar cards as QML files in
-      `~/.config/lumen/widgets/`.
+- [x] Widget API (docs/WIDGETS.md): sidebar cards and desktop widgets as folders in
+      `~/.local/share/lumen/widgets/` (not ~/.config/lumen — that's the repo), given one stable
+      `lumen` object; off until turned on in Settings → Appearance → Your widgets. Two examples.
+      Island states aren't pluggable yet.
 - [ ] Lumen Store page in Settings: curated apps and Halo skills, installed through the
       distro's package manager.
 
@@ -269,8 +271,9 @@ it's rough (Settings already has Display and Windows pages, for example).
       and power users can edit, applied without restarting.
 - [x] **Full CLI/IPC**: `lumen ipc` lists every target and function the shell exposes;
       `lumen ipc <target> <function> [args]` calls one in this session's shell.
-- [ ] **Plugin registry with a lockfile** (DankMaterialShell): installable widgets and
-      launcher providers, reproducible on a new machine. Builds on the widget API in §4.
+- [x] **Plugin lockfile**: `lumen widgets add <git-url>` lists every file and asks, then records
+      URL, commit and a hash in widgets.lock; `lumen widgets sync` reinstalls exactly those and
+      refuses files that don't match. No central registry, and no launcher providers yet.
 - [ ] **Try it in a VM or live ISO** (HyDE's HyDEVM, ML4W's live ISO): a script that boots
       Lumen in a VM for testing changes and showing it off.
 - [x] **Shows every command before running it**: `install.sh --dry-run` already existed.

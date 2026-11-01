@@ -99,8 +99,8 @@ Page {
         title: "Sidebar (Controls)"
         Repeater {
             model: {
-                const names = { quick: ["tune", "Quick settings"], sound: ["volume_up", "Sound & light"], tools: ["construction", "Tools"], computer: ["laptop", "This computer"] };
-                const order = Persist.data.sidebarOrder ?? ["quick", "sound", "tools", "computer"];
+                const names = { quick: ["tune", "Quick settings"], sound: ["volume_up", "Sound & light"], tools: ["construction", "Tools"], computer: ["laptop", "This computer"], widgets: ["widgets", "Your widgets"] };
+                const order = (Persist.data.sidebarOrder ?? ["quick", "sound", "tools", "computer"]).concat(["widgets"].filter(x => !(Persist.data.sidebarOrder ?? []).includes(x)));
                 return order.concat(Object.keys(names).filter(x => !order.includes(x))).map(id => ({ id, icon: names[id][0], label: names[id][1] }));
             }
             SetRow {
@@ -112,6 +112,7 @@ Page {
                 description: index === 0 ? "At the top" : ""
                 function move(d) {
                     const o = (Persist.data.sidebarOrder ?? ["quick", "sound", "tools", "computer"]).slice();
+                    for (const x of ["quick", "sound", "tools", "computer", "widgets"]) if (!o.includes(x)) o.push(x);
                     const i = o.indexOf(modelData.id), j = i + d;
                     if (i < 0 || j < 0 || j >= o.length) return;
                     o.splice(i, 1); o.splice(j, 0, modelData.id);
@@ -120,7 +121,7 @@ Page {
                 Row {
                     spacing: Theme.space.s2
                     IconButton { icon: "arrow_upward"; enabled: index > 0; onActivated: secRow.move(-1) }
-                    IconButton { icon: "arrow_downward"; enabled: index < 3; onActivated: secRow.move(1) }
+                    IconButton { icon: "arrow_downward"; enabled: index < 4; onActivated: secRow.move(1) }
                     LSwitch {
                         anchors.verticalCenter: parent.verticalCenter
                         checked: !(Persist.data.sidebarHidden ?? []).includes(modelData.id)
