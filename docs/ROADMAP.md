@@ -128,8 +128,10 @@ Tick items off as they land.
 ## 4. Features
 
 ### From the "keep in mind" list
-- [ ] **AI gestures:** 3-finger circle on the touchpad opens Halo about what's under the
-      pointer (circle to search without the keyboard); 4-finger hold to talk.
+- [x] **AI gestures** (Settings → Halo → Touchpad gestures, off by default): rest three fingers
+      still → circle to search; rest four → talk while they stay down. scripts/touch-gestures.py
+      reads the touchpad read-only (input group). A drawn circle would collide with the
+      three-finger swipe, so it's a rest instead.
 - [x] **Better sidebars:** Settings → Bar & Island → Sidebar shows, hides and reorders the Controls
       sections; the planner's header combines the next class, the weather and the next to-do. Was:
       choose and reorder tabs and cards; a "Today" card combining the next

@@ -241,6 +241,13 @@ Page {
             }
         }
         SetRow {
+            icon: "swipe"
+            title: "Touchpad gestures"
+            description: "Rest three fingers still: circle to search. Rest four: talk while they stay down, lift to send. Swipes stay as they are. (Reads only the touchpad.)"
+                         + (TouchGestures.error ? " — " + TouchGestures.error : "")
+            LSwitch { checked: Persist.data.touchGestures ?? false; onToggled: Persist.data.touchGestures = !checked }
+        }
+        SetRow {
             icon: "hearing"
             title: "Listen for “Hey " + Halo.name + "”"
             description: !Voice.canListen ? "Needs whisper.cpp first (above)."
