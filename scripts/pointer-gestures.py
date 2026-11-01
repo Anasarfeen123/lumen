@@ -1,23 +1,28 @@
 #!/usr/bin/env python3
 """pointer-gestures.py — gestures made with the pointer itself (mouse or touchpad).
 
-  wiggle   shake the pointer left-right quickly (4 turns within 0.7 s) → {"gesture": "wiggle"}
+  wiggle   shake the pointer quickly — side to side, up and down or in small circles
+           (4 turns within 0.7 s, on either axis) → {"gesture": "wiggle"}
+           Never while a button is held (dragging, selecting, drawing).
            (the shell makes the pointer big for a moment and rings close in on it)
 
 Reads pointer devices only (their Handlers have "mouse" and not "kbd" — never a
 keyboard), read-only and without grabbing them, so they work exactly as before.
 You're in the `input` group. Devices plugged in later are picked up.
 
-  pointer-gestures.py run      (the shell runs it while Settings → Appearance → Shake to find is on)
+  pointer-gestures.py run [gentle|normal|firm]   (the shell runs it while Settings → Appearance → Shake to find is on)
   pointer-gestures.py devices  which devices it would read
 """
 import json, os, re, select, struct, sys, time
 
 EV_REL, EV_ABS, EV_KEY, EV_SYN = 0x02, 0x03, 0x01, 0x00
-REL_X, ABS_X, BTN_TOUCH = 0x00, 0x00, 0x14a
+REL_X, REL_Y, ABS_X, ABS_Y, BTN_TOUCH = 0x00, 0x01, 0x00, 0x01, 0x14a
+BUTTONS = range(0x110, 0x118)           # BTN_LEFT … BTN_TASK: held = a drag, never a shake
 FMT = "llHHi"
 SIZE = struct.calcsize(FMT)
 TURNS, WINDOW, COOLDOWN = 4, 0.7, 1.5
+# Settings → Appearance → Shake to find: how hard you have to shake (travel ×)
+SENS = {"gentle": 0.6, "normal": 1.0, "firm": 1.6}
 
 
 def devices():
@@ -66,8 +71,8 @@ class Shake:
         return False
 
 
-def run():
-    fds = {}          # fd → (path, shake, is_touchpad, state)
+def run(sens=1.0):
+    fds = {}          # fd → (path, (shake_x, shake_y), is_touchpad, state)
     rescan_at = 0.0
 
     def rescan():
@@ -80,8 +85,8 @@ def run():
             except OSError:
                 continue
             # mice: counts (DPI-dependent, ~ 40 per short swing); touchpads: 6 % of the pad
-            travel = abs_width(fd) * 0.06 if tp else 45
-            fds[fd] = (path, Shake(travel), tp, {"x": None, "touch": False})
+            travel = (abs_width(fd) * 0.06 if tp else 45) * sens
+            fds[fd] = (path, (Shake(travel), Shake(travel)), tp, {"x": None, "y": None, "touch": False, "held": 0})
 
     rescan()
     if not fds:
@@ -97,18 +102,30 @@ def run():
                 data = os.read(fd, SIZE * 128)
             except OSError:              # unplugged
                 os.close(fd); del fds[fd]; continue
-            dx = 0
+            dx = dy = 0
             for i in range(0, len(data) - SIZE + 1, SIZE):
                 _, _, typ, code, val = struct.unpack(FMT, data[i:i + SIZE])
-                if not tp and typ == EV_REL and code == REL_X:
+                if typ == EV_KEY and code in BUTTONS:
+                    st["held"] = max(0, st["held"] + (1 if val else -1))
+                elif not tp and typ == EV_REL and code == REL_X:
                     dx += val
+                elif not tp and typ == EV_REL and code == REL_Y:
+                    dy += val
                 elif tp and typ == EV_KEY and code == BTN_TOUCH:
-                    st["touch"] = bool(val); st["x"] = None
-                elif tp and typ == EV_ABS and code == ABS_X and st["touch"]:
-                    if st["x"] is not None:
-                        dx += val - st["x"]
-                    st["x"] = val
-            if dx and shake.feed(dx, time.monotonic()):
+                    st["touch"] = bool(val); st["x"] = st["y"] = None
+                elif tp and typ == EV_ABS and code in (ABS_X, ABS_Y) and st["touch"]:
+                    k = "x" if code == ABS_X else "y"
+                    if st[k] is not None:
+                        if k == "x": dx += val - st[k]
+                        else: dy += val - st[k]
+                    st[k] = val
+            if st["held"]:
+                shake[0].turns = []; shake[1].turns = []      # a drag: start over after it
+                continue
+            now = time.monotonic()
+            hit = (dx and shake[0].feed(dx, now)) or (dy and shake[1].feed(dy, now))
+            if hit:
+                shake[0].last = shake[1].last = now; shake[0].turns = []; shake[1].turns = []
                 print(json.dumps({"gesture": "wiggle"}), flush=True)
 
 
@@ -119,7 +136,7 @@ if __name__ == "__main__":
             print("%s  %s%s" % (d[0], d[1], "  (touchpad)" if d[2] else ""))
     elif a[:1] == ["run"]:
         try:
-            run()
+            run(SENS.get(a[1] if len(a) > 1 else "normal", 1.0))
         except KeyboardInterrupt:
             pass
     else:

@@ -295,8 +295,18 @@ Page {
         SetRow {
             icon: "swipe_left"
             title: "Shake to find the pointer"
-            description: "Wiggle the mouse quickly and the pointer grows for a moment, with rings closing in on it. Ctrl+Super+F does it too."
-            LSwitch { checked: Persist.data.pointerShake ?? true; onToggled: Persist.data.pointerShake = !checked }
+            description: "Wiggle the mouse quickly — side to side, up and down or in circles — and the pointer grows for a moment, with rings closing in on it. Never while dragging or in a fullscreen game. Ctrl+Super+F does it too."
+            Row {
+                spacing: Theme.space.s2
+                Segmented {
+                    visible: Persist.data.pointerShake ?? true
+                    width: 230
+                    options: [{ id: "gentle", label: "Gentle" }, { id: "normal", label: "Normal" }, { id: "firm", label: "Firm" }]
+                    current: Persist.data.pointerShakeSens ?? "normal"
+                    onPicked: id => Persist.data.pointerShakeSens = id
+                }
+                LSwitch { anchors.verticalCenter: parent.verticalCenter; checked: Persist.data.pointerShake ?? true; onToggled: Persist.data.pointerShake = !checked }
+            }
         }
         SetRow {
             icon: "keyboard"

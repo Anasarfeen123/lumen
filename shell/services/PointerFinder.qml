@@ -15,18 +15,28 @@ Singleton {
     function find() { pos.running = false; pos.running = true; }
     // shaken (services/PointerGestures.qml): the pointer itself grows for a moment
     // too, then shrinks back — as on a Mac
+    // The pointer grows in steps and settles back gently (setcursor can't
+    // animate; a few sizes in a row read as motion), holding big while you
+    // keep shaking.
+    readonly property var growSteps: [1.5, 2.1, 2.6]
+    readonly property var shrinkSteps: [2.2, 1.8, 1.45, 1.2, 1]
+    property int step: -1
+    property bool big: false
+    function setSize(f) {
+        const p = Theme.tokens.cursor ?? {};
+        if (p.theme) Quickshell.execDetached(["hyprctl", "setcursor", p.theme, String(Math.round((p.size ?? 24) * f))]);
+    }
     function wiggle() {
         find();
-        const p = Theme.tokens.cursor ?? {};
-        if (!p.theme) return;
-        Quickshell.execDetached(["hyprctl", "setcursor", p.theme, String(Math.round((p.size ?? 24) * 2.6))]);
-        shrink.restart();
+        hold.restart();
+        if (big) return;                  // already big: just stay big a little longer
+        big = true; step = 0; grow.restart();
     }
-    Timer {
-        id: shrink
-        interval: 1100
-        onTriggered: { const p = Theme.tokens.cursor ?? {}; if (p.theme) Quickshell.execDetached(["hyprctl", "setcursor", p.theme, String(p.size ?? 24)]); }
-    }
+    Timer { id: grow; interval: 30; repeat: true
+            onTriggered: { root.setSize(root.growSteps[root.step]); if (++root.step >= root.growSteps.length) stop(); } }
+    Timer { id: hold; interval: 900; onTriggered: { root.step = 0; settle.restart(); } }
+    Timer { id: settle; interval: 45; repeat: true
+            onTriggered: { root.setSize(root.shrinkSteps[root.step]); if (++root.step >= root.shrinkSteps.length) { stop(); root.big = false; } } }
     Process {
         id: pos
         command: ["hyprctl", "cursorpos", "-j"]
