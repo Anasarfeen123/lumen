@@ -23,12 +23,16 @@ Row {
             .map(w => w.id));
         s.add(activeId);
         const list = [...s].sort((a, b) => a - b);
+        // a "New" tile — unless you're already on an empty one (two identical
+        // empty previews side by side)
+        if (activeEmpty) return list;
         let next = 1;
         while (s.has(next)) next++;
         if (next <= 10) list.push(next);
         return list;
     }
-    readonly property int newId: ids[ids.length - 1]
+    readonly property bool activeEmpty: (monitor?.activeWorkspace?.toplevels?.values?.length ?? 0) === 0
+    readonly property int newId: activeEmpty ? -1 : ids[ids.length - 1]
     // few workspaces: larger previews you can actually read; many: they share the width
     readonly property real tileWidth: Math.min(ids.length <= 3 ? 440 : ids.length <= 5 ? 340 : 300, (maxWidth - spacing * (ids.length - 1)) / Math.max(1, ids.length))
 
