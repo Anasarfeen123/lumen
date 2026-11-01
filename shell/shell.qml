@@ -32,6 +32,7 @@ import qs.modules.hands
 import qs.modules.pip
 import qs.modules.snap
 import qs.modules.captions
+import qs.modules.expose
 
 ShellRoot {
     id: root
@@ -88,6 +89,13 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: DesktopWidgets {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    Variants {
+        model: Quickshell.screens
+        delegate: DesktopVisualizer {
             required property var modelData
             screen: modelData
         }
@@ -241,6 +249,13 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: CaptionsOverlay {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    Variants {
+        model: Quickshell.screens
+        delegate: ExposeWindow {
             required property var modelData
             screen: modelData
         }

@@ -131,6 +131,7 @@ for i = 1, 10 do
     key("SUPER + ALT + " .. k, hl.dsp.window.move({ workspace = i, follow = false }), i == 1 and "Send window to 1…0 (stay)" or nil)
 end
 key("SUPER + Tab", global("lumen:overview"), "Overview")
+key("SUPER + SHIFT + Tab", global("lumen:expose"), "All windows, every workspace (Exposé)")
 key("CTRL + SUPER + right", hl.dsp.focus({ workspace = "r+1" }), "Next workspace")
 key("CTRL + SUPER + left",  hl.dsp.focus({ workspace = "r-1" }), "Previous workspace")
 -- Only workspaces that have windows, wrapping from the last back to the first

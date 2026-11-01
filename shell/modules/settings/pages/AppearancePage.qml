@@ -60,6 +60,12 @@ Page {
             description: "A clock with the date, the weather and what's playing, on the wallpaper — seen on an empty workspace"
             LSwitch { checked: Persist.data.desktopWidgets ?? false; onToggled: Persist.data.desktopWidgets = !checked }
         }
+        SetRow {
+            icon: "graphic_eq"
+            title: "Music on the wallpaper"
+            description: "Faint bars that move with what's playing, along the bottom of an empty workspace"
+            LSwitch { checked: Persist.data.desktopVisualizer ?? false; onToggled: Persist.data.desktopVisualizer = !checked }
+        }
     }
 
     // ── Theme by time of day (services/ThemeSchedule.qml) ──

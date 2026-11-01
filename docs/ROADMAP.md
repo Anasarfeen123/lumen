@@ -205,11 +205,11 @@ it's rough (Settings already has Display and Windows pages, for example).
       gives the whole screen rounded edges. Check `modules/corners` first.
 - [x] **Desktop widgets** (Settings → Appearance → Desktop): clock, date, weather, now playing on the wallpaper. Was: (Noctalia, Caelestia): optional clock, weather or now-playing on the
       wallpaper, drawn in Lumen glass.
-- [ ] **Desktop audio visualiser** (Caelestia): the existing cava bars drawn faintly on the
+- [x] **Desktop audio visualiser** (Settings → Appearance → Music on the wallpaper): accent bars along the bottom of an empty workspace while music plays; cava stops otherwise. Was: (Caelestia): the existing cava bars drawn faintly on the
       wallpaper while music plays.
-- [ ] **Magnifier lens** (Pyprland *magnify*): a small zoom loupe that follows the pointer,
+- [~] **Magnifier**: the full-screen zoom around the pointer already exists (Super+= / Super+−, Super+Alt+scroll, Super+3-finger pinch); no separate small loupe. Was: (Pyprland *magnify*): a small zoom loupe that follows the pointer,
       next to the existing full-screen zoom.
-- [ ] **Expose** (Pyprland): every window of every workspace tiled on one screen. Overview
+- [x] **Exposé** (Super+Shift+Tab, "All windows" in search): every window of every workspace, live, in one grid; type to filter, arrows, Enter/click to go, middle-click closes. Was: (Pyprland): every window of every workspace tiled on one screen. Overview
       shows a workspace grid; this is "all windows, flat".
 - [x] **Lost windows** (Pyprland): "Bring back lost windows" in search
       (`scripts/lost-windows.sh`) centres floating windows that are off every screen.

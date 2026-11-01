@@ -12,6 +12,7 @@ Singleton {
     id: root
 
     property bool wanted: false
+    property bool desktopWanted: false   // the wallpaper's bars (modules/background/DesktopVisualizer.qml), its own flag
     property var levels: []          // 0–1, mirrored stereo (symmetric)
     readonly property bool available: cavaCheck.found
 
@@ -43,7 +44,7 @@ Singleton {
     }
 
     SupervisedProcess {
-        wanted: root.wanted && root.available && root.confReady && !LowPower.active   // rests on a low battery
+        wanted: (root.wanted || root.desktopWanted) && root.available && root.confReady && !LowPower.active   // rests on a low battery
         command: ["cava", "-p", root.configPath]
         stdout: SplitParser {
             onRead: line => {
