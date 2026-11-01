@@ -33,6 +33,10 @@ Row {
             readonly property bool isDigit: ch >= "0" && ch <= "9"
             property string shown: ch
             property string leaving: ""
+            // a clock just created (the island coming back to it) settles its
+            // first value without flipping: the flip blanked every digit for a
+            // moment — empty tiles, then numbers
+            readonly property real born: Date.now()
 
             width: metrics.advanceWidth + (root.flip && cell.isDigit ? 6 : 0)
             height: metrics.height + (root.flip ? 2 : 0)
@@ -56,6 +60,7 @@ Row {
 
             onChChanged: {
                 if (ch === shown) return;
+                if (Date.now() - born < 600) { flipAnim.stop(); roll.stop(); shown = ch; leaving = ""; back.opacity = 0; front.opacity = isDigit ? 1 : 0.55; frontTurn.angle = 0; front.y = root.flip ? 1 : 0; return; }
                 leaving = shown;
                 shown = ch;
                 if (root.flip) flipAnim.restart(); else roll.restart();
