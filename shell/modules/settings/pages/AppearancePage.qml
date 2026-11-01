@@ -52,6 +52,16 @@ Page {
     }
 
 
+    Group {
+        title: "Desktop"
+        SetRow {
+            icon: "widgets"
+            title: "Desktop widgets"
+            description: "A clock with the date, the weather and what's playing, on the wallpaper — seen on an empty workspace"
+            LSwitch { checked: Persist.data.desktopWidgets ?? false; onToggled: Persist.data.desktopWidgets = !checked }
+        }
+    }
+
     // ── Theme by time of day (services/ThemeSchedule.qml) ──
     readonly property var themeOptions: (SettingsState.previews.themes ?? []).map(t => ({ id: t.id, label: t.name ?? (t.id.charAt(0).toUpperCase() + t.id.slice(1)) }))
     Group {

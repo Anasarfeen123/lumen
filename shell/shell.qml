@@ -87,6 +87,13 @@ ShellRoot {
     }
     Variants {
         model: Quickshell.screens
+        delegate: DesktopWidgets {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    Variants {
+        model: Quickshell.screens
         delegate: Bar {
             required property var modelData
             screen: modelData

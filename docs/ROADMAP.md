@@ -201,7 +201,7 @@ it's rough (Settings already has Display and Windows pages, for example).
       as soon as it's read (circle to search's Translate, started for you).
 - [x] **Rounded screen corners** (Settings → Bar & Island), click-through. Was: **Screen border / rounded screen corners** (Caelestia): an optional thin frame that
       gives the whole screen rounded edges. Check `modules/corners` first.
-- [ ] **Desktop widgets** (Noctalia, Caelestia): optional clock, weather or now-playing on the
+- [x] **Desktop widgets** (Settings → Appearance → Desktop): clock, date, weather, now playing on the wallpaper. Was: (Noctalia, Caelestia): optional clock, weather or now-playing on the
       wallpaper, drawn in Lumen glass.
 - [ ] **Desktop audio visualiser** (Caelestia): the existing cava bars drawn faintly on the
       wallpaper while music plays.
@@ -255,9 +255,9 @@ it's rough (Settings already has Display and Windows pages, for example).
       the output picker. (No presets saved yet.)
 - [x] **Low-battery warnings with levels**: 20 % and 10 % were there; at 5 % a 60-second
       countdown to sleep, cancelled by plugging in or "Not now".
-- [ ] **Separate idle times on AC and battery** (DankMaterialShell), plus hibernate in the
+- [~] **Separate idle times on AC and battery**: idle sleep has a "battery only" option; hibernate isn't possible here (the only swap is zram, in RAM). Was: (DankMaterialShell), plus hibernate in the
       power menu when swap allows it.
-- [ ] **GPU and temperature details** (HyprPanel, DankMaterialShell): per-GPU usage (AMD and
+- [x] **GPU and temperature details**: already in Settings → System (per-GPU use, °C, W), opened from the stats card. Was: (HyprPanel, DankMaterialShell): per-GPU usage (AMD and
       NVIDIA) and fan/temperature in the stats card.
 - [ ] **Fingerprint unlock** (Caelestia) alongside Face ID, for laptops with a reader.
 - [ ] **On-screen keyboard** for touchscreens and tablet mode.
