@@ -21,15 +21,22 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 const on = text.trim() !== "" && text.trim() !== "0";
+                const changed = on !== root.caps;
                 root.caps = on;
                 if (led.quiet) { led.quiet = false; return; }          // the startup read: just know, don't announce
+                if (!changed) return;                                    // a re-read that found nothing new
                 Island.push({ kind: "system", key: "capslock", priority: Island.priority.osd, duration: 1200, force: true,
                               data: { icon: on ? "keyboard_capslock_badge" : "keyboard_capslock", title: on ? "Caps Lock on" : "Caps Lock off", detail: "", tone: "normal" } });
             }
         }
     }
-    Timer { id: readSoon; interval: 60; onTriggered: led.running = true }      // let the LED settle
-    GlobalShortcut { appid: "lumen"; name: "capsLock"; description: "Caps Lock pressed (indicator)"; onPressed: readSoon.restart() }
+    // Caps Lock turns ON when pressed but OFF only when released, so one read
+    // just after the press always saw "still on" when turning it off: read
+    // again once the key is surely up (a long press: the last read catches it)
+    property int reads: 0
+    Timer { id: readSoon; interval: 60; onTriggered: { led.running = true; if (++root.reads < 3) { interval = root.reads === 1 ? 350 : 1200; restart(); } } }
+    function check() { reads = 0; readSoon.interval = 60; readSoon.restart(); }
+    GlobalShortcut { appid: "lumen"; name: "capsLock"; description: "Caps Lock pressed (indicator)"; onPressed: root.check() }
 
     Connections {
         target: Hyprland
