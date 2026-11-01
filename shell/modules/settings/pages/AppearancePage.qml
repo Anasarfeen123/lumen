@@ -53,70 +53,6 @@ Page {
     }
 
 
-    Group {
-        title: "Desktop"
-        SetRow {
-            icon: "widgets"
-            title: "Desktop widgets"
-            description: "A clock with the date, the weather and what's playing, on the wallpaper — seen on an empty workspace"
-            LSwitch { checked: Persist.data.desktopWidgets ?? false; onToggled: Persist.data.desktopWidgets = !checked }
-        }
-        SetRow {
-            icon: "graphic_eq"
-            title: "Music on the wallpaper"
-            description: "Bars that move with what's playing, along the bottom of the wallpaper"
-            LSwitch { checked: Persist.data.desktopVisualizer ?? false; onToggled: Persist.data.desktopVisualizer = !checked }
-        }
-    }
-
-    // ── the login screen: KDE's greeter with Lumen's wallpaper (scripts/login-theme.sh) ──
-    Group {
-        title: "Login screen"
-        SetRow {
-            id: loginRow
-            property bool applied: false
-            property string state: ""
-            icon: "login"
-            title: "Your wallpaper on the login screen"
-            description: (loginRow.state || (loginRow.applied ? "On — dimmed with a vignette, as the lock screen frames it." : "The login screen is KDE's (it's shared with Plasma); this only gives it your wallpaper."))
-                         + " Asks for your admin password."
-            Process { id: loginStatus; running: true; command: [Theme.lumenRoot + "/scripts/login-theme.sh", "status"]
-                      stdout: StdioCollector { onStreamFinished: { try { loginRow.applied = JSON.parse(text).applied; } catch (e) {} } } }
-            Process { id: loginDo; onExited: code => { loginRow.state = code === 0 ? "" : "Didn't change (cancelled?). "; loginStatus.running = true; } }
-            Row {
-                spacing: Theme.space.s2
-                Button { text: loginRow.applied ? "Update" : "Use my wallpaper"; onActivated: { loginRow.state = "Waiting for your password… "; loginDo.command = [Theme.lumenRoot + "/scripts/login-theme.sh", "apply"]; loginDo.running = true; } }
-                Button { visible: loginRow.applied; text: "KDE's default"; onActivated: { loginDo.command = [Theme.lumenRoot + "/scripts/login-theme.sh", "remove"]; loginDo.running = true; } }
-            }
-        }
-    }
-
-    // ── your own widgets (services/Widgets.qml, docs/WIDGETS.md) ──
-    Group {
-        title: "Your widgets"
-        SetRow {
-            icon: "folder_open"
-            title: Widgets.all.length ? Widgets.all.length + (Widgets.all.length === 1 ? " widget found" : " widgets found") : "No widgets yet"
-            description: "Folders in ~/.local/share/lumen/widgets — a widget runs inside the shell, so turn on only ones you trust. lumen widgets new <name> starts one."
-            Row {
-                spacing: Theme.space.s2
-                IconButton { icon: "refresh"; onActivated: Widgets.rescan() }
-                IconButton { icon: "folder_open"; onActivated: Widgets.openFolder() }
-            }
-        }
-        Repeater {
-            model: Widgets.all
-            SetRow {
-                required property var modelData
-                icon: modelData.kind === "card" ? "view_agenda" : "wallpaper"
-                title: modelData.name
-                description: (modelData.kind === "card" ? "Sidebar card" : "On the wallpaper") + (modelData.description ? " · " + modelData.description : "")
-                             + (modelData.source && modelData.source !== "local" ? " · from " + modelData.source.replace(/^https?:\/\//, "") : "")
-                LSwitch { checked: Widgets.isOn(modelData.id); onToggled: Widgets.setOn(modelData.id, !checked) }
-            }
-        }
-    }
-
     // ── Theme by time of day (services/ThemeSchedule.qml) ──
     readonly property var themeOptions: (SettingsState.previews.themes ?? []).map(t => ({ id: t.id, label: t.name ?? (t.id.charAt(0).toUpperCase() + t.id.slice(1)) }))
     Group {
@@ -328,6 +264,70 @@ Page {
                 options: [{ id: "12h", label: "12-hour" }, { id: "24h", label: "24-hour" }]
                 current: Theme.clock12h ? "12h" : "24h"
                 onPicked: id => SettingsState.lumen(["clock", id])
+            }
+        }
+    }
+
+    Group {
+        title: "Desktop"
+        SetRow {
+            icon: "widgets"
+            title: "Desktop widgets"
+            description: "A clock with the date, the weather and what's playing, on the wallpaper — seen on an empty workspace"
+            LSwitch { checked: Persist.data.desktopWidgets ?? false; onToggled: Persist.data.desktopWidgets = !checked }
+        }
+        SetRow {
+            icon: "graphic_eq"
+            title: "Music on the wallpaper"
+            description: "Bars that move with what's playing, along the bottom of the wallpaper"
+            LSwitch { checked: Persist.data.desktopVisualizer ?? false; onToggled: Persist.data.desktopVisualizer = !checked }
+        }
+    }
+
+    // ── the login screen: KDE's greeter with Lumen's wallpaper (scripts/login-theme.sh) ──
+    Group {
+        title: "Login screen"
+        SetRow {
+            id: loginRow
+            property bool applied: false
+            property string state: ""
+            icon: "login"
+            title: "Your wallpaper on the login screen"
+            description: (loginRow.state || (loginRow.applied ? "On — dimmed with a vignette, as the lock screen frames it." : "The login screen is KDE's (it's shared with Plasma); this only gives it your wallpaper."))
+                         + " Asks for your admin password."
+            Process { id: loginStatus; running: true; command: [Theme.lumenRoot + "/scripts/login-theme.sh", "status"]
+                      stdout: StdioCollector { onStreamFinished: { try { loginRow.applied = JSON.parse(text).applied; } catch (e) {} } } }
+            Process { id: loginDo; onExited: code => { loginRow.state = code === 0 ? "" : "Didn't change (cancelled?). "; loginStatus.running = true; } }
+            Row {
+                spacing: Theme.space.s2
+                Button { text: loginRow.applied ? "Update" : "Use my wallpaper"; onActivated: { loginRow.state = "Waiting for your password… "; loginDo.command = [Theme.lumenRoot + "/scripts/login-theme.sh", "apply"]; loginDo.running = true; } }
+                Button { visible: loginRow.applied; text: "KDE's default"; onActivated: { loginDo.command = [Theme.lumenRoot + "/scripts/login-theme.sh", "remove"]; loginDo.running = true; } }
+            }
+        }
+    }
+
+    // ── your own widgets (services/Widgets.qml, docs/WIDGETS.md) ──
+    Group {
+        title: "Your widgets"
+        SetRow {
+            icon: "folder_open"
+            title: Widgets.all.length ? Widgets.all.length + (Widgets.all.length === 1 ? " widget found" : " widgets found") : "No widgets yet"
+            description: "Folders in ~/.local/share/lumen/widgets — a widget runs inside the shell, so turn on only ones you trust. lumen widgets new <name> starts one."
+            Row {
+                spacing: Theme.space.s2
+                IconButton { icon: "refresh"; onActivated: Widgets.rescan() }
+                IconButton { icon: "folder_open"; onActivated: Widgets.openFolder() }
+            }
+        }
+        Repeater {
+            model: Widgets.all
+            SetRow {
+                required property var modelData
+                icon: modelData.kind === "card" ? "view_agenda" : "wallpaper"
+                title: modelData.name
+                description: (modelData.kind === "card" ? "Sidebar card" : "On the wallpaper") + (modelData.description ? " · " + modelData.description : "")
+                             + (modelData.source && modelData.source !== "local" ? " · from " + modelData.source.replace(/^https?:\/\//, "") : "")
+                LSwitch { checked: Widgets.isOn(modelData.id); onToggled: Widgets.setOn(modelData.id, !checked) }
             }
         }
     }
