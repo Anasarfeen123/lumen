@@ -18,6 +18,12 @@ Page {
             LSwitch { checked: Persist.data.islandDate; onToggled: Persist.data.islandDate = !checked }
         }
         SetRow {
+            icon: "rounded_corner"
+            title: "Rounded screen corners"
+            description: "The screen's corners drawn round, like a phone's display"
+            LSwitch { checked: Persist.data.screenCorners ?? false; onToggled: Persist.data.screenCorners = !checked }
+        }
+        SetRow {
             icon: "monitor_heart"
             title: "System stats in the bar"
             description: (Persist.data.barVitals ?? "busy") === "busy" ? "The CPU line and memory appear when the computer is busy (CPU over 30 % or memory over 80 %)."

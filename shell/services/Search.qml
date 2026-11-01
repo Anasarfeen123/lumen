@@ -31,6 +31,7 @@ Singleton {
         { title: "Talk to Halo", glyph: "mic", keys: "talk voice speak halo jarvis listen", fn: () => Halo.talk() },
         { title: "Screenshot (region)", glyph: "screenshot_region", keys: "screenshot capture snip", cmd: [Theme.lumenRoot + "/scripts/screenshot.sh", "region"], delay: true },
         { title: "Translate text on screen", glyph: "translate", keys: "translate screen text ocr language foreign english meaning", fn: () => Lens.startTranslate() },
+        { title: "Export my setup", glyph: "ios_share", keys: "export setup backup settings move new computer lumen sync carry", cmd: ["sh", "-c", 'f=$("$0" export) && notify-send -a Lumen "Setup exported" "$f — lumen sync import <file> on the other computer"', Theme.lumenRoot + "/scripts/lumen-sync.sh"] },
         { title: "Mirror", glyph: "photo_camera_front", keys: "mirror webcam camera check myself selfie before call preview", cmd: [Theme.lumenRoot + "/scripts/mirror.sh"] },
         { title: "Turn the screen off", glyph: "desktop_access_disabled", keys: "screen off display off dpms blank monitor off keep awake music", cmd: ["sh", "-c", 'sleep 0.6; hyprctl dispatch "hl.dsp.dpms({ action = [[off]] })"'], delay: true },
         { title: "Bring back lost windows", glyph: "move_selection_left", keys: "lost windows off screen offscreen missing window gone recover rescue", cmd: [Theme.lumenRoot + "/scripts/lost-windows.sh"] },
@@ -116,6 +117,8 @@ Singleton {
             Calc.evaluate(Overview.query.trim());
             if (/^(kill|end|top)\b/i.test(Overview.query.trim())) SearchMore.refreshProcs();
             if (/^(otp|2fa|code)\b/i.test(Overview.query.trim())) SearchMore.refreshOtp();
+            const fq = /^f\s+(.+)$/i.exec(Overview.query.trim());
+            if (fq) SearchMore.find(fq[1].trim());
         }
         function onModeChanged() {
             if (Overview.mode === "clipboard") { Clipboard.filter = "all"; Clipboard.refresh(); }
@@ -372,6 +375,9 @@ Singleton {
                         out.push({ kind: "command", group: "Exams", title: e.kind + " · " + e.title, glyph: "edit_note", badge: "",
                                    subtitle: Planner.whenLabel(e.when, !e.timed) + [e.venue, e.seat].filter(x => x).map(x => " · " + x).join(""), run: () => { Planner.open = true; } });
             }
+            if ((m = /^(?:define|meaning of|what does)\s+([a-z' -]{2,40}?)(?:\s+mean)?$/i.exec(q)))
+                out.push({ kind: "command", group: "Halo", title: "Define “" + m[1].trim() + "”", subtitle: Ai.configured ? "Meaning, part of speech and an example — in Halo" : "Set up Halo first (Settings → Halo)",
+                           glyph: "dictionary", badge: "Ask", run: () => { Ai.show(); Ai.send("ai: Define the word \"" + m[1].trim() + "\": part of speech, a one-line meaning, one example sentence. Short."); } });
             if ((m = /^(?:ask|ai)\s+(.+)$/i.exec(q)))
                 out.push({ kind: "command", group: "Halo", title: "Ask Halo: " + m[1], subtitle: Ai.configured ? "Answers in the AI panel" : "Set up AI first (Settings → AI)",
                            glyph: "auto_awesome", badge: "Ask", run: () => { Ai.show(); Ai.send(m[1]); } });
@@ -477,6 +483,18 @@ Singleton {
         if (/^=\s*$/.test(text))
             return [{ kind: "calc", group: "Calculator", title: "Type a calculation", glyph: "calculate", badge: "",
                       subtitle: "Maths, units (5 ft to cm), percentages, and money in ₹ ($100, 2 lakh / 12)", run: () => {} }];
+        // files anywhere in your home folder: "f <name>"
+        {
+            const fm = /^f\s+(.+)$/i.exec(q);
+            if (fm) {
+                const home = Quickshell.env("HOME") ?? "";
+                const rows = SearchMore.findQuery === fm[1].trim() ? SearchMore.found : [];
+                out.push(...rows.map(f => ({ kind: "file", group: "Files", title: f.name, subtitle: f.path.replace(home, "~").replace(/\/[^/]*$/, "") || "~",
+                                             glyph: f.dir ? "folder" : "description", badge: "Open", path: f.path, run: () => Quickshell.execDetached(["xdg-open", f.path]) })));
+                if (!rows.length) out.push({ kind: "command", group: "Files", title: "Searching your files…", glyph: "search", badge: "", subtitle: "Names containing “" + fm[1].trim() + "”", run: () => {} });
+                return out;
+            }
+        }
         // tmux sessions: "tmux"
         if (/^tmux\b/i.test(q) && SearchMore.hasTmux) {
             out.push(...SearchMore.tmux.map(t => ({ kind: "command", group: "tmux", title: t.name, subtitle: t.windows + (t.windows === 1 ? " window" : " windows") + (t.attached ? " · attached" : ""),

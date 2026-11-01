@@ -29,7 +29,11 @@ Singleton {
         function noPlace(): void { Weather.clearPlace(); }
         function sunInfo(): string { return Sun.phase + " rise " + Qt.formatTime(Sun.sunrise, "HH:mm") + " set " + Qt.formatTime(Sun.sunset, "HH:mm") + (Sun.known ? " (" + Sun.place.name + ")" : " (default)") + " light: " + NightLight.wanted() + " slot: " + Wallpapers.slotFor(Sun.phase); }
     }
-    IpcHandler { target: "planner"; function toggle(): void { root.toggle(); } function open(): void { root.open = true; } function close(): void { root.open = false; } }
+    // open on a tab: today | calendar | todo | week (the window follows it)
+    property string wantTab: ""
+    function openTab(t) { wantTab = ""; wantTab = t; open = true; }
+    IpcHandler { target: "planner"; function toggle(): void { root.toggle(); } function open(): void { root.open = true; } function close(): void { root.open = false; }
+                 function tab(t: string): void { root.openTab(t); } }
 
     readonly property string dir: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/lumen"
     readonly property alias todos: data.todos
@@ -65,7 +69,11 @@ Singleton {
 
     // ── to-dos ──
     function addTodo(t) { t = t.trim(); if (t) data.todos = data.todos.concat([{ text: t, done: false }]); }
-    function toggleTodo(i) { const a = data.todos.slice(); a[i] = { text: a[i].text, done: !a[i].done }; data.todos = a; }
+    function toggleTodo(i) { const a = data.todos.slice(); a[i] = { text: a[i].text, done: !a[i].done, stage: !a[i].done ? "done" : "next" }; data.todos = a; }
+    // the board: next → doing → done (a to-do without a stage is "next", or "done" when ticked)
+    function stageOf(t) { return t.stage ?? (t.done ? "done" : "next"); }
+    function setStage(i, st) { const a = data.todos.slice(); a[i] = { text: a[i].text, done: st === "done", stage: st }; data.todos = a; }
+    function advance(i) { const order = ["next", "doing", "done"]; setStage(i, order[(order.indexOf(stageOf(data.todos[i])) + 1) % 3]); }
     function removeTodo(i) { data.todos = data.todos.filter((_, j) => j !== i); }
     function clearDone() { data.todos = data.todos.filter(t => !t.done); }
 

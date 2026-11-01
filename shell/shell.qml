@@ -133,6 +133,13 @@ ShellRoot {
     }
     Variants {
         model: Quickshell.screens
+        delegate: ScreenCorners {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    Variants {
+        model: Quickshell.screens
         delegate: PowerMenu {
             required property var modelData
             screen: modelData

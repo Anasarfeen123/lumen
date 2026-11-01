@@ -12,6 +12,15 @@ Singleton {
     property var recent: []             // [{ name, path, when }]
     property var tmux: []               // [{ name, windows, attached }]
     property var procs: []              // [{ pid, name, cpu, mem }]
+    // "f <name>": files in your home folder (fd, hidden and ignored ones skipped), after a short pause in typing
+    property var found: []              // [{ name, path }]
+    property string findQuery: ""
+    function find(q) { findQuery = q; if (q.length < 2) { found = []; return; } findSoon.restart(); }
+    Timer { id: findSoon; interval: 180; onTriggered: { findProc.running = false; findProc.command = ["fd", "-i", "--max-results", "12", "--", root.findQuery, Quickshell.env("HOME") ?? "/"]; findProc.running = true; } }
+    Process {
+        id: findProc
+        stdout: StdioCollector { onStreamFinished: root.found = text.split("\n").filter(l => l).map(p => ({ name: p.replace(/\/$/, "").replace(/^.*\//, ""), path: p.replace(/\/$/, ""), dir: p.endsWith("/") })) }
+    }
     property var otp: []                // [{ name, code, left }] — "otp" / "2fa" (scripts/otp.py)
     function refreshOtp() { if (!otpProc.running) otpProc.running = true; }
     readonly property bool hasTmux: tmuxCheck.found

@@ -165,7 +165,9 @@ Tick items off as they land.
       "Halo remembers" and "Recent files" (open, show in folder, copy path); notes were there,
       the clipboard keeps its own mode.
 - [ ] Multi-monitor island: mirror it or show only a clock on the second screen.
-- [ ] Lumen Sync: one-click export/import of the whole setup (settings, pins, notes, Halo
+- [x] Lumen Sync (`lumen sync export|import|list`, "Export my setup" in search): settings, theme,
+      pins, planner, Halo memory, notes, wallpaper, local.lua — no keys or private history; import
+      saves what it replaces first. Was: one-click export/import of the whole setup (settings, pins, notes, Halo
       memory, accent, wallpaper), building on `backup.sh` and `cloud-backup.sh`.
 - [ ] Widget API: island states and sidebar cards as QML files in
       `~/.config/lumen/widgets/`.
@@ -194,7 +196,7 @@ it's rough (Settings already has Display and Windows pages, for example).
       is dark (a white page at night, a light-mode app opening).
 - [x] **Screen translation**: "Translate text on screen" in search — circle it and it's translated
       as soon as it's read (circle to search's Translate, started for you).
-- [ ] **Screen border / rounded screen corners** (Caelestia): an optional thin frame that
+- [x] **Rounded screen corners** (Settings → Bar & Island), click-through. Was: **Screen border / rounded screen corners** (Caelestia): an optional thin frame that
       gives the whole screen rounded edges. Check `modules/corners` first.
 - [ ] **Desktop widgets** (Noctalia, Caelestia): optional clock, weather or now-playing on the
       wallpaper, drawn in Lumen glass.
@@ -229,13 +231,14 @@ it's rough (Settings already has Display and Windows pages, for example).
       stores the secret (or an otpauth:// link) in the keyring. Checked against RFC 6238.
 - [x] **tmux session picker**: "tmux" in the launcher lists sessions (Enter attaches in kitty)
       and offers a new one.
-- [ ] **Kanban board** (Ax-Shell): columns for the planner's to-dos (Doing / Next / Done).
+- [x] **Kanban board**: the To-do card's board view — Next / Doing / Done; click a card to move it
+      on, right-click back.
 - [x] **Process manager in the launcher**: `kill <name>` / `top` lists processes, busiest first,
       with PID, CPU and memory; ending one is Enter twice.
-- [ ] **File search in the launcher** (DankMaterialShell *dsearch*): indexed, fast, with
-      previews.
-- [ ] **Dictionary and unit/currency conversion** in the launcher (`define x`, `5 km in mi`),
-      if not already covered by `qalc`.
+- [x] **File search in the launcher**: `f <name>` searches your home folder with fd (open, show in
+      folder, copy path). No previews.
+- [x] **Dictionary and unit/currency conversion**: units and money were already qalc's;
+      `define <word>` asks Halo.
 - [ ] **Game launcher** (HyDE): Steam/Lutris/Heroic games with cover art, starting game mode
       on launch. (Steam is installed but has no games yet.)
 - [x] **Shortcuts menu**: type `> command`, right-click → "Save as a shortcut"; saved ones come up

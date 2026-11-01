@@ -117,7 +117,8 @@ PanelWindow {
             e.accepted = true;
         }
         // Opening starts at the top: your day at a glance
-        Connections { target: win; function onShowingChanged() { if (win.showing) { win.tab = "today"; flick.cancelFlick(); flick.contentY = 0; classes.dayOffset = 0; classes.whatIf = false; } } }
+        Connections { target: win; function onShowingChanged() { if (win.showing) { win.tab = Planner.wantTab || "today"; Planner.wantTab = ""; flick.cancelFlick(); flick.contentY = 0; classes.dayOffset = 0; classes.whatIf = false; } } }
+        Connections { target: Planner; function onWantTabChanged() { if (Planner.wantTab) win.tab = Planner.wantTab; } }
         Connections { target: win; function onTabChanged() { flick.cancelFlick(); flick.contentY = 0; tabSwap.restart(); } }
         SequentialAnimation {
             id: tabSwap
@@ -611,17 +612,55 @@ PanelWindow {
             // ── To-do ──
             Card {
                 visible: win.tab === "todo"
+                id: todoCard
                 title: "To-do"
                 icon: "checklist"
+                property bool board: Persist.data.todoBoard ?? false
                 headerRight: [
+                    HoverTarget { width: 26; height: 24; onClicked: Persist.data.todoBoard = !todoCard.board
+                                  LIcon { anchors.centerIn: parent; icon: todoCard.board ? "list" : "view_kanban"; size: 16; color: Theme.textMuted } },
                     HoverTarget { visible: Planner.todos.some(t => t.done); width: clearLbl.implicitWidth + 16; height: 24; onClicked: Planner.clearDone()
                                   LText { id: clearLbl; anchors.centerIn: parent; role: "caption"; color: Theme.textMuted; text: "Clear done" } }
                 ]
                 Column {
                     width: parent.width
                     spacing: 2
+                    // the board: three columns; click a card to move it on, right-click back
+                    Row {
+                        visible: todoCard.board
+                        width: parent.width
+                        spacing: Theme.space.s2
+                        Repeater {
+                            model: [{ id: "next", label: "Next" }, { id: "doing", label: "Doing" }, { id: "done", label: "Done" }]
+                            Column {
+                                id: colm
+                                required property var modelData
+                                width: (parent.width - 2 * Theme.space.s2) / 3
+                                spacing: 4
+                                LText { role: "caption"; font.weight: Font.DemiBold; color: colm.modelData.id === "doing" ? Theme.accent : Theme.textMuted
+                                        text: colm.modelData.label.toUpperCase() + " · " + Planner.todos.filter(t => Planner.stageOf(t) === colm.modelData.id).length }
+                                Repeater {
+                                    model: Planner.todos.map((t, i) => ({ t, i })).filter(x => Planner.stageOf(x.t) === colm.modelData.id)
+                                    MouseArea {
+                                        required property var modelData
+                                        width: colm.width; height: cardText.implicitHeight + 12
+                                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                        cursorShape: Qt.PointingHandCursor
+                                        hoverEnabled: true
+                                        onClicked: m => { if (m.button === Qt.RightButton) { const o = ["next", "doing", "done"]; Planner.setStage(modelData.i, o[Math.max(0, o.indexOf(colm.modelData.id) - 1)]); } else Planner.advance(modelData.i); }
+                                        Rectangle { anchors.fill: parent; radius: Theme.radius.sm
+                                                    color: colm.modelData.id === "doing" ? Theme.withAlpha(Theme.accent, parent.containsMouse ? 0.22 : 0.14) : Theme.withAlpha(Theme.text, parent.containsMouse ? 0.1 : 0.06)
+                                                    border.width: 1; border.color: Theme.border }
+                                        LText { id: cardText; x: 6; y: 6; width: parent.width - 12; wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight
+                                                role: "caption"; text: modelData.t.text; color: colm.modelData.id === "done" ? Theme.textMuted : Theme.text
+                                                font.strikeout: colm.modelData.id === "done" }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     Repeater {
-                        model: Planner.todos
+                        model: todoCard.board ? [] : Planner.todos
                         delegate: Item {
                             required property var modelData
                             required property int index
