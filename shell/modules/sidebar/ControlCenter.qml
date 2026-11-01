@@ -62,7 +62,8 @@ Item {
     Timer { id: laterTimer; interval: Theme.motion.large + 60; onTriggered: if (root.pendingCmd) Quickshell.execDetached(root.pendingCmd) }
 
     // ── Header: you, the day, the battery ───────────────────────────────────
-    readonly property string userName: Quickshell.env("USER") ?? ""
+    // what Halo calls you (Settings → Halo → Names; your first name otherwise), not the login name
+    readonly property string userName: Halo.you || (Quickshell.env("USER") ?? "")
     readonly property int hour: clock.date.getHours()
     readonly property string greeting: hour < 5 ? "Up late" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
     property int faceVersion: 0

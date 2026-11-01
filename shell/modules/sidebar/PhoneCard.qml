@@ -90,9 +90,20 @@ Rectangle {
                             text: !root.live ? "Not nearby" : "Linked over " + Link.viaLabel(root.d?.via ?? "wifi") + (root.d?.charging ? " · charging" : "") }
                 }
             }
+            // away: one quiet "look again" instead of a row of buttons that can't work
+            HoverTarget {
+                visible: !root.live
+                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                width: againRow.implicitWidth + 20; height: 28; radius: 14
+                onClicked: Link.search()
+                Rectangle { anchors.fill: parent; radius: 14; z: -1; color: "transparent"; border.width: 1; border.color: Theme.border }
+                Row { id: againRow; anchors.centerIn: parent; spacing: 5
+                      LIcon { icon: "refresh"; size: 14; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                      LText { role: "caption"; text: "Look again"; anchors.verticalCenter: parent.verticalCenter } }
+            }
             LText {
                 id: pct
-                visible: (root.d?.battery ?? -1) >= 0
+                visible: root.live && (root.d?.battery ?? -1) >= 0
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                 role: "heading"; font.features: { "tnum": 1 }
                 color: root.live ? Theme.text : Theme.textMuted
@@ -100,6 +111,7 @@ Rectangle {
             }
         }
         Row {
+            visible: root.live          // (unlinking an away phone: Settings → Lumen Link)
             spacing: 6
             Act { icon: "phone_in_talk"; label: "Ring"; onClicked: Link.ring() }
             Act { icon: "upload_file"; label: "File"; onClicked: { Sidebar.hide(); Link.pickAndSend(); } }
