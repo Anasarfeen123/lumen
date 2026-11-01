@@ -99,6 +99,10 @@ Singleton {
         let m;
         if ((m = /^(?:summari[sz]e|read|explain|what does|tldr|tl;dr)\s+(?:this\s+)?(?:page\s+)?(https?:\/\/\S+)(?:\s+say)?$/i.exec(q)))
             return { glyph: "travel_explore", title: "Reading the page", own: () => root.readWeb(m[1]) };
+        if (/^(continue|play|watch|resume|send)( this| it| what'?s playing| the (video|song|music))? on (my )?phone$/.test(l))
+            return { glyph: "phone_android", title: "Sending it to your phone", plain: true, run: () => Handoff.toPhone() };
+        if (/^(continue|play|watch|resume)( this| it)? (here|on (this |my )?(pc|computer|laptop))$|^play what my phone('s| is) playing$/.test(l))
+            return { glyph: "computer", title: "Getting it from your phone", plain: true, run: () => Handoff.toPc() };
         if (/^(scan|read)( a| the| this)? (qr|qr code|barcode)$|^qr$/.test(l))
             return { glyph: "qr_code_scanner", title: "Pick the QR code", own: () => root.scanQr() };
         if (/^(turn on |show |start |enable )?(live )?(captions|subtitles)( on)?$/.test(l))

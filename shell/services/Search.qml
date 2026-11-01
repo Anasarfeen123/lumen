@@ -33,6 +33,8 @@ Singleton {
         { title: "Translate text on screen", glyph: "translate", keys: "translate screen text ocr language foreign english meaning", fn: () => Lens.startTranslate() , delay: true },
         { title: "Share my theme", glyph: "palette", keys: "share theme export look accent wallpaper pack", cmd: ["sh", "-c", 'f=$("$0" theme-export) && notify-send -a Lumen "Theme saved" "$f — lumen sync theme-import <file> applies it"', Theme.lumenRoot + "/scripts/lumen-sync.sh"] },
         { title: "Export my setup", glyph: "ios_share", keys: "export setup backup settings move new computer lumen sync carry", cmd: ["sh", "-c", 'f=$("$0" export) && notify-send -a Lumen "Setup exported" "$f — lumen sync import <file> on the other computer"', Theme.lumenRoot + "/scripts/lumen-sync.sh"] },
+        { title: "Continue on my phone", glyph: "phone_android", keys: "continue phone handoff send video music youtube playing to phone", fn: () => Handoff.toPhone() },
+        { title: "Continue on this PC", glyph: "computer", keys: "continue pc computer handoff phone playing video music youtube from phone", fn: () => Handoff.toPc() },
         { title: "All windows", glyph: "view_cozy", keys: "expose all windows every workspace grid overview mission control", fn: () => Expose.show(), delay: true },
         { title: "Scan a QR code", glyph: "qr_code_scanner", keys: "qr code scan barcode wifi link read", fn: () => HaloExtras.scanQr() },
         { title: "Live captions", glyph: "closed_caption", keys: "live captions subtitles transcribe video call deaf hear text speech", state: () => Captions.on, fn: () => Captions.toggle() },

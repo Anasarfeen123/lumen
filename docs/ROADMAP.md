@@ -86,7 +86,9 @@ Tick items off as they land.
       reopen them (only what's missing, same workspaces).
 
 ### Synconization and Environment
-- [ ] Syncing youtube videos and other medias from video to phone and vice-versa
+- [x] Media handoff: "Continue on my phone" / "Continue on this PC" in search, or ask Halo — the
+      video opens on the other device at the same second and pauses here (scripts/handoff.sh;
+      Brave gives no page address, so the video is found by title with yt-dlp). Was: Syncing youtube videos and other medias from video to phone and vice-versa
 
 
 ### Island and notifications
