@@ -76,6 +76,11 @@ Singleton {
         let m;
         if ((m = /^(?:summari[sz]e|read|explain|what does|tldr|tl;dr)\s+(?:this\s+)?(?:page\s+)?(https?:\/\/\S+)(?:\s+say)?$/i.exec(q)))
             return { glyph: "travel_explore", title: "Reading the page", own: () => root.readWeb(m[1]) };
+        if (/^(turn on |show |start |enable )?(live )?(captions|subtitles)( on)?$/.test(l))
+            return Captions.on ? { glyph: "closed_caption", title: "Live captions are on", already: true }
+                               : { glyph: "closed_caption", title: "Live captions on", plain: true, run: () => Captions.toggle() };
+        if (/^(turn off |hide |stop |disable )(live )?(captions|subtitles)$|^(captions|subtitles) off$/.test(l))
+            return { glyph: "closed_caption_disabled", title: "Live captions off", plain: true, run: () => { Captions.on = false; } };
         // "what was I doing yesterday / this morning / on monday"
         if ((m = /^what (?:was i|did i) (?:doing|do|work(?:ing)? on)\s*(yesterday|today|this morning|this afternoon|this evening|earlier|on \w+|\w+day)?$/.exec(l)))
             return { glyph: "history", title: "Your day", own: () => root.whatWasIDoing(m[1] ?? "yesterday") };

@@ -31,6 +31,7 @@ import qs.modules.lens
 import qs.modules.hands
 import qs.modules.pip
 import qs.modules.snap
+import qs.modules.captions
 
 ShellRoot {
     id: root
@@ -226,6 +227,13 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: SnapWindow {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    Variants {
+        model: Quickshell.screens
+        delegate: CaptionsOverlay {
             required property var modelData
             screen: modelData
         }

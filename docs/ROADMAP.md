@@ -137,7 +137,8 @@ Tick items off as they land.
 - [x] "What was I doing?": screen time now keeps a timeline per day (apps, a few window titles,
       this computer only); ask Halo "what was I doing yesterday / this morning / on Monday" and
       reopen those apps. Fills in from now on.
-- [ ] Live captions for any video or call through whisper.cpp, as an island overlay.
+- [x] Live captions for any video or call through whisper.cpp: Ctrl+Super+C, "Live captions" in
+      search or "turn on captions" to Halo — what the speakers play, near the bottom of the screen.
 - [x] Meeting mode: detection, held notifications, paused timer and awake screen were there; now a
       mic check when a call starts (which mic, muted or live, one-tap mute) and "Write notes" when
       it ends (a dated note, opened).

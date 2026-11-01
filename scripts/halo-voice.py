@@ -10,6 +10,8 @@
   halo-voice.py wake                      listen for "hey halo" (short bursts, whisper.cpp's smallest
                                           model, nothing kept): {"wake": true, "rest": "…"} each time
   halo-voice.py transcribe <audio file>   a long recording (a lecture) → text on stdout
+  halo-voice.py captions                  live captions of what's playing (the speakers, not the
+                                          mic): {"caption": text} every few seconds until SIGTERM
   halo-voice.py say <rate> <voice-hint> <text>
         Speaks the text and exits when done (SIGTERM stops it). Prints
         {"env": [0–1 …], "step": 40} (loudness per 40 ms, for the lips) and
@@ -398,6 +400,52 @@ def cmd_transcribe(path):
         _rm(wav)
 
 
+# ── live captions: what the speakers play, a few seconds at a time ──────────
+def cmd_captions(args=()):
+    sb, model = server_bin(), stt_model(model_arg(args))
+    if not sb or not model:
+        out({"error": "Live captions need whisper.cpp (Settings → Halo → Voice)."})
+        return
+    import socket
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    srv = subprocess.Popen([sb, "-m", model, "--host", "127.0.0.1", "--port", str(port), "-t", threads(), "-l", "en"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=gpu_env(), preexec_fn=die_with_parent)
+    # the default output's monitor: what you hear, 16 kHz mono
+    rec = subprocess.Popen(["parec", "--device=@DEFAULT_MONITOR@", "--format=s16le", "--rate=16000", "--channels=1",
+                            "--latency-msec=200"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, preexec_fn=die_with_parent)
+
+    def bye(*_):
+        for q in (rec, srv):
+            q.terminate()
+        sys.exit(0)
+    signal.signal(signal.SIGTERM, bye)
+    signal.signal(signal.SIGINT, bye)
+    deadline = time.time() + 30
+    while time.time() < deadline and srv.poll() is None:
+        try:
+            socket.create_connection(("127.0.0.1", port), timeout=0.3).close()
+            break
+        except OSError:
+            time.sleep(0.1)
+    out({"ready": True})
+    import array
+    chunk = 16000 * 2 * 4                      # 4 s of 16-bit samples
+    while True:
+        pcm = rec.stdout.read(chunk)
+        if not pcm:
+            break
+        a = array.array("h", pcm)
+        if max((abs(x) for x in a), default=0) < 400:     # silence: nothing to say
+            out({"caption": ""})
+            continue
+        text = ask_server(port, pcm, timeout=8)
+        if text:
+            out({"caption": text})
+    bye()
+
+
 def main():
     a = sys.argv[1:]
     if not a:
@@ -409,6 +457,8 @@ def main():
         cmd_listen(a[1:])
     elif a[0] == "wake":
         cmd_wake()
+    elif a[0] == "captions":
+        cmd_captions(a[1:])
     elif a[0] == "transcribe" and len(a) >= 2:
         cmd_transcribe(a[1])
     elif a[0] == "say" and len(a) >= 4:

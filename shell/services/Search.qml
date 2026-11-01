@@ -32,6 +32,7 @@ Singleton {
         { title: "Screenshot (region)", glyph: "screenshot_region", keys: "screenshot capture snip", cmd: [Theme.lumenRoot + "/scripts/screenshot.sh", "region"], delay: true },
         { title: "Translate text on screen", glyph: "translate", keys: "translate screen text ocr language foreign english meaning", fn: () => Lens.startTranslate() , delay: true },
         { title: "Export my setup", glyph: "ios_share", keys: "export setup backup settings move new computer lumen sync carry", cmd: ["sh", "-c", 'f=$("$0" export) && notify-send -a Lumen "Setup exported" "$f — lumen sync import <file> on the other computer"', Theme.lumenRoot + "/scripts/lumen-sync.sh"] },
+        { title: "Live captions", glyph: "closed_caption", keys: "live captions subtitles transcribe video call deaf hear text speech", state: () => Captions.on, fn: () => Captions.toggle() },
         { title: "Mirror", glyph: "photo_camera_front", keys: "mirror webcam camera check myself selfie before call preview", cmd: [Theme.lumenRoot + "/scripts/mirror.sh"] },
         { title: "Turn the screen off", glyph: "desktop_access_disabled", keys: "screen off display off dpms blank monitor off keep awake music", cmd: ["sh", "-c", 'sleep 0.6; hyprctl dispatch "hl.dsp.dpms({ action = [[off]] })"'], delay: true },
         { title: "Bring back lost windows", glyph: "move_selection_left", keys: "lost windows off screen offscreen missing window gone recover rescue", cmd: [Theme.lumenRoot + "/scripts/lost-windows.sh"] },

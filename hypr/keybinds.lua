@@ -76,6 +76,7 @@ key("SUPER + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggl
 key("SUPER + D", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }), "Maximise (keeps bar and gaps)")
 key("SUPER + ALT + P", hl.dsp.window.pin(), "Keep on all workspaces")
 group("Tools")
+key("CTRL + SUPER + C", global("lumen:captions"), "Live captions of what's playing (again: off)")
 key("CTRL + SUPER + D", global("lumen:draw"), "Draw on the screen (Esc when done, S saves a screenshot)")
 key("CTRL + SUPER + P", global("lumen:pip"), "Picture in picture (pop the window into a corner / put it back)")
 group("Windows")
