@@ -15,6 +15,13 @@ pause=1
 
 alive() { hyprctl -j version >/dev/null 2>&1; }
 
+# One restarter only. Quickshell's own crash handler relaunches a crashed
+# shell by itself — and with this loop restarting it too, a crash could
+# leave TWO shells running (two bars, two islands; seen 2026-11-02). With
+# it off, a crash ends the shell and this loop starts exactly one new one;
+# systemd-coredump still keeps the crash.
+export QS_DISABLE_CRASH_HANDLER=1
+
 while :; do
     qs -p "$dir"
     status=$?
