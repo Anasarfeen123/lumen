@@ -240,6 +240,20 @@ PanelWindow {
     Binding { when: win.isFocused; target: Island; property: "shapeWidth"; value: body.width }
     Binding { when: win.isFocused; target: Island; property: "shapeY"; value: body.y }
 
+    // Opened by a click (pinned) or the timeline: a click anywhere else closes it,
+    // as the sidebar does — an open island mustn't sit in your way
+    // (a moment after it opens: the island has to hold the keyboard first, or
+    // Hyprland drops the grab at once)
+    readonly property bool wantsGrab: win.isFocused && (Island.pinned || Island.timelineOpen)
+    property bool grabbing: false
+    onWantsGrabChanged: { if (wantsGrab) grabSoon.restart(); else { grabSoon.stop(); grabbing = false; } }
+    Timer { id: grabSoon; interval: 200; onTriggered: win.grabbing = win.wantsGrab }
+    HyprlandFocusGrab {
+        active: win.grabbing
+        windows: [win]
+        onCleared: { win.grabbing = false; Island.unpin(); Island.hovered = false; win.hoverIntent = false; }
+    }
+
     // Hover intent — ignore the pointer passing over on its way somewhere else
     Timer { id: enterTimer; interval: 300; onTriggered: { if (Island.orbHovered) return; win.hoverIntent = true; if (win.isFocused) Island.hovered = true; } }
     // Left Halo's ring but still on the island: now it may expand
