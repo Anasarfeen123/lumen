@@ -167,6 +167,12 @@ Page {
             title: "Screen brightness"
             LSlider { width: 260; icon: "light_mode"; value: Brightness.value; onMoved: v => Brightness.set(v) }
         }
+        SetRow {
+            icon: "brightness_4"
+            title: "Even dimmer"
+            description: "Below the screen's lowest backlight: the picture itself is dimmed. Brightness-down at the bottom does this too; it resets when you log in again."
+            LSlider { width: 260; icon: "dark_mode"; value: (100 - Brightness.extraDim) / 75; onMoved: v => Brightness.setExtraDim(100 - v * 75) }
+        }
     }
 
     Group {

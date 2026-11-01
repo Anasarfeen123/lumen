@@ -108,8 +108,10 @@ Scope {
         target: Brightness
         function onChangedByUser() {
             Island.push({ kind: "osd", key: "osd", priority: Island.priority.osd, duration: 1200, force: true,
-                          data: { channel: "brightness", icon: Brightness.value > 0.5 ? "brightness_high" : "brightness_low",
-                                  value: Brightness.value, label: "" } });
+                          data: Brightness.extraDim < 100
+                                ? { channel: "brightness", icon: "brightness_4", value: (Brightness.extraDim - 25) / 75, label: "Extra dim" }
+                                : { channel: "brightness", icon: Brightness.value > 0.5 ? "brightness_high" : "brightness_low",
+                                    value: Brightness.value, label: "" } });
         }
     }
 
@@ -431,6 +433,9 @@ Scope {
         target: "brightness"
         function up(): void { Brightness.up(); }
         function down(): void { Brightness.down(); }
+        // the picture dimmed below the backlight's lowest: 100 = off … 25
+        function extraDim(percent: int): void { Brightness.setExtraDim(percent); }
+        function extraDimLevel(): int { return Brightness.extraDim; }
     }
 
     IpcHandler {

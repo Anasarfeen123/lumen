@@ -13,6 +13,12 @@ Singleton {
     id: root
 
     property real value: 0          // perceived 0–1
+    property int raw: -1            // the backlight's own level (brightnessctl)
+    // Below the backlight's lowest: the picture itself dimmed (hyprsunset's
+    // gamma, through NightLight's process). 100 = off; down to 25 %. Not kept
+    // across sessions — a new login never starts in the dark.
+    property int extraDim: 100
+    readonly property bool atMinimum: available && raw >= 0 && raw <= 2
     property bool available: false
     property var pending: null
 
@@ -27,6 +33,7 @@ Singleton {
         const cur = parseInt(f[2]), max = parseInt(f[4]);
         if (!(max > 0)) return;
         available = true;
+        raw = cur;
         value = Math.pow(cur / max, 1 / exponent);
         if (fromUser) changedByUser();
     }
@@ -38,8 +45,29 @@ Singleton {
         proc.launch(job);
     }
 
-    function up() { run(["set", "5%+"], true); }
-    function down() { run(["set", "5%-"], true); }
+    // past the bottom, the keys carry on into extra dim; on the way up they
+    // undo it first
+    function up() {
+        if (extraDim < 100) { extraDim = Math.min(100, extraDim + 15); changedByUser(); return; }
+        run(["set", "5%+"], true);
+    }
+    function down() {
+        if (atMinimum || extraDim < 100) { extraDim = Math.max(25, extraDim - 15); changedByUser(); return; }
+        run(["set", "5%-"], true);
+    }
+    readonly property bool inSettings: Quickshell.env("LUMEN_SETTINGS_APP") === "1"
+    // (Theme isn't reachable from here — qs.theme already uses this service)
+    readonly property string ipc: (Quickshell.env("LUMEN_ROOT") || Quickshell.env("HOME") + "/.config/lumen") + "/bin/lumen-shell-ipc"
+    function setExtraDim(v) {
+        extraDim = Math.max(25, Math.min(100, Math.round(v)));
+        // the Settings app is its own process: the shell holds the real value
+        if (inSettings) Quickshell.execDetached([root.ipc, "brightness", "extraDim", String(extraDim)]);
+    }
+    Process {
+        running: root.inSettings
+        command: [root.ipc, "brightness", "extraDimLevel"]
+        stdout: StdioCollector { onStreamFinished: { const n = parseInt(text); if (n >= 25 && n <= 100) root.extraDim = n; } }
+    }
     // v is the perceived level (0–1); with -e4, "N%" is on the same curve
     function set(v) {
         value = Math.max(0.01, Math.min(1, v));

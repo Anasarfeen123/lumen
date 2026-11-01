@@ -51,8 +51,27 @@ Singleton {
     readonly property var exceptions: Persist.data.nightLightExcept ?? ["gimp", "krita", "inkscape", "darktable", "rawtherapee", "figma", "blender", "photoshop", "affinity", "digikam", "kdenlive", "davinci", "resolve"]
     readonly property string focusedClass: (Hyprland.activeToplevel?.lastIpcObject?.class ?? "").toLowerCase()
     readonly property bool excepted: focusedClass !== "" && exceptions.some(e => e && focusedClass.includes(e.toLowerCase()))
+    // One hyprsunset for both night light and extra dim (Brightness.extraDim:
+    // the picture dimmed below the backlight's lowest). It starts with the
+    // values of the moment; later changes go to it live over its socket.
+    readonly property bool warm: root.enabled && !root.excepted
+    readonly property int gamma: Brightness.extraDim
     SupervisedProcess {
-        wanted: root.enabled && !root.excepted
-        command: ["hyprsunset", "-t", String(root.temperature)]
+        id: sunset
+        // (never in the Settings app: the shell runs the one hyprsunset)
+        wanted: (root.warm || root.gamma < 100) && Quickshell.env("LUMEN_SETTINGS_APP") !== "1"
+        command: root.warm ? ["hyprsunset", "-t", String(root.temperature), "-g", String(root.gamma)]
+                           : ["hyprsunset", "-i", "-g", String(root.gamma)]
     }
+    function live(args) { if (sunset.running) Quickshell.execDetached(["hyprctl", "hyprsunset"].concat(args)); }
+    // once it's up, make sure it has the values of now (it may have started a
+    // moment before they changed)
+    Connections { target: sunset; function onRunningChanged() { if (sunset.running) syncSoon.restart(); } }
+    Timer {
+        id: syncSoon; interval: 400
+        onTriggered: { root.live(root.warm ? ["temperature", String(root.temperature)] : ["identity"]); root.live(["gamma", String(root.gamma)]); }
+    }
+    onGammaChanged: live(["gamma", String(gamma)])
+    onWarmChanged: live(warm ? ["temperature", String(temperature)] : ["identity"])
+    onTemperatureChanged: if (warm) live(["temperature", String(temperature)])
 }
