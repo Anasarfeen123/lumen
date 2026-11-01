@@ -34,6 +34,7 @@ import qs.modules.snap
 import qs.modules.captions
 import qs.modules.expose
 import qs.modules.widgets
+import qs.modules.pointer
 
 ShellRoot {
     id: root
@@ -104,6 +105,13 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: DesktopPlugins {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    Variants {
+        model: Quickshell.screens
+        delegate: PointerFinderOverlay {
             required property var modelData
             screen: modelData
         }

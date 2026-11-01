@@ -223,27 +223,80 @@ Page {
                 }
             }
         }
+        // ── the pointer: every installed theme, drawn as it really looks ──
         SetRow {
+            id: ptrRow
             icon: "arrow_selector_tool"
             title: "Pointer"
-            description: "Bibata: soft, rounded pointers that stay crisp at any size"
-            Segmented {
-                width: 330
-                options: [{ id: "Bibata-Modern-Classic", label: "Dark" }, { id: "Bibata-Modern-Ice", label: "Light" },
-                          { id: "Bibata-Modern-Amber", label: "Amber" }, { id: "breeze_cursors", label: "Breeze" }]
-                current: (Theme.tokens.prefs ?? {}).cursor ?? "Bibata-Modern-Classic"
-                onPicked: id => SettingsState.lumen(["set", "cursor", id])
+            description: "Every pointer theme on this computer, as it looks — the arrow and the hand"
+            property var themes: []
+            readonly property string current: (Theme.tokens.prefs ?? {}).cursor ?? "Bibata-Modern-Classic"
+            Process {
+                running: true
+                command: [Theme.lumenRoot + "/scripts/cursor-previews.py"]
+                // left-handed copies (…-Right) are the same pointer mirrored: one tile each
+                stdout: StdioCollector { onStreamFinished: { try { ptrRow.themes = JSON.parse(text).filter(t => !/-Right$/.test(t.id)); } catch (e) {} } }
+            }
+        }
+        Flow {
+            width: parent.width
+            spacing: Theme.space.s2
+            leftPadding: Theme.space.s3; rightPadding: Theme.space.s3; bottomPadding: Theme.space.s3
+            Repeater {
+                model: ptrRow.themes
+                HoverTarget {
+                    id: pt
+                    required property var modelData
+                    readonly property bool on: modelData.id === ptrRow.current
+                    width: 112; height: 84; radius: Theme.radius.md
+                    onClicked: SettingsState.lumen(["set", "cursor", modelData.id])
+                    Rectangle { anchors.fill: parent; z: -1; radius: parent.radius
+                                // a mid-grey card: dark and light pointers both show
+                                color: Theme.withAlpha(Theme.text, pt.on ? 0.14 : 0.07)
+                                border.width: pt.on ? 2 : 1; border.color: pt.on ? Theme.accent : Theme.border }
+                    Image {
+                        anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 10 }
+                        width: 84; height: 40
+                        source: "file://" + pt.modelData.preview
+                        fillMode: Image.PreserveAspectFit
+                        smooth: true; mipmap: true
+                        asynchronous: true
+                    }
+                    LText {
+                        anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 8 }
+                        width: parent.width - 12; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
+                        role: "caption"; color: pt.on ? Theme.text : Theme.textSecondary
+                        text: pt.modelData.name.replace(/^Bibata-/, "").replace(/-/g, " ").replace(/ cursors$/i, "")
+                    }
+                }
             }
         }
         SetRow {
             icon: "format_size"
             title: "Pointer size"
             Segmented {
-                width: 240
-                options: [{ id: "24", label: "Normal" }, { id: "28", label: "Large" }, { id: "32", label: "Larger" }]
+                width: 320
+                options: [{ id: "24", label: "Normal" }, { id: "28", label: "Large" }, { id: "32", label: "Larger" }, { id: "40", label: "Huge" }]
                 current: String((Theme.tokens.prefs ?? {}).cursor_size ?? "24")
                 onPicked: id => SettingsState.lumen(["set", "cursor_size", id])
             }
+        }
+        SetRow {
+            icon: "visibility_off"
+            title: "Hide the pointer"
+            description: "When the mouse hasn't moved for a while; it comes back the moment you touch it"
+            Segmented {
+                width: 300
+                options: [{ id: "3", label: "3 s" }, { id: "5", label: "5 s" }, { id: "10", label: "10 s" }, { id: "0", label: "Never" }]
+                current: String((Theme.tokens.prefs ?? {}).pointer_hide ?? "5")
+                onPicked: id => SettingsState.lumen(["set", "pointer_hide", id])
+            }
+        }
+        SetRow {
+            icon: "keyboard"
+            title: "Hide it while typing"
+            LSwitch { checked: ((Theme.tokens.prefs ?? {}).pointer_hide_typing ?? "on") === "on"
+                      onToggled: SettingsState.lumen(["set", "pointer_hide_typing", checked ? "off" : "on"]) }
         }
         SetRow {
             icon: "music_note"

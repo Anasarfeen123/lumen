@@ -15,7 +15,7 @@ Singleton {
 
     // In sidebar order, under their group headings
     readonly property var pages: [
-        { group: "Personalise", id: "appearance", icon: "palette",             label: "Appearance",          keys: "theme dark light accent colour transparency glass blur motion clock 12 24 icons sounds" },
+        { group: "Personalise", id: "appearance", icon: "palette",             label: "Appearance",          keys: "theme dark light accent colour transparency glass blur motion clock 12 24 icons sounds pointer cursor mouse arrow size hide find desktop widgets login screen wallpaper music bars" },
         { group: "Personalise", id: "wallpaper", icon: "wallpaper",           label: "Wallpaper",           keys: "background picture shuffle match accent" },
         { group: "Personalise", id: "bar", icon: "top_panel_open",      label: "Bar & Island",        keys: "island date workspace hot corners" },
         { group: "Personalise", id: "windows", icon: "select_window",       label: "Windows",             keys: "gaps corners rounding border animation speed focus follows mouse" },

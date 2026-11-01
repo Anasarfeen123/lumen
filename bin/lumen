@@ -129,8 +129,17 @@ case ${1:-} in
             border=off|border=thin|border=normal|anim_speed=fast|anim_speed=normal|anim_speed=relaxed|\
             follow_mouse=on|follow_mouse=off)
                 set_state "$2" "$3"; reload ;;
-            cursor=Bibata-Modern-Classic|cursor=Bibata-Modern-Ice|cursor=Bibata-Modern-Amber|cursor=breeze_cursors|\
-            cursor_size=24|cursor_size=28|cursor_size=32)
+            pointer_hide=0|pointer_hide=3|pointer_hide=5|pointer_hide=10|pointer_hide=30|\
+            pointer_hide_typing=on|pointer_hide_typing=off)
+                set_state "$2" "$3"; reload ;;
+            cursor=*|cursor_size=24|cursor_size=28|cursor_size=32|cursor_size=40|cursor_size=48)
+                # a pointer theme: any installed one (a folder with cursors/), by its plain name
+                if [ "$2" = cursor ]; then
+                    printf '%s' "$3" | grep -Eq '^[A-Za-z0-9_.+-]{1,64}$' || { echo "lumen: not a pointer theme name: $3" >&2; exit 2; }
+                    found=""
+                    for d in "$HOME/.local/share/icons" "$HOME/.icons" /usr/share/icons; do [ -d "$d/$3/cursors" ] && found=1; done
+                    [ -n "$found" ] || { echo "lumen: no pointer theme called $3 is installed" >&2; exit 1; }
+                fi
                 set_state "$2" "$3"; reload
                 cur=$(jq -r .cursor.theme "$LUMEN_ROOT/generated/tokens.json")
                 size=$(jq -r .cursor.size "$LUMEN_ROOT/generated/tokens.json")

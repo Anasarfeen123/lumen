@@ -78,8 +78,9 @@ hl.config({
         initial_workspace_tracking = 0,
     },
     cursor = {
-        inactive_timeout = 5,              -- hide the pointer while typing / idle
-        hide_on_key_press = true,
+        -- Settings → Appearance → Pointer: hide it after a few idle seconds / while typing
+        inactive_timeout = LM.pointer_hide or 5,
+        hide_on_key_press = LM.pointer_hide_typing ~= false,
     },
     ecosystem = {
         no_update_news = true,

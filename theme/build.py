@@ -230,6 +230,7 @@ def resolve(theme_name: str | None, accent_name: str | None, accent_hue: float |
         "prefs": {k: state.get(k, d) for k, d in (("gaps", "normal"), ("corners", "soft"), ("border", "normal"),
                                                   ("anim_speed", "normal"), ("follow_mouse", "on"),
                                                   ("cursor", "Bibata-Modern-Classic"), ("cursor_size", "24"),
+                                                  ("pointer_hide", "5"), ("pointer_hide_typing", "on"),
                                                   ("accent_style", "adaptive"), ("accent_intensity", "100"),
                                                   ("glass_level", "50"), ("motion_scale", ""),
                                                   ("pointer_speed", "0"), ("accel", "adaptive"), ("natural_scroll", "on"),
@@ -351,6 +352,9 @@ def emit_hypr_lua(t: dict) -> str:
         "border_size": w["border"], "gaps_in": w["gaps_in"], "gaps_out": w["gaps_out"],
         "follow_mouse": w["follow_mouse"],
         "cursor": t["cursor"]["theme"], "cursor_size": t["cursor"]["size"],
+        # hide the pointer after n idle seconds (0: never) / while typing
+        "pointer_hide": int(t["prefs"].get("pointer_hide", "5")) if str(t["prefs"].get("pointer_hide", "5")).isdigit() else 0,
+        "pointer_hide_typing": t["prefs"].get("pointer_hide_typing", "on") == "on",
         "input": dict(t["input"]),
         "apps": dict(t["apps"]),
         "app_a11y": t["prefs"].get("app_a11y", "off") == "on",
