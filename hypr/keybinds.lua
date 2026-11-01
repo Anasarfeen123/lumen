@@ -337,6 +337,9 @@ group("Session")
 key("SUPER + L", exec(ipc .. " lock lock || loginctl lock-session"), "Lock")
 key("SUPER + SHIFT + L", exec("systemctl suspend"), "Sleep")
 key("SUPER + Escape", global("lumen:powerMenu"), "Power menu")
+-- Screens off, still awake (music, a download); any key or the mouse wakes them.
+-- The pause lets this key's own release pass first.
+key("CTRL + SUPER + Escape", exec("sh -c 'sleep 0.6; hyprctl dispatch \"hl.dsp.dpms({ action = [[off]] })\"'"), "Turn the screens off (any key wakes them)")
 key("CTRL + ALT + Delete", global("lumen:powerMenu"))
 -- Emergency exit if the shell itself is broken (the power menu needs it)
 key("CTRL + ALT + SHIFT + SUPER + Escape", hl.dsp.exit(), "Exit Hyprland (emergency)")

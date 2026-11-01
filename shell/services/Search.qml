@@ -30,6 +30,8 @@ Singleton {
         { title: "Circle to search", glyph: "gesture", keys: "circle to search lens look up what is this screen google lens ocr", fn: () => Lens.start() },
         { title: "Talk to Halo", glyph: "mic", keys: "talk voice speak halo jarvis listen", fn: () => Halo.talk() },
         { title: "Screenshot (region)", glyph: "screenshot_region", keys: "screenshot capture snip", cmd: [Theme.lumenRoot + "/scripts/screenshot.sh", "region"], delay: true },
+        { title: "Turn the screen off", glyph: "desktop_access_disabled", keys: "screen off display off dpms blank monitor off keep awake music", cmd: ["sh", "-c", 'sleep 0.6; hyprctl dispatch "hl.dsp.dpms({ action = [[off]] })"'], delay: true },
+        { title: "Bring back lost windows", glyph: "move_selection_left", keys: "lost windows off screen offscreen missing window gone recover rescue", cmd: [Theme.lumenRoot + "/scripts/lost-windows.sh"] },
         { title: "AmazeCC", glyph: "school", keys: "amazecc college vtop vit app attendance timetable marks grades exams cgpa circulars library proctor", fn: () => Amazecc.launch("") },
         { title: "Scrolling screenshot", glyph: "swipe_down", keys: "scrolling screenshot long screenshot full page capture scroll", cmd: [Theme.lumenRoot + "/scripts/screenshot.sh", "scroll"], delay: true },
         { title: "Record screen", glyph: "screen_record", keys: "record screen recording video", cmd: [Theme.lumenRoot + "/scripts/screen-record.sh", "toggle", "screen"], delay: true },
