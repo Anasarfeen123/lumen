@@ -74,6 +74,9 @@ Singleton {
     readonly property var exams: data.exams ?? []
     readonly property real updated: data.updated ?? 0
     readonly property bool ready: courses.length > 0
+    // Old data, said plainly: more than 6 hours since the last good sync while
+    // AmazeCC is on and signed in (the API down, VTOP down, the laptop asleep)
+    readonly property bool stale: { clock.date; return ready && cfg.enabled && hasLogin && updated > 0 && Date.now() - updated > 6 * 3600000; }
 
     // ── status ──
     property bool hasLogin: false

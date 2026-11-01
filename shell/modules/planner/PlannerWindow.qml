@@ -283,8 +283,8 @@ PanelWindow {
                     return !Amazecc.updated ? "" : m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago";
                 }
                 headerRight: [
-                    LText { visible: Amazecc.ready; role: "caption"; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
-                            text: Amazecc.syncing ? "Syncing…" : classes.ago },
+                    LText { visible: Amazecc.ready; role: "caption"; color: Amazecc.stale ? Theme.warning : Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
+                            text: Amazecc.syncing ? "Syncing…" : Amazecc.stale ? "Out of date · " + classes.ago : classes.ago },
                     HoverTarget { visible: Amazecc.hasLogin; width: 26; height: 26; onClicked: Amazecc.sync(true)
                                   LIcon { id: syncIcon; anchors.centerIn: parent; icon: "sync"; size: 16; color: Theme.textMuted
                                           RotationAnimation on rotation { running: Amazecc.syncing; loops: Animation.Infinite; from: 360; to: 0; duration: 1100 } } }

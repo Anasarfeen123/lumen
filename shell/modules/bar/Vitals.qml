@@ -15,7 +15,10 @@ HoverTarget {
     width: row.implicitWidth + 16
     height: Theme.barHeight - 12
     radius: height / 2
-    opacity: shown && history.length > 1 ? 1 : 0
+    // Settings → Bar & Island: "always" | "busy" (CPU over 30 % or memory over 80 %) | "never"
+    readonly property string mode: Persist.data.barVitals ?? "busy"
+    readonly property bool busy: Sysinfo.cpu > 0.3 || memPct > 0.8
+    opacity: shown && history.length > 1 && (mode === "always" || (mode === "busy" && busy)) ? 1 : 0
     visible: opacity > 0.01
     Behavior on opacity { NumberAnimation { duration: Theme.motion.normal } }
     onClicked: SettingsState.launch("system")

@@ -120,6 +120,21 @@ PanelWindow {
 
         input.Keys.onPressed: event => {
             const k = event.key;
+            // a result's menu is open: it takes the arrows, Enter and Esc
+            if (results.menuOpen) {
+                if (k === Qt.Key_Escape || k === Qt.Key_Menu) results.closeMenu();
+                else if (k === Qt.Key_Down || k === Qt.Key_Tab) results.menuMove(1);
+                else if (k === Qt.Key_Up || k === Qt.Key_Backtab) results.menuMove(-1);
+                else if (k === Qt.Key_Return || k === Qt.Key_Enter) results.menuRun();
+                else return;
+                event.accepted = true;
+                return;
+            }
+            if (k === Qt.Key_Menu || (k === Qt.Key_F10 && event.modifiers & Qt.ShiftModifier)) {
+                if (!win.gridMode) results.openMenu();
+                event.accepted = true;
+                return;
+            }
             if (k === Qt.Key_Escape) {
                 if (Overview.query !== "") Overview.query = "";
                 else if (Overview.mode !== "search") Overview.mode = "search";

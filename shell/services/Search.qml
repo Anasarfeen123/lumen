@@ -167,6 +167,51 @@ Singleton {
         return pins.concat(hist);
     }
 
+    // ── right-click (or the Menu key) on a result: what else it can do ──
+    readonly property var settingsFor: ({ "Bluetooth": "bluetooth", "Night light": "display", "Wi-Fi": "network", "Airplane mode": "network",
+                                          "Mute sound": "sound", "Dark theme": "appearance", "Do not disturb": "notifications", "Caffeine": "power" })
+    function actionsFor(r) {
+        if (!r) return [];
+        const a = [];
+        const copy = t => () => Quickshell.execDetached(["wl-copy", "--", String(t)]);
+        switch (r.kind) {
+        case "app": {
+            const e = r.entry;
+            a.push({ label: "Open", icon: "open_in_new", run: () => r.run() });
+            a.push({ label: "Open on a new workspace", icon: "add_box", run: () => { Hypr.workspace("empty"); r.run(); } });
+            if (e?.command?.length) a.push({ label: "Copy the command", icon: "terminal", run: copy(e.command.join(" ")) });
+            break;
+        }
+        case "window": {
+            const addr = r.address ?? "";
+            a.push({ label: "Go to it", icon: "select_window", run: () => r.run() });
+            if (addr) {
+                a.push({ label: "Bring it here", icon: "move_down", run: () => Hypr.moveToWorkspace(addr, Hyprland.focusedWorkspace?.id ?? 1, true) });
+                a.push({ label: "Close it", icon: "close", run: () => Hypr.closeWindow(addr) });
+            }
+            break;
+        }
+        case "clipboard":
+            a.push({ label: "Paste", icon: "content_paste", run: () => r.run() });
+            a.push({ label: "Copy", icon: "content_copy", run: () => Clipboard.use(r.id, "copy") });
+            a.push({ label: "Copy as plain text", icon: "format_clear", run: () => Clipboard.use(r.id, "plain") });
+            a.push({ label: "Pin", icon: "keep", run: () => Clipboard.pin(r.entry) });
+            a.push({ label: "Delete", icon: "delete", run: () => Clipboard.remove(r.id) });
+            break;
+        case "calc":
+        case "web":
+            a.push({ label: r.badge || "Open", icon: "check", run: () => r.run() });
+            a.push({ label: "Copy", icon: "content_copy", run: copy(r.title.replace(/^≈\s*/, "")) });
+            break;
+        default:
+            a.push({ label: r.on === true ? "Turn off" : r.on === false ? "Turn on" : r.badge === "Action" ? "Do it" : (r.badge || "Open"),
+                     icon: r.on === true ? "toggle_off" : r.on === false ? "toggle_on" : "play_arrow", run: () => r.run() });
+            if (settingsFor[r.title]) a.push({ label: "Settings for it", icon: "settings", run: () => SettingsState.launch(settingsFor[r.title]) });
+            a.push({ label: "Copy the name", icon: "content_copy", run: copy(r.title) });
+        }
+        return a;
+    }
+
     function searchResults(q) {
         const out = [];
 
@@ -334,7 +379,7 @@ Singleton {
             const cut = (apps[0]?.score ?? 0) * 0.55;
             const appRows = apps.filter(a => a.score >= cut).slice(0, 6).map(r => ({ kind: "app", group: "Applications", title: r.entry.name,
                            subtitle: r.entry.genericName || r.entry.comment || "",
-                           icon: Apps.iconFor(r.entry), badge: "App", score: r.score,
+                           icon: Apps.iconFor(r.entry), badge: "App", score: r.score, entry: r.entry,
                            run: () => Apps.launch(r.entry) }));
             if (appRows.length) groups.push({ best: apps[0].score, rows: appRows });
 
@@ -346,7 +391,7 @@ Singleton {
             const winRows = wins.map(w => {
                 const cls = w.t.lastIpcObject?.class ?? "";
                 const entry = Apps.entryFor(cls);
-                return { kind: "window", group: "Windows", title: w.t.title || cls,
+                return { kind: "window", group: "Windows", title: w.t.title || cls, address: w.t.lastIpcObject?.address ?? ("0x" + w.t.address),
                          subtitle: `${entry?.name ?? cls} · workspace ${w.t.workspace?.id ?? "?"}`,
                          icon: entry ? Apps.iconFor(entry) : "", glyph: "select_window", badge: "Window",
                          run: () => Hypr.focusWindow(w.t.lastIpcObject?.address ?? ("0x" + w.t.address)) };
@@ -363,6 +408,7 @@ Singleton {
                 return { kind: "action", group: x.a.title.endsWith(" settings") ? "Settings" : "Actions", title: x.a.title,
                          subtitle: x.a.destructive ? "Press Enter twice to confirm" : st === null ? "" : st ? "On — Enter turns it off" : "Off — Enter turns it on",
                          glyph: x.a.glyph, badge: x.a.title.endsWith(" settings") ? "Open" : st === null ? "Action" : st ? "On" : "Off", destructive: x.a.destructive ?? false,
+                         on: st,
                          run: () => x.a.fn ? x.a.fn() : root.exec(x.a.cmd, x.a.delay) };
             });
             // settings rows form their own group after actions

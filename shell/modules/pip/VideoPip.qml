@@ -68,8 +68,8 @@ PanelWindow {
         transformOrigin: Pip.vCorner === "br" ? Item.BottomRight : Pip.vCorner === "bl" ? Item.BottomLeft : Pip.vCorner === "tl" ? Item.TopLeft : Item.TopRight
 
         // soft shadow, then the picture in a rounded mask
-        RectangularShadow { anchors.fill: parent; radius: 16; blur: 28; spread: 0; color: Theme.withAlpha("#000000", 0.45); offset.y: 6 }
-        Rectangle { anchors.fill: parent; radius: 16; color: "#000000" }
+        RectangularShadow { anchors.fill: parent; radius: 16; blur: 28; spread: 0; color: Theme.withAlpha(Theme.scrim, 0.45); offset.y: 6 }
+        Rectangle { anchors.fill: parent; radius: 16; color: Theme.scrim }
         Item {
             id: picture
             anchors.fill: parent
@@ -93,10 +93,10 @@ PanelWindow {
             Rectangle { anchors.fill: parent; radius: 16 }
         }
         MultiEffect { anchors.fill: parent; source: picture; maskEnabled: true; maskSource: roundMask; maskThresholdMin: 0.5; maskSpreadAtMin: 1 }
-        Rectangle { anchors.fill: parent; radius: 16; color: "transparent"; border.width: 1; border.color: Theme.withAlpha("#ffffff", 0.12) }
+        Rectangle { anchors.fill: parent; radius: 16; color: "transparent"; border.width: 1; border.color: Theme.withAlpha(Theme.onMedia, 0.12) }
 
         // still finding the video, or the window can't be shown
-        LIcon { anchors.centerIn: parent; visible: !view.hasContent; icon: "smart_display"; size: 32; color: Theme.withAlpha("#ffffff", 0.5) }
+        LIcon { anchors.centerIn: parent; visible: !view.hasContent; icon: "smart_display"; size: 32; color: Theme.withAlpha(Theme.onMedia, 0.5) }
 
         // ── showing the controls: while the pointer is over it and has moved in
         // the last couple of seconds (or it's paused); a passive hover, so
@@ -138,10 +138,10 @@ PanelWindow {
             id: flash
             anchors.centerIn: parent
             width: 64; height: 64; radius: 32
-            color: Theme.withAlpha("#000000", 0.45)
+            color: Theme.withAlpha(Theme.scrim, 0.45)
             opacity: 0; scale: 0.8
             property string icon: "play_arrow"
-            LIcon { anchors.centerIn: parent; icon: flash.icon; size: 36; color: "#ffffff"; fill: 1 }
+            LIcon { anchors.centerIn: parent; icon: flash.icon; size: 36; color: Theme.onMedia; fill: 1 }
             ParallelAnimation {
                 id: flashAnim
                 NumberAnimation { target: flash; property: "opacity"; from: 1; to: 0; duration: 600; easing.type: Easing.InQuad }
@@ -163,10 +163,10 @@ PanelWindow {
             Rectangle {
                 anchors.fill: parent; radius: 16
                 gradient: Gradient {
-                    GradientStop { position: 0; color: Theme.withAlpha("#000000", 0.62) }
-                    GradientStop { position: 0.3; color: Theme.withAlpha("#000000", 0.18) }
-                    GradientStop { position: 0.62; color: Theme.withAlpha("#000000", 0.18) }
-                    GradientStop { position: 1; color: Theme.withAlpha("#000000", 0.72) }
+                    GradientStop { position: 0; color: Theme.withAlpha(Theme.scrim, 0.62) }
+                    GradientStop { position: 0.3; color: Theme.withAlpha(Theme.scrim, 0.18) }
+                    GradientStop { position: 0.62; color: Theme.withAlpha(Theme.scrim, 0.18) }
+                    GradientStop { position: 1; color: Theme.withAlpha(Theme.scrim, 0.72) }
                 }
             }
 
@@ -179,9 +179,9 @@ PanelWindow {
                     width: parent.width - 2 * 31 - 4
                     anchors.verticalCenter: parent.verticalCenter
                     visible: !controls.tiny
-                    role: "caption"; color: Theme.withAlpha("#ffffff", 0.92); elide: Text.ElideRight
+                    role: "caption"; color: Theme.withAlpha(Theme.onMedia, 0.92); elide: Text.ElideRight
                     text: win.player?.trackTitle ?? ""
-                    style: Text.Raised; styleColor: Theme.withAlpha("#000000", 0.5)
+                    style: Text.Raised; styleColor: Theme.withAlpha(Theme.scrim, 0.5)
                     horizontalAlignment: Text.AlignHCenter
                 }
                 Item { width: controls.tiny ? parent.width - 2 * 31 - 2 : 0; height: 1 }
@@ -200,10 +200,10 @@ PanelWindow {
                     cursorShape: Qt.PointingHandCursor
                     hoverEnabled: true
                     onClicked: win.togglePlay()
-                    Rectangle { anchors.fill: parent; radius: width / 2; color: Theme.withAlpha("#000000", parent.containsMouse ? 0.55 : 0.42)
-                                border.width: 1; border.color: Theme.withAlpha("#ffffff", 0.22)
+                    Rectangle { anchors.fill: parent; radius: width / 2; color: Theme.withAlpha(Theme.scrim, parent.containsMouse ? 0.55 : 0.42)
+                                border.width: 1; border.color: Theme.withAlpha(Theme.onMedia, 0.22)
                                 Behavior on color { ColorAnimation { duration: Theme.motion.micro } } }
-                    LIcon { anchors.centerIn: parent; icon: win.playing ? "pause" : "play_arrow"; size: parent.width * 0.58; color: "#ffffff"; fill: 1 }
+                    LIcon { anchors.centerIn: parent; icon: win.playing ? "pause" : "play_arrow"; size: parent.width * 0.58; color: Theme.onMedia; fill: 1 }
                     scale: pressed ? 0.9 : 1
                     Behavior on scale { NumberAnimation { duration: Theme.motion.micro } }
                 }
@@ -219,9 +219,9 @@ PanelWindow {
                 LText {
                     anchors { left: parent.left; top: parent.top; topMargin: 2 }
                     visible: win.length > 0
-                    role: "caption"; color: "#ffffff"
+                    role: "caption"; color: Theme.onMedia
                     font.features: ({ "tnum": 1 })
-                    style: Text.Raised; styleColor: Theme.withAlpha("#000000", 0.5)
+                    style: Text.Raised; styleColor: Theme.withAlpha(Theme.scrim, 0.5)
                     text: Media.formatTime(scrub.pressed ? scrub.at * win.length : win.pos) + "  /  " + Media.formatTime(win.length)
                 }
                 // sound: click to mute that app · scroll for its volume
@@ -243,11 +243,11 @@ PanelWindow {
                     visible: win.length > 0
                     readonly property real frac: scrub.pressed ? scrub.at : Math.min(1, win.pos / Math.max(1, win.length))
                     Rectangle { anchors.verticalCenter: parent.verticalCenter; width: parent.width; height: scrub.containsMouse || scrub.pressed ? 6 : 4; radius: height / 2
-                                color: Theme.withAlpha("#ffffff", 0.28); Behavior on height { NumberAnimation { duration: Theme.motion.micro } } }
+                                color: Theme.withAlpha(Theme.onMedia, 0.28); Behavior on height { NumberAnimation { duration: Theme.motion.micro } } }
                     Rectangle { anchors.verticalCenter: parent.verticalCenter; width: parent.width * track.frac; height: scrub.containsMouse || scrub.pressed ? 6 : 4; radius: height / 2
                                 color: Theme.accent; Behavior on height { NumberAnimation { duration: Theme.motion.micro } } }
                     Rectangle { x: parent.width * track.frac - width / 2; anchors.verticalCenter: parent.verticalCenter
-                                width: 14; height: 14; radius: 7; color: "#ffffff"; visible: win.canSeek
+                                width: 14; height: 14; radius: 7; color: Theme.onMedia; visible: win.canSeek
                                 scale: scrub.containsMouse || scrub.pressed ? 1 : 0; Behavior on scale { NumberAnimation { duration: Theme.motion.micro } } }
                     MouseArea {
                         id: scrub
@@ -267,8 +267,8 @@ PanelWindow {
                         visible: scrub.containsMouse && !scrub.pressed
                         x: Math.max(0, Math.min(track.width - width, scrub.mouseX - width / 2)); y: -26
                         width: tipText.implicitWidth + 10; height: 18; radius: 9
-                        color: Theme.withAlpha("#000000", 0.75)
-                        LText { id: tipText; anchors.centerIn: parent; role: "caption"; color: "#ffffff"; text: Media.formatTime(scrub.frac(scrub.mouseX) * win.length) }
+                        color: Theme.withAlpha(Theme.scrim, 0.75)
+                        LText { id: tipText; anchors.centerIn: parent; role: "caption"; color: Theme.onMedia; text: Media.formatTime(scrub.frac(scrub.mouseX) * win.length) }
                     }
                 }
             }
@@ -333,10 +333,10 @@ PanelWindow {
         cursorShape: Qt.PointingHandCursor
         // a dark disc behind every icon, so it reads on a bright picture
         Rectangle { anchors.fill: parent; radius: width / 2
-                    color: b.containsMouse ? Theme.withAlpha("#000000", 0.55) : Theme.withAlpha("#000000", 0.28)
-                    border.width: b.containsMouse ? 1 : 0; border.color: Theme.withAlpha("#ffffff", 0.2)
+                    color: b.containsMouse ? Theme.withAlpha(Theme.scrim, 0.55) : Theme.withAlpha(Theme.scrim, 0.28)
+                    border.width: b.containsMouse ? 1 : 0; border.color: Theme.withAlpha(Theme.onMedia, 0.2)
                     Behavior on color { ColorAnimation { duration: Theme.motion.micro } } }
-        LIcon { anchors.centerIn: parent; icon: b.icon; size: b.size; color: "#ffffff"; fill: b.fill ? 1 : 0 }
+        LIcon { anchors.centerIn: parent; icon: b.icon; size: b.size; color: Theme.onMedia; fill: b.fill ? 1 : 0 }
         scale: pressed ? 0.9 : 1
         Behavior on scale { NumberAnimation { duration: Theme.motion.micro } }
         // a small label under it while hovered
@@ -344,8 +344,8 @@ PanelWindow {
             visible: b.containsMouse && b.tip !== ""
             anchors { top: parent.bottom; topMargin: 2; horizontalCenter: parent.horizontalCenter }
             width: bt.implicitWidth + 10; height: 18; radius: 9; z: 10
-            color: Theme.withAlpha("#000000", 0.75)
-            LText { id: bt; anchors.centerIn: parent; role: "caption"; color: "#ffffff"; text: b.tip }
+            color: Theme.withAlpha(Theme.scrim, 0.75)
+            LText { id: bt; anchors.centerIn: parent; role: "caption"; color: Theme.onMedia; text: b.tip }
         }
     }
 }

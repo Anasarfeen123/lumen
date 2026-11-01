@@ -92,7 +92,7 @@ Item {
             LText {
                 anchors.verticalCenter: parent.verticalCenter
                 role: "caption"
-                width: Math.min(implicitWidth, 170)
+                width: Math.min(implicitWidth, 150)
                 elide: Text.ElideRight
                 text: Inbox.call ? Inbox.call.title + " · calling"
                     : messages.waiting.length === 1 ? messages.waiting[0].title + (messages.waiting[0].unread > 1 ? " · " + messages.waiting[0].unread : "")
@@ -102,7 +102,20 @@ Item {
         Chip {
             id: media
             want: Media.present
-            onClicked: Island.togglePinned()
+            // left: the player in the island · middle: play/pause · right: next ·
+            // back/forward buttons: previous/next · scroll: this player's volume
+            acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton | Qt.BackButton | Qt.ForwardButton
+            onClicked: m => {
+                if (m.button === Qt.MiddleButton) Media.toggle();
+                else if (m.button === Qt.RightButton || m.button === Qt.ForwardButton) Media.next();
+                else if (m.button === Qt.BackButton) Media.previous();
+                else Island.togglePinned();
+            }
+            onWheel: w => {
+                const p = Media.active;
+                if (!p?.volumeSupported) return;
+                p.volume = Math.max(0, Math.min(1, p.volume + (w.angleDelta.y > 0 ? 0.05 : -0.05)));
+            }
             ClippingRectangle {
                 width: 18; height: 18; radius: 9
                 color: Theme.surfaceHover
@@ -112,7 +125,7 @@ Item {
             LText {
                 anchors.verticalCenter: parent.verticalCenter
                 role: "caption"
-                width: Math.min(implicitWidth, 190)
+                width: Math.min(implicitWidth, 150)
                 elide: Text.ElideRight
                 text: Media.title + (Media.artist ? "  ·  " + Media.artist : "")
                 color: Media.playing ? Theme.text : Theme.textSecondary
@@ -178,7 +191,7 @@ Item {
             LText {
                 anchors.verticalCenter: parent.verticalCenter
                 role: "caption"
-                width: Math.min(implicitWidth, 200)
+                width: Math.min(implicitWidth, 160)
                 elide: Text.ElideRight
                 text: root.nextEvent ? root.nextEvent.title + "  ·  " + root.inText(root.nextEvent.when) : ""
             }
@@ -197,7 +210,7 @@ Item {
             LText {
                 anchors.verticalCenter: parent.verticalCenter
                 role: "caption"
-                width: Math.min(implicitWidth, 220)
+                width: Math.min(implicitWidth, 170)
                 elide: Text.ElideRight
                 text: !classChip.cls ? "" : classChip.cls.title + (classChip.cls.venue ? "  ·  " + classChip.cls.venue : "")
                       + "  ·  " + (Amazecc.isCurrent(classChip.cls) ? "till " + Amazecc.clockLabel(classChip.cls.end) : Amazecc.inLabel(classChip.cls.start))

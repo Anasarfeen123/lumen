@@ -263,6 +263,18 @@ Scope {
     }
     // Your backup drive (Settings → Backup & recovery): offer "Back up", and
     // lead with it when the last backup is over a week old
+    // Back after a crash (scripts/shell-supervisor.sh left a note): say so once
+    FileView {
+        id: restartNote
+        path: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/lumen-shell-restarted"
+        printErrors: false
+        onLoaded: {
+            const f = text().trim().split(/\s+/);
+            if (!f[0]) return;
+            Island.system("restart_alt", "Lumen restarted", "The shell stopped unexpectedly (status " + (f[1] ?? "?") + ") and came back. If it keeps happening: lumen doctor");
+            Quickshell.execDetached(["rm", "-f", path]);
+        }
+    }
     FileView { id: backupConf; path: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/lumen/backup.json"; watchChanges: true; onFileChanged: reload(); printErrors: false }
     function backupFor(e) {
         let c; try { c = JSON.parse(backupConf.text()); } catch (err) { return []; }
@@ -406,8 +418,13 @@ Scope {
                           queueable: true, force: true, data: { path } });
         }
         function recording(active: bool): void {
-            if (active && !Island.recording) Island.recordingSince = new Date();
+            if (active && !Island.recording) { Island.recordingSince = new Date(); Island.recordingPaused = false; Island.recordingPausedTotal = 0; }
             Island.recording = active;
+        }
+        function recordingPaused(paused: bool): void {
+            if (paused && !Island.recordingPaused) Island.recordingPausedAt = Date.now();
+            if (!paused && Island.recordingPaused) Island.recordingPausedTotal += Date.now() - Island.recordingPausedAt;
+            Island.recordingPaused = paused;
         }
         function recordingSaved(path: string): void {
             Island.recording = false;

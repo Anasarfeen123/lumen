@@ -113,8 +113,8 @@ FloatingWindow {
                     Column {
                         anchors.verticalCenter: parent.verticalCenter
                         LText { role: "bodyStrong"; text: Amazecc.username || "Not signed in" }
-                        LText { role: "caption"; color: Amazecc.error ? Theme.error : Theme.textMuted
-                                text: Amazecc.syncing || win.syncAsked ? "Syncing…" : Amazecc.error ? "Couldn't sync" : "Updated " + win.ago }
+                        LText { role: "caption"; color: Amazecc.error ? Theme.error : Amazecc.stale ? Theme.warning : Theme.textMuted
+                                text: Amazecc.syncing || win.syncAsked ? "Syncing…" : Amazecc.error ? "Couldn't sync" : (Amazecc.stale ? "Out of date · " : "Updated ") + win.ago }
                     }
                 }
                 HoverTarget {

@@ -18,6 +18,18 @@ Page {
             LSwitch { checked: Persist.data.islandDate; onToggled: Persist.data.islandDate = !checked }
         }
         SetRow {
+            icon: "monitor_heart"
+            title: "System stats in the bar"
+            description: (Persist.data.barVitals ?? "busy") === "busy" ? "The CPU line and memory appear when the computer is busy (CPU over 30 % or memory over 80 %)."
+                       : (Persist.data.barVitals ?? "busy") === "always" ? "The CPU line and memory are always beside the status pill." : "Never shown — the Monitor app has them."
+            Segmented {
+                width: 240
+                options: [{ id: "busy", label: "When busy" }, { id: "always", label: "Always" }, { id: "never", label: "Never" }]
+                current: Persist.data.barVitals ?? "busy"
+                onPicked: id => Persist.data.barVitals = id
+            }
+        }
+        SetRow {
             icon: "picture_in_picture"
             title: "Video follows you"
             description: "Leave the workspace with a playing video and it continues in a small corner player — just the video. Go back and it steps away. Ctrl+Super+P or ⧉ in the player does it by hand."

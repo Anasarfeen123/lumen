@@ -48,6 +48,7 @@ Singleton {
             property bool linkBluetoothAuto: true     // Lumen Link: bring the phone's Bluetooth network up by itself
             property string islandClock: "roll"       // the island's clock: "roll" (digits slide) | "flip" (split-flap cards)
             property string islandScroll: "timeline"
+            property string barVitals: "busy"         // CPU line + memory in the bar: "always" | "busy" | "never"
             property bool pipAuto: true               // a playing video follows you when you leave its workspace
             property string pipCorner: "br"           // video PiP corner: br | bl | tl | tr
             property real pipSize: 0.26               // video PiP width, a fraction of the screen   // scroll on the island: "timeline" | "volume"

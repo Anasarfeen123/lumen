@@ -1,0 +1,18 @@
+[Desktop Entry]
+# Lumen's copy of swappy's entry: the packaged Exec line escapes "$" in a way
+# the desktop-entry spec doesn't allow, and every reader (Quickshell's app list
+# among them) logs a warning for it on every scan. Same app, a valid line.
+# Linked into ~/.local/share/applications by bin/lumen-startup.
+Name=Swappy
+GenericName=Annotation Tool
+Comment=A Wayland native snapshot editing tool
+TryExec=swappy
+Exec=swappy -f %f
+Terminal=false
+NoDisplay=true
+Type=Application
+Keywords=wayland;snapshot;annotation;editing;
+Icon=swappy
+Categories=Utility;Graphics;
+StartupNotify=true
+MimeType=image/png;image/jpeg;

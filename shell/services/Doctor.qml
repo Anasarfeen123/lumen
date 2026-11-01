@@ -68,6 +68,17 @@ Singleton {
     function never(g) {
         return { label: "Never for " + g.name, icon: "visibility_off", run: () => { Persist.data.haloDoctorIgnore = root.ignore.concat([g.name]); } };
     }
+    // Lumen's own caches — all re-made on demand (lyrics, thumbnails, album art,
+    // Halo's web reads) — and the thumbnail cache apps share; says what it freed
+    function cleanCaches() {
+        cleaner.running = true;
+    }
+    Process {
+        id: cleaner
+        command: ["sh", "-c", 'c=${XDG_CACHE_HOME:-$HOME/.cache}; set -- "$c/lumen/lyrics" "$c/lumen/thumbs" "$c/lumen/art" "$c/lumen/web" "$c/thumbnails"; ' +
+                  'before=$(du -sb "$@" 2>/dev/null | awk "{s+=\$1} END {print s+0}"); for d; do [ -d "$d" ] && find "$d" -mindepth 1 -delete; done; echo "$before"']
+        stdout: StdioCollector { onStreamFinished: Island.system("cleaning_services", "Caches cleaned", root.bytes(parseInt(text) || 0) + " freed · they fill back in as needed") }
+    }
     function askHalo(question) { return { label: "Ask " + Halo.name, icon: "auto_awesome", run: () => { Ai.show(); Ai.send(question); } }; }
     function powerSaver() {
         return Power.saver ? null : { label: "Battery saver", icon: "energy_savings_leaf", run: () => Power.saverOn() };
@@ -151,12 +162,14 @@ Singleton {
 
         // disk almost full
         const seen = {}, disks = (d.fs ?? []).filter(f => { const k = f.size + ":" + f.free; if (seen[k]) return false; seen[k] = true; return true; });
-        const tight = disks.find(f => f.free < Math.max(5 * 1073741824, 0.03 * f.size));
+        // past 90 % used, or under 5 GB free, on / or /home
+        const tight = disks.find(f => f.free < Math.max(5 * 1073741824, 0.10 * f.size));
         if (tight)
-            found("disk", { icon: "hard_drive", title: "Disk space is low — " + bytes(tight.free) + " left",
+            found("disk", { icon: "hard_drive", title: "Disk " + Math.round(100 - 100 * tight.free / tight.size) + "% full — " + bytes(tight.free) + " left",
                             text: "On " + (tight.mount === "/" ? "the system drive" : tight.mount.replace(Quickshell.env("HOME"), "~")) + ". Updates and downloads may fail.",
                             level: "important",
-                            actions: [askHalo("My disk is almost full (" + bytes(tight.free) + " left on " + tight.mount + "). What can I safely clean on Fedora? Give me the commands, safest first."), notNow("disk")] }, 24 * 3600000);
+                            actions: [{ label: "Clean caches", icon: "cleaning_services", run: () => root.cleanCaches() },
+                                      askHalo("My disk is almost full (" + bytes(tight.free) + " left on " + tight.mount + "). What can I safely clean on Fedora? Give me the commands, safest first."), notNow("disk")] }, 24 * 3600000);
 
         // a background service failed
         for (const u of d.failed ?? [])

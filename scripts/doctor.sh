@@ -48,6 +48,35 @@ check)
         for c in hypridle hyprpicker udisksctl nmcli qt6ct tesseract swappy wf-recorder kdeconnect-cli ollama; do command -v "$c" >/dev/null 2>&1 || opt="$opt $c"; done
         if [ -z "$opt" ]; then item "Optional programs" "All installed" ok
         else item "Optional programs" "Not installed:$opt — the features that use them stay hidden" warn; fi
+        # Hyprland crashes in the last 14 days (~/.cache/hyprland), and what they share
+        crashdir=${XDG_CACHE_HOME:-$HOME/.cache}/hyprland
+        recent=$(find "$crashdir" -maxdepth 1 -name 'hyprlandCrashReport*.txt' -mtime -14 2>/dev/null)
+        if [ -z "$recent" ]; then item "Hyprland crashes" "None in the last 14 days" ok
+        else
+            n=$(printf '%s\n' "$recent" | wc -l)
+            fence=$(printf '%s\n' "$recent" | xargs grep -l eglDupNativeFenceFDANDROID 2>/dev/null | wc -l)
+            last=$(printf '%s\n' "$recent" | xargs ls -t | head -1)
+            when=$(date -r "$last" '+%-d %b %H:%M')
+            if [ "$fence" -gt 0 ]; then
+                item "Hyprland crashes" "$n in 14 days (last $when); $fence after a multi-GPU fence error — log out and back in so the AQ_MGPU_NO_EXPLICIT fix applies" error
+            else
+                item "Hyprland crashes" "$n in 14 days (last $when) — ${last##*/} has the backtrace" warn
+            fi
+        fi
+        # The shell's most repeated warning this session (one noisy source drowns the rest)
+        tmp=$(mktemp)
+        "$0" shell-log "$tmp" >/dev/null 2>&1
+        top=$(grep -E ' WARN | ERROR ' "$tmp" | sed -E 's/0x[0-9a-f]+|id=[0-9]+|[0-9]+/N/g' | sort | uniq -c | sort -rn | head -1)
+        rm -f "$tmp"
+        count=$(printf '%s' "$top" | awk '{print $1}')
+        what=$(printf '%s' "$top" | sed -E 's/^ *[0-9]+ +//; s/^ *(WARN|ERROR) *//' | cut -c1-110)
+        if [ -z "$top" ]; then item "Shell log" "No warnings this session" ok
+        elif [ "${count:-0}" -ge 100 ]; then item "Shell log" "${count}× $what" warn
+        else item "Shell log" "Quiet — the most repeated warning appears ${count}×" ok; fi
+        # Lumen's own user services (and the AmazeCC API, if you run it)
+        failed=$(systemctl --user list-units --failed --plain --no-legend 2>/dev/null | awk '{print $1}' | grep -E '^(lumen|amazecc)' | tr '\n' ' ')
+        if [ -z "$failed" ]; then item "Lumen services" "None failed" ok
+        else item "Lumen services" "Failed: $failed— systemctl --user status shows why" error; fi
         # Local AI
         if curl -fsS --max-time 1 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
             n=$(curl -fsS --max-time 2 http://127.0.0.1:11434/api/tags | jq '.models | length')

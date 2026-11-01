@@ -1,6 +1,7 @@
 // Result panel. Keyboard selection lives here; destructive actions need a
 // second Enter within 3 s (DESIGN.md §0: never destroy on one keystroke).
 import QtQuick
+import QtQuick.Effects
 import qs.theme
 import qs.components
 import qs.services
@@ -44,6 +45,32 @@ GlassSurface {
     }
 
     Timer { id: disarm; interval: 3000; onTriggered: root.armedIndex = -1 }
+
+    // ── the result's menu (right-click, or the Menu key / Shift+F10) ──
+    property var menuItems: []
+    property int menuIndex: 0
+    readonly property bool menuOpen: menuItems.length > 0
+    function openMenu(i, at) {
+        const r = Search.results[i ?? list.currentIndex];
+        const items = Search.actionsFor(r);
+        if (!items.length) return;
+        menuIndex = 0;
+        const row = list.currentItem;
+        const p = at ?? (row ? row.mapToItem(root, row.width - 240, row.height) : Qt.point(root.width - 260, 40));
+        menu.x = Math.max(8, Math.min(root.width - menu.width - 8, p.x));
+        menu.y = Math.max(8, Math.min(root.height - menu.height - 8, p.y));
+        menuItems = items;
+    }
+    function closeMenu() { menuItems = []; }
+    function menuMove(d) { if (menuOpen) menuIndex = (menuIndex + d + menuItems.length) % menuItems.length; }
+    function menuRun(i) {
+        const it = menuItems[i ?? menuIndex];
+        closeMenu();
+        if (!it) return;
+        done();
+        it.run();
+    }
+    Connections { target: Search; function onResultsChanged() { root.closeMenu(); } }
 
     Connections {
         target: Search
@@ -107,7 +134,84 @@ GlassSurface {
                 selected: cell.index === list.currentIndex
                 armed: cell.index === root.armedIndex
                 onActivated: root.activate(cell.index)
+                onMenuRequested: (mx, my) => { list.currentIndex = cell.index; root.openMenu(cell.index, mapToItem(root, mx, my)); }
                 onHovered: if (list.currentIndex !== cell.index) { list.currentIndex = cell.index; root.armedIndex = -1; }
+            }
+        }
+    }
+
+    // clicking elsewhere closes the menu
+    MouseArea { anchors.fill: parent; z: 19; visible: root.menuOpen; acceptedButtons: Qt.AllButtons; onClicked: root.closeMenu() }
+    Rectangle {
+        id: menu
+        z: 20
+        visible: opacity > 0.01
+        opacity: root.menuOpen ? 1 : 0
+        scale: root.menuOpen ? 1 : 0.95
+        transformOrigin: Item.TopLeft
+        Behavior on opacity { NumberAnimation { duration: Theme.motion.micro } }
+        Behavior on scale { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+        width: 240
+        height: menuCol.implicitHeight + 8
+        radius: Theme.radius.md
+        color: "transparent"
+
+        // Frosted glass: the results behind it, blurred, under a tint — a
+        // compositor blur can't reach a piece of one surface, so it's drawn here
+        RectangularShadow { anchors.fill: parent; radius: parent.radius; blur: 24; spread: 0; offset.y: 6; color: Theme.withAlpha(Theme.scrim, 0.35) }
+        ShaderEffectSource {
+            id: behind
+            anchors.fill: parent
+            sourceItem: list
+            sourceRect: Qt.rect(menu.x - list.x, menu.y - list.y, menu.width, menu.height)
+            live: root.menuOpen
+            visible: false
+        }
+        Item {
+            id: menuMask
+            anchors.fill: parent
+            layer.enabled: true
+            visible: false
+            Rectangle { anchors.fill: parent; radius: menu.radius }
+        }
+        // a near-solid base, so the rows behind show only blurred, never crisp
+        Rectangle { anchors.fill: parent; radius: parent.radius; color: Theme.withAlpha(Theme.surface, 0.94) }
+        MultiEffect {
+            anchors.fill: parent
+            source: behind
+            blurEnabled: true; blur: 1.0; blurMax: 48
+            saturation: 0.15
+            maskEnabled: true; maskSource: menuMask; maskThresholdMin: 0.5; maskSpreadAtMin: 1
+        }
+        Rectangle {
+            anchors.fill: parent
+            radius: parent.radius
+            color: Theme.withAlpha(Theme.surfaceElevated, 0.5)
+            border.width: 1; border.color: Theme.borderStrong
+            // a hairline of light along the top, as on Lumen's other glass
+            Rectangle { anchors { top: parent.top; topMargin: 1; horizontalCenter: parent.horizontalCenter } width: parent.width - 2 * parent.radius; height: 1; color: Theme.withAlpha(Theme.text, 0.10) }
+        }
+        Column {
+            id: menuCol
+            x: 4; y: 4
+            width: parent.width - 8
+            Repeater {
+                model: root.menuItems
+                HoverTarget {
+                    required property var modelData
+                    required property int index
+                    width: menuCol.width; height: 32
+                    radius: Theme.radius.sm
+                    highlighted: index === root.menuIndex
+                    onContainsMouseChanged: if (containsMouse) root.menuIndex = index
+                    onClicked: root.menuRun(index)
+                    Row {
+                        anchors { left: parent.left; leftMargin: Theme.space.s3; verticalCenter: parent.verticalCenter }
+                        spacing: Theme.space.s3
+                        LIcon { icon: modelData.icon ?? ""; size: 16; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                        LText { text: modelData.label; anchors.verticalCenter: parent.verticalCenter }
+                    }
+                }
             }
         }
     }

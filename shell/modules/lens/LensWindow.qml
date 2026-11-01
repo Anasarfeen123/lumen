@@ -62,7 +62,7 @@ PanelWindow {
     }
 
     // Behind the frozen screen as it settles back: a deep backdrop
-    Rectangle { anchors.fill: parent; color: "#05070a"; opacity: win.lift }
+    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: win.lift }
 
     // The frozen screen settles back a touch into a rounded card while you
     // circle (like a phone's circle to search), and springs back when done.
@@ -75,7 +75,7 @@ PanelWindow {
         anchors.fill: parent
         layer.enabled: true
         visible: false
-        Rectangle { anchors.fill: parent; radius: stage.radius; color: "#ffffff" }
+        Rectangle { anchors.fill: parent; radius: stage.radius; color: Theme.onMedia }
     }
     Item {
         id: stage
@@ -242,7 +242,7 @@ PanelWindow {
         layer.samples: 4
         visible: false            // drawn through the flowing gradient below
         ShapePath {
-            strokeColor: "#ffffff"
+            strokeColor: Theme.onMedia
             strokeWidth: 7
             fillColor: "transparent"
             capStyle: ShapePath.RoundCap
@@ -304,7 +304,7 @@ PanelWindow {
             anchors.fill: parent
             scale: 1 + 0.018 * frame.pop
             layer.enabled: true
-            layer.effect: MultiEffect { shadowEnabled: true; shadowColor: "#000000"; shadowBlur: 1; shadowOpacity: 0.55 * frame.pop; shadowVerticalOffset: 10 * frame.pop; shadowHorizontalOffset: 0 }
+            layer.effect: MultiEffect { shadowEnabled: true; shadowColor: Theme.scrim; shadowBlur: 1; shadowOpacity: 0.55 * frame.pop; shadowVerticalOffset: 10 * frame.pop; shadowHorizontalOffset: 0 }
             ClippingRectangle {
                 anchors.fill: parent
                 radius: 12
@@ -315,7 +315,7 @@ PanelWindow {
                     sourceRect: Qt.rect(frame.x, frame.y, frame.width, frame.height)
                     live: true
                 }
-                Rectangle { anchors.fill: parent; radius: 12; color: "transparent"; border.width: 1; border.color: Theme.withAlpha("#ffffff", 0.25) }
+                Rectangle { anchors.fill: parent; radius: 12; color: "transparent"; border.width: 1; border.color: Theme.withAlpha(Theme.onMedia, 0.25) }
             }
         }
         // adjust it, as on a phone: drag inside to move · drag a corner to resize

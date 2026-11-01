@@ -140,7 +140,7 @@ Item {
                 Act {
                     required property var modelData
                     required property int index
-                    icon: modelData.icon ?? ""; label: modelData.label; primary: index === 0
+                    icon: modelData.icon ?? ""; label: modelData.label ?? ""; primary: index === 0
                     onClicked: { const a = modelData; if (!root.live) Island.dismiss(); a.run?.(); }
                 }
             }

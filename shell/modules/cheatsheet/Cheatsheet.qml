@@ -350,7 +350,7 @@ PanelWindow {
         Rectangle {
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 1 }
             height: 2; radius: 1
-            color: Theme.withAlpha("#000000", 0.25)
+            color: Theme.withAlpha(Theme.scrim, 0.25)
         }
         Text {
             id: capText

@@ -251,7 +251,7 @@ PanelWindow {
                 // the picture, rounded, with a soft shadow under the middle one
                 RectangularShadow {
                     anchors.fill: tile; radius: Theme.radius.lg; blur: 30; spread: 0; offset.y: 10
-                    color: Theme.withAlpha("#000000", cell.centered ? 0.5 : 0.25)
+                    color: Theme.withAlpha(Theme.scrim, cell.centered ? 0.5 : 0.25)
                 }
                 ClippingRectangle {
                     id: tile
@@ -268,7 +268,7 @@ PanelWindow {
                         Behavior on opacity { NumberAnimation { duration: Theme.motion.normal } }
                     }
                     // the side ones sit a little in shadow
-                    Rectangle { anchors.fill: parent; color: "#000000"; opacity: cell.centered ? 0 : 0.28
+                    Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: cell.centered ? 0 : 0.28
                                 Behavior on opacity { NumberAnimation { duration: Theme.motion.normal } } }
                     // a soft sheen across the middle one
                     Rectangle {
@@ -276,7 +276,7 @@ PanelWindow {
                         visible: cell.centered
                         gradient: Gradient {
                             orientation: Gradient.Vertical
-                            GradientStop { position: 0; color: Theme.withAlpha("#ffffff", 0.10) }
+                            GradientStop { position: 0; color: Theme.withAlpha(Theme.onMedia, 0.10) }
                             GradientStop { position: 0.35; color: "transparent" }
                         }
                     }

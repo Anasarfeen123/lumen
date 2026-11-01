@@ -38,6 +38,7 @@ Item {
     Behavior on implicitWidth { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
 
     HoverTarget {
+        id: button
         anchors { fill: parent; topMargin: 4; bottomMargin: 4 }
         radius: Theme.radius.sm
         highlighted: menu.shown
@@ -63,10 +64,16 @@ Item {
                 font.variableAxes: ({ "wght": 650, "ROND": 60 })
                 renderType: Text.NativeRendering
             }
+            // the window title: tucked away, sliding out while you hover (the bar
+            // stays calm; the menu shows it too)
             LText {
                 anchors.verticalCenter: parent.verticalCenter
-                visible: text !== "" && text !== root.appName
-                width: Math.min(implicitWidth, 260)
+                visible: width > 1 && text !== "" && text !== root.appName
+                width: button.containsMouse || menu.shown ? Math.min(implicitWidth, 240) : 0
+                opacity: width > 20 ? 1 : 0
+                clip: true
+                Behavior on width { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+                Behavior on opacity { NumberAnimation { duration: Theme.motion.micro } }
                 elide: Text.ElideRight
                 role: "body"
                 color: Theme.textMuted

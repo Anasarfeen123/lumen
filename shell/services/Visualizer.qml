@@ -18,9 +18,14 @@ Singleton {
     readonly property string configPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/lumen-cava.conf"
 
     // cava config written at runtime (no files outside the runtime dir)
+    // (written, never read: no preload, so the first start doesn't try to read a
+    // file that isn't there yet; cava waits until it's saved)
+    property bool confReady: false
     FileView {
         id: conf
         path: root.configPath
+        preload: false
+        onSaved: root.confReady = true
         Component.onCompleted: setText(
             "[general]\nframerate = 30\nbars = 16\nautosens = 1\n" +
             "[input]\nmethod = pulse\nsource = auto\n" +
@@ -38,7 +43,7 @@ Singleton {
     }
 
     SupervisedProcess {
-        wanted: root.wanted && root.available
+        wanted: root.wanted && root.available && root.confReady
         command: ["cava", "-p", root.configPath]
         stdout: SplitParser {
             onRead: line => {

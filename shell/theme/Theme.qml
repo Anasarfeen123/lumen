@@ -80,6 +80,10 @@ Singleton {
     readonly property color glassChrome: withAlpha(surface, _glass.chrome_alpha)
     readonly property color glassPanel: withAlpha(surface, _glass.panel_alpha)
     readonly property color shadowColor: Qt.rgba(0, 0, 0, dark ? 0.28 : 0.14)
+    // Over photos and video (the PiP player, circle to search, wallpapers): the
+    // same in every theme, because what's underneath isn't the theme's
+    readonly property color scrim: "#000000"      // darkening, shadows
+    readonly property color onMedia: "#ffffff"    // text and icons drawn on a picture
 
     // ── Type (DESIGN.md §3) ──
     readonly property string fontUi: _type.ui ?? "Inter"

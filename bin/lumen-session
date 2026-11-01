@@ -70,6 +70,11 @@ dgpu=$(card_for_vendor 0x10de || true)   # NVIDIA
 devices=$igpu
 if [ -n "$dgpu" ] && [ "${LUMEN_DGPU:-on}" != off ]; then
     devices=${devices:+$devices:}$dgpu
+    # Two GPUs: no explicit sync between them. Copying a frame from the NVIDIA
+    # GPU to the AMD one, eglDupNativeFenceFDANDROID fails (EGL_BAD_PARAMETER)
+    # and Hyprland aborts in CHyprOpenGLImpl::begin — every crash report since
+    # 25 Sep 2026 (docs/ROADMAP.md §1). Implicit sync between them avoids it.
+    [ -n "$igpu" ] && export AQ_MGPU_NO_EXPLICIT=1
 fi
 [ -n "$devices" ] && export AQ_DRM_DEVICES="$devices"
 

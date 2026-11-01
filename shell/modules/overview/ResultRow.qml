@@ -13,8 +13,11 @@ Item {
     property bool armed: false
     signal activated()
     signal hovered()
+    signal menuRequested(real x, real y)      // right-click: more it can do
 
-    readonly property bool hasThumb: (modelData.thumb ?? "") !== ""
+    property bool thumbGone: false     // its file was cleared (it lives in RAM, gone after a logout)
+    onModelDataChanged: thumbGone = false
+    readonly property bool hasThumb: ((modelData.thumb ?? "") !== "") && !thumbGone
     height: hasThumb ? 84 : 48
 
     Rectangle {
@@ -37,7 +40,8 @@ Item {
             color: Theme.surfaceElevated
             border.width: 1; border.color: Theme.border
             Image { anchors.fill: parent; source: root.modelData.thumb ?? ""; fillMode: Image.PreserveAspectCrop
-                    sourceSize: Qt.size(224, 136); asynchronous: true; cache: false }
+                    sourceSize: Qt.size(224, 136); asynchronous: true; cache: false
+                    onStatusChanged: if (status === Image.Error) root.thumbGone = true }
         }
         anchors { left: parent.left; leftMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
 
@@ -97,7 +101,8 @@ Item {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onClicked: root.activated()
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onClicked: m => { if (m.button === Qt.RightButton) root.menuRequested(m.x, m.y); else root.activated(); }
         onPositionChanged: root.hovered()
     }
 }

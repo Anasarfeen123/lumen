@@ -169,7 +169,7 @@ PanelWindow {
         Behavior on opacity { NumberAnimation { duration: show ? 160 : 110 } }
         Behavior on scale { NumberAnimation { duration: bubble.show ? 320 : 120; easing.type: bubble.show ? Easing.OutBack : Easing.InCubic } }
         layer.enabled: true
-        layer.effect: MultiEffect { shadowEnabled: true; shadowColor: "#000000"; shadowBlur: 1; shadowOpacity: 0.4; shadowVerticalOffset: 8; shadowHorizontalOffset: 0 }
+        layer.effect: MultiEffect { shadowEnabled: true; shadowColor: Theme.scrim; shadowBlur: 1; shadowOpacity: 0.4; shadowVerticalOffset: 8; shadowHorizontalOffset: 0 }
 
         Column {
             id: bCol

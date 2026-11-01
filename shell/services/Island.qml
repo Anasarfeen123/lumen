@@ -50,6 +50,9 @@ Singleton {
     // ── persistent sources (fed by IslandSources) ──
     property bool recording: false
     property date recordingSince: new Date()
+    property bool recordingPaused: false
+    property real recordingPausedAt: 0           // when the current pause began (ms)
+    property real recordingPausedTotal: 0        // paused time so far (ms), left out of the clock
     property bool criticalBattery: false
     property bool criticalDismissed: false
     property bool mediaPlaying: false

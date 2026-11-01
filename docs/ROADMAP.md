@@ -1,0 +1,247 @@
+# Lumen roadmap: fixes, quality of life, features
+
+Collected 2026-10-19 from the running shell log, `~/.cache/hyprland` crash reports, the user
+journal, and a pass over `shell/` against the DESIGN.md §12 quality checklist.
+Tick items off as they land.
+
+---
+
+## 1. Bugs (with evidence)
+
+### Crashes
+- [x] **Commit the multi-GPU sync fix.** The uncommitted `AQ_MGPU_NO_EXPLICIT=1` had been lost;
+      it's back in `bin/lumen-session` (only when both GPUs are used) and committed. Takes effect
+      at the next login.
+- [x] **Second Hyprland crash: assert in `CHyprOpenGLImpl::begin`.** Not a second crash: all 12
+      reports from 25 Sep to 26 Oct end with `eglDupNativeFenceFDANDROID … EGL_BAD_PARAMETER`
+      straight before the assert, so it's the same multi-GPU fence failure (7 crashes in the
+      14 days before the fix). `lumen doctor` now counts them; if one appears after a fresh
+      login with the fix, try a session with `LUMEN_DGPU=off`.
+
+### Shell (from the Quickshell log)
+- [x] **Desktop-entry warning flood (426×).** A valid copy ships in `share/applications/` and
+      `bin/lumen-startup` links it into `~/.local/share/applications/` (never over system files).
+- [x] **Broken clipboard thumbnails.** The row falls back to the icon when the file is gone. `modules/overview/ResultRow.qml:39` loads
+      `/run/user/…/lumen-clip/N.png` after the file is gone (`/run` is cleared at logout). Keep
+      pinned images in `~/.cache/lumen`, or hide the thumbnail when the file is missing.
+- [x] **`HaloCard.qml:143` assigns undefined to a string.** `label: modelData.label` →
+      `label: modelData.label ?? ""`.
+- [x] **Visualizer reads its config before writing it.** No preload; cava waits until it's saved. `services/Visualizer.qml` reads
+      `$XDG_RUNTIME_DIR/lumen-cava.conf` before it exists, so the first start fails.
+- [~] **PipeWire volume warnings (~150).** Non-audio streams are no longer tracked. The rest come
+      from real app streams with no channel map (an SDL game's output, for one); Lumen needs to
+      track those for per-app volume, so they stay until Quickshell quiets that message. "channelVolumes and channelMap are not the same size
+      (2 vs 0)". `services/Audio.qml` tracks every stream, including ones with no audio channels.
+      Track only audio streams.
+- [ ] **An SVG drawn at a huge size (36×, 252× in a longer session).** Not one of Lumen's
+      `sourceSize`s (those are all photos); likely an icon-theme SVG. "qt.svg.draw: requested buffer size is too big".
+      Find the Image/IconImage with an oversized `sourceSize`. There's also a malformed
+      `utilities-terminal.svg` in the McMojave icon theme.
+
+### Services
+- [x] **`amazecc-api.service` fails quietly.** In amazecc-api (local change, not committed —
+      it's the org's repo): `hasDatabase()` in `src/lib/db.ts`, and the club sync, club roles and
+      enrolment skip quietly without one. Rebuild/restart the service to apply. Lumen says
+      "Out of date" (planner, AmazeCC app) when data is over 6 hours old. It failed 3 times in 3 days, and its background
+      jobs error with "DATABASE_URL is not set" (club sync, attendance enrolment). Give it a local
+      DB or disable DB-backed jobs locally. Lumen should say when AmazeCC data is stale.
+- [ ] **Idle CPU.** The shell averaged 1.3 % CPU over 21 h; §12 asks for ≈ 0 %. The fast timers
+      (lyrics, Halo mouth, countdown) are correctly gated, so profile animations and the ~192
+      `Process` launches instead.
+
+---
+
+## 2. Code health (DESIGN.md §12)
+
+- [x] **62 raw hex colours outside `theme/`.** New `Theme.scrim` / `Theme.onMedia` replace 40 raw
+      blacks and whites (over video, photos, shadows). Left as-is on purpose: the logo, the accent
+      swatches, the vinyl record, Halo's white tints; and `AiPanel`, `VoiceSheet`, `DrawOverlay`
+      until their uncommitted work lands. Mostly `LumenLogo.qml`, `HaloOrb.qml`,
+      `AppearancePage.qml`, `MediaExpanded.qml`, `DrawOverlay.qml`. Keep intentional ones (logo,
+      pen colours) and move UI colours to tokens so Light and OLED themes apply.
+- [x] **Automated checks.** `.github/workflows/check.yml`: shellcheck (errors), Python
+      byte-compile, `luac -p` on the Lua config, and a QML parse check with `qmlformat` (full
+      `qmllint` needs Quickshell's types). `.github/` has templates but no workflows. Add a check on every push:
+      `qmllint` on `shell/`, `shellcheck` on `scripts/` and `bin/`, and a Lua syntax check of the
+      Hyprland config.
+- [x] **Extend `scripts/doctor.sh check`**: Hyprland crashes in 14 days (and whether they're the
+      fence error), the most repeated shell-log warning, failed `lumen*`/`amazecc*` units. to report new Hyprland crash reports, the most
+      repeated shell-log warnings, and failed `lumen-*` / `amazecc-api` units. That would catch
+      most of section 1 automatically.
+- [x] **Audit "Esc closes" on every surface.** Every window and keyboard-taking layer handles it
+      (the only exception is the dev-only `lock-preview.qml`).
+- [ ] **Split `modules/ai/AiPanel.qml` (1,403 lines)** into message list, input bar and skills
+      menu, but only while already working there. Also large: `Ai.qml`, `AiPage.qml`,
+      `NotesWindow.qml`, `PlannerWindow.qml` (600–700 lines each).
+
+---
+
+## 3. Quality of life
+
+### Reliability
+- [x] Restart the shell automatically if Quickshell dies, and say so in the island
+      (`scripts/shell-supervisor.sh`: backs off, gives up after 5 crashes in 5 minutes).
+- [ ] Restore the window/workspace layout after a crash or a fresh login.
+
+### Synconization and Environment
+- [ ] Syncing youtube videos and other medias from video to phone and vice-versa
+
+
+### Island and notifications
+- [ ] Undo after dismissing a notification, closing a window or clearing the clipboard.
+- [x] Keyboard-layout and caps-lock changes shown in the island (already in `services/Keyboard.qml`).
+- [x] Low-disk warning past 90 % on `/` or `/home`, with "Clean caches" (lyrics, thumbnails, art).
+- [x] Pause/resume screen recording from the island: right-click. Segments are joined with
+      ffmpeg (no re-encode) when you stop; the clock leaves paused time out.
+- [x] Improve the looks and the crammed layout of the top bar (ribbon): the window title slides
+      out on hover only, narrower chips, CPU/memory only when busy (Settings → Bar & Island).
+- [x] Media clicks on the bar's now-playing chip: middle play/pause, right next, back/forward
+      buttons previous/next, scroll the player's volume (the island's middle-click already pauses).
+
+### Windows and workspaces
+- [ ] Snap layouts: drag a window to the top edge for halves, thirds or 2×2.
+
+### Settings and search
+- [x] Right-click (or the Menu key) on launcher results: apps (open on a new workspace, copy the
+      command), windows (bring here, close), toggles (turn on/off, its settings), clipboard (copy,
+      plain text, pin, delete), calculator/web (copy). Frosted menu. The control-centre toggles
+      were already searchable.
+
+### Power and display
+- [ ] Battery-aware visuals below 20 %: less blur, visualiser off, lower animation rates.
+- [ ] Per-app night-light exceptions for colour-accurate apps (Figma, image editors).
+- [ ] Theme schedule: Light by day, OLED at night, following the night-light sunset (add as option in settings).
+- [ ] Lock-screen quick actions: play/pause, start a timer.
+
+---
+
+## 4. Features
+
+### From the "keep in mind" list
+- [ ] **AI gestures:** 3-finger circle on the touchpad opens Halo about what's under the
+      pointer (circle to search without the keyboard); 4-finger hold to talk.
+- [ ] **Better sidebars:** choose and reorder tabs and cards; a "Today" card combining the next
+      AmazeCC class, weather and the next to-do.
+
+### Halo
+- [ ] `halo` CLI using the panel's models and memory (`halo "why did this fail" < log`).
+- [ ] "What was I doing?": a timeline from `app-usage.json` to jump back into yesterday.
+- [ ] Live captions for any video or call through whisper.cpp, as an island overlay.
+- [ ] Meeting mode: detect Teams/Meet, Do Not Disturb on, mic check, notes at the end (see
+      what `meeting.json` already covers).
+- [ ] Focus session: Pomodoro + Do Not Disturb + a website block list, with a Halo summary
+      at the end.
+- [ ] Some of the "Direct Calling of API without AI" should have like way to force to give to AI
+- [ ] Improve the layot and the Avatar, its too wierd and simple to say the least. It should be very abstract and no need to be humanoid, we can make it jarvis. Also, the pop up is very buggy.
+
+### College (AmazeCC)
+- [ ] Island nudges: "Class in 10 min · AB1-305", "Attendance 74% — don't skip today".
+- [ ] Exam mode in the week before a FAT: countdown, today's study-plan slot, syllabus left.
+- [ ] Add more features, from amazecc, like hide CGPA in settings, etc, It could be really nice.
+
+### Ecosystem
+- [X] Clipboard shared with the phone through Lumen Link, with the source shown in the island.
+- [ ] Global search across notes, clipboard, Halo memory and recent files.
+- [ ] Multi-monitor island: mirror it or show only a clock on the second screen.
+- [ ] Lumen Sync: one-click export/import of the whole setup (settings, pins, notes, Halo
+      memory, accent, wallpaper), building on `backup.sh` and `cloud-backup.sh`.
+- [ ] Widget API: island states and sidebar cards as QML files in
+      `~/.config/lumen/widgets/`.
+- [ ] Lumen Store page in Settings: curated apps and Halo skills, installed through the
+      distro's package manager.
+
+---
+
+## 5. Ideas from other setups
+
+Taken from what other well-known Hyprland/Quickshell setups ship (looked at 2026-10-19):
+[end-4 illogical-impulse](https://github.com/end-4/dots-hyprland),
+[Caelestia](https://github.com/caelestia-dots/shell),
+[Noctalia](https://github.com/noctalia-dev/noctalia-shell),
+[DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell),
+[Ambxst / Ax-Shell](https://github.com/Axenide/Ambxst),
+[HyprPanel](https://github.com/Jas-SinghFSU/HyprPanel),
+[HyDE](https://github.com/HyDE-Project/HyDE),
+[ML4W](https://github.com/mylinuxforwork/dotfiles) and
+[Pyprland](https://hyprland-community.github.io/pyprland/).
+Before building one, grep the repo: a quick keyword scan suggested these are missing, but
+it's rough (Settings already has Display and Windows pages, for example).
+
+### Desktop and screen
+- [ ] **Anti-flashbang** (ii): dim a window that suddenly goes bright white while the screen
+      is dark (a white page at night, a light-mode app opening).
+- [ ] **Screen translation** (ii): pick a region, OCR it, show the translation on top. Lumen
+      already has OCR and Halo, so this is mostly wiring.
+- [ ] **Screen border / rounded screen corners** (Caelestia): an optional thin frame that
+      gives the whole screen rounded edges. Check `modules/corners` first.
+- [ ] **Desktop widgets** (Noctalia, Caelestia): optional clock, weather or now-playing on the
+      wallpaper, drawn in Lumen glass.
+- [ ] **Desktop audio visualiser** (Caelestia): the existing cava bars drawn faintly on the
+      wallpaper while music plays.
+- [ ] **Magnifier lens** (Pyprland *magnify*): a small zoom loupe that follows the pointer,
+      next to the existing full-screen zoom.
+- [ ] **Expose** (Pyprland): every window of every workspace tiled on one screen. Overview
+      shows a workspace grid; this is "all windows, flat".
+- [ ] **Lost windows** (Pyprland): pull back floating windows stuck off-screen (handy after
+      unplugging a monitor).
+- [ ] **Monitor layout editor** (Noctalia, Ambxst): drag screens into place, set refresh rate
+      and scale, then write it to the Lua config. Check what `DisplayPage.qml` already does.
+- [ ] **Turn displays off** without sleeping (Pyprland *toggle dpms*): one key, e.g. while
+      music or a download runs.
+
+### Theming
+- [ ] **Theme everything from the accent** (DankMaterialShell, ML4W, HyDE): push Lumen's
+      palette into GTK 3/4, Qt/Kvantum, kitty, VS Code and Firefox so apps match the shell.
+      Lumen's rule is "a stable palette, not Material You" (§2.4), so derive from tokens, not
+      from the wallpaper.
+- [ ] **Shareable theme packs** (HyDE *themepatcher*): accent + wallpaper + blur strength as
+      one folder people can install.
+- [ ] **Matching login screen** (DankMaterialShell's greeter): a Lumen-styled greeter, or at
+      least a matching theme for Plasma Login Manager.
+
+### Tools
+- [ ] **QR and barcode scanner** (Ambxst): scan a region on screen, or the webcam; open the
+      link or Wi-Fi details it contains.
+- [ ] **Webcam mirror** (Ambxst): a small floating preview to check yourself before a call.
+- [ ] **OTP / 2FA codes** (Ax-Shell): codes in the launcher, copied in one keystroke, with the
+      secrets in the keyring.
+- [ ] **tmux session picker** (Ax-Shell, Ambxst): list sessions in the launcher; Enter
+      attaches in kitty.
+- [ ] **Kanban board** (Ax-Shell): columns for the planner's to-dos (Doing / Next / Done).
+- [ ] **Process manager in the launcher** (DankMaterialShell): type `kill` or `top` to search
+      processes and end one, with confirmation.
+- [ ] **File search in the launcher** (DankMaterialShell *dsearch*): indexed, fast, with
+      previews.
+- [ ] **Dictionary and unit/currency conversion** in the launcher (`define x`, `5 km in mi`),
+      if not already covered by `qalc`.
+- [ ] **Game launcher** (HyDE): Steam/Lutris/Heroic games with cover art, starting game mode
+      on launch.
+- [ ] **Shortcuts menu** (Pyprland): a launcher mode for saved custom commands and scripts.
+
+### Audio, power and hardware
+- [ ] **EasyEffects presets** (Ambxst): switch EQ presets (Speakers, Headphones, Voice) from
+      the output picker.
+- [ ] **Low-battery warnings with levels** (Caelestia): 20 % nudge, 10 % warning, 5 % "saving
+      your work and sleeping". Check what the battery service already does.
+- [ ] **Separate idle times on AC and battery** (DankMaterialShell), plus hibernate in the
+      power menu when swap allows it.
+- [ ] **GPU and temperature details** (HyprPanel, DankMaterialShell): per-GPU usage (AMD and
+      NVIDIA) and fan/temperature in the stats card.
+- [ ] **Fingerprint unlock** (Caelestia) alongside Face ID, for laptops with a reader.
+- [ ] **On-screen keyboard** for touchscreens and tablet mode.
+
+### Platform
+- [ ] **Hot-reloading config file** (Noctalia): one readable `lumen.toml` that Settings writes
+      and power users can edit, applied without restarting.
+- [ ] **Full CLI/IPC** (DankMaterialShell, Noctalia): `lumen ipc` for every surface and
+      setting, so scripts and keybinds can drive anything.
+- [ ] **Plugin registry with a lockfile** (DankMaterialShell): installable widgets and
+      launcher providers, reproducible on a new machine. Builds on the widget API in §4.
+- [ ] **Try it in a VM or live ISO** (HyDE's HyDEVM, ML4W's live ISO): a script that boots
+      Lumen in a VM for testing changes and showing it off.
+- [ ] **Shows every command before running it** (ii's installer): `install.sh --dry-run`
+      that prints exactly what it would install or change.
+- [ ] **Safe update with config backup** (HyDE `install.sh -r`): `lumen update` that backs up
+      replaced files to a dated folder and can roll back.
+
+---

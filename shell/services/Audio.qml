@@ -24,7 +24,10 @@ Singleton {
     // (properties only arrive once a node is tracked, so track every stream)
     readonly property var streams: Pipewire.nodes.values.filter(n => n.isStream)
     readonly property var apps: streams.filter(n => n.audio && (n.properties?.["media.class"] ?? "") === "Stream/Output/Audio")
-    PwObjectTracker { objects: [root.sink, root.source].concat(root.sinks).concat(root.streams) }
+    // Only streams that carry audio channels: tracking the others (video, MIDI,
+    // a stream still negotiating) floods the log with "channelVolumes and
+    // channelMap are not the same size"
+    PwObjectTracker { objects: [root.sink, root.source].concat(root.sinks).concat(root.streams.filter(n => n.audio && /Audio/.test(n.properties?.["media.class"] ?? ""))) }
     // One entry per app (Firefox often has several streams); system noise hidden
     readonly property var appGroups: {
         const out = [];

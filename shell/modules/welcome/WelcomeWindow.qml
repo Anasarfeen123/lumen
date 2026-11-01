@@ -352,7 +352,7 @@ PanelWindow {
                                 height: 30; width: Math.max(30, capLbl.implicitWidth + 18); radius: 8
                                 color: Theme.withAlpha(Theme.text, 0.07)
                                 border.width: 1; border.color: Theme.border
-                                Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 3; radius: 8; color: Theme.withAlpha("#000000", 0.25) }
+                                Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 3; radius: 8; color: Theme.withAlpha(Theme.scrim, 0.25) }
                                 LText { id: capLbl; anchors.centerIn: parent; role: "bodyStrong"; text: modelData }
                             }
                         }

@@ -31,6 +31,14 @@ if [ -z "${LUMEN_NESTED:-}" ]; then
         systemctl --user start lumen-session.target >>"$LOG" 2>&1
     fi
 
+    # Corrected copies of broken packaged desktop entries (share/applications):
+    # linked into your own applications folder, never over the system files
+    for f in "$LUMEN_ROOT"/share/applications/*.desktop; do
+        [ -e "$f" ] || continue
+        dest="$HOME/.local/share/applications/${f##*/}"
+        [ -e "$dest" ] || { mkdir -p "${dest%/*}"; ln -s "$f" "$dest"; }
+    done
+
     # Admin password prompts: the shell is the polkit agent (services/Polkit.qml)
     # and starts KDE's itself if it can't register. Without the shell: KDE's.
     agent=/usr/libexec/kf6/polkit-kde-authentication-agent-1
@@ -76,5 +84,6 @@ fi
 
 # Shell (Quickshell) — enabled from Phase 3
 if [ -f "$LUMEN_ROOT/shell/shell.qml" ]; then
-    run qs -p "$LUMEN_ROOT/shell"
+    # Supervised: a crash brings it back (and the island says so)
+    run "$LUMEN_ROOT/scripts/shell-supervisor.sh" "$LUMEN_ROOT/shell"
 fi

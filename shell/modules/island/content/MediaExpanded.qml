@@ -44,17 +44,17 @@ Item {
             radius: width / 2
             gradient: Gradient { orientation: Gradient.Horizontal
                 GradientStop { position: 0; color: "#1c1d21" } GradientStop { position: 0.55; color: "#2a2b31" } GradientStop { position: 1; color: "#141518" } }
-            border.width: 1; border.color: Theme.withAlpha("#ffffff", 0.18)
+            border.width: 1; border.color: Theme.withAlpha(Theme.onMedia, 0.18)
             // grooves
             Repeater { model: 4
                 Rectangle { required property int index; anchors.centerIn: parent
                             width: disc.width * (0.86 - index * 0.13); height: width; radius: width / 2
-                            color: "transparent"; border.width: 1; border.color: Theme.withAlpha("#ffffff", 0.1 + index * 0.03) } }
+                            color: "transparent"; border.width: 1; border.color: Theme.withAlpha(Theme.onMedia, 0.1 + index * 0.03) } }
             // the label, in the album's colour, with a sheen so the turn shows
             Rectangle { anchors.centerIn: parent; width: disc.width * 0.34; height: width; radius: width / 2
                         color: Media.hasTint ? Media.tint : Theme.accent
                         Rectangle { anchors.centerIn: parent; width: 4; height: 4; radius: 2; color: "#111214" } }
-            Rectangle { anchors.centerIn: parent; width: 2; height: disc.height * 0.94; color: Theme.withAlpha("#ffffff", 0.16) }
+            Rectangle { anchors.centerIn: parent; width: 2; height: disc.height * 0.94; color: Theme.withAlpha(Theme.onMedia, 0.16) }
             RotationAnimation on rotation { running: Media.playing && root.visible && !Theme.reducedMotion; from: 0; to: 360; duration: 3600; loops: Animation.Infinite }
         }
     }
