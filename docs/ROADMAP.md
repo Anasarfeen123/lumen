@@ -282,8 +282,9 @@ it's rough (Settings already has Display and Windows pages, for example).
 - [x] **Plugin lockfile**: `lumen widgets add <git-url>` lists every file and asks, then records
       URL, commit and a hash in widgets.lock; `lumen widgets sync` reinstalls exactly those and
       refuses files that don't match. No central registry, and no launcher providers yet.
-- [ ] **Try it in a VM or live ISO** (HyDE's HyDEVM, ML4W's live ISO): a script that boots
-      Lumen in a VM for testing changes and showing it off.
+- [x] **Try it in a VM**: `lumen vm create <fedora.iso>` / `start` / `inside` — QEMU+KVM with a
+      GL window, the repo shared read-only (9p). Downloads nothing: you fetch and verify the image
+      and install QEMU yourself. Not run here (QEMU isn't installed). No live ISO.
 - [x] **Shows every command before running it**: `install.sh --dry-run` already existed.
 - [x] **Safe update that can roll back**: `lumen update` fast-forwards only (refusing with
       uncommitted changes); `lumen update rollback` returns to where the last update started

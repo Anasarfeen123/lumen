@@ -22,6 +22,7 @@
 #   lumen sync theme-export [file] | theme-import <file>     just the look (theme, accent, glass, wallpaper)
 #   lumen widgets list|new <id>|examples|add <git-url>|sync|remove <id>|check <id>   your own widgets
 #   lumen config [path|apply|write]  every setting in one file, lumen.toml (opens it in $EDITOR)
+#   lumen vm check|create <iso>|start|inside|delete   try Lumen in a virtual machine (QEMU)
 #   lumen recovery [command]        Lumen Recovery: a menu that works from a TTY (safe mode, restore settings…)
 #   lumen backup [now|status|…]     back up your files to a drive or folder (scripts/backup.sh)
 set -eu
@@ -205,6 +206,9 @@ case ${1:-} in
             exec qs ipc --pid "$pid" show
         fi
         exec "$LUMEN_ROOT/bin/lumen-shell-ipc" "$@" ;;
+    vm)
+        # try Lumen in a virtual machine: check · create <fedora.iso> · start · inside · delete
+        shift; exec "$LUMEN_ROOT/scripts/lumen-vm.sh" "$@" ;;
     config)
         # every setting in one file: lumen config (opens it) · path · apply · write
         shift
