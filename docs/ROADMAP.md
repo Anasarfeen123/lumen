@@ -141,7 +141,10 @@ Tick items off as they land.
       at the end.
 - [x] Force a question to the AI: start it with `ai:` (or `@ai`), or press "Ask the AI instead"
       on an answer Halo gave by itself.
-- [ ] Improve the layot and the Avatar, its too wierd and simple to say the least. It should be very abstract and no need to be humanoid, we can make it jarvis. Also, the pop up is very buggy.
+- [~] Improve the avatar: a new abstract look, "Core" (now the default) — a glowing core, arcs
+      in orbit and a ring of ticks, swelling with your voice and turning while it thinks; the
+      face stays as an option (Settings → Halo → General → Look). Still to do: "the pop up is
+      very buggy" — which popup, and what goes wrong?
 
 ### College (AmazeCC)
 - [ ] Island nudges: "Class in 10 min · AB1-305", "Attendance 74% — don't skip today".

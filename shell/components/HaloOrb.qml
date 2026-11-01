@@ -1,4 +1,6 @@
-// Halo, in person: the ring of light with a small face. Its mood shows in how
+// Halo, in person: the ring of light with a small face — or, with `face` off,
+// an abstract core (a glowing core, orbiting arcs, a ring of ticks; Settings →
+// Halo → General → Look). Its mood shows in how
 // it moves, never in words (DESIGN.md: motion explains):
 //   rest       a slow breath, a blink (sometimes two), a glance now and then
 //   listening  eyes wide, a little "o", the ring swells with your voice (level)
@@ -198,6 +200,122 @@ Item {
                 width: root.stroke * 1.5; height: width; radius: width / 2
                 x: (root.size - width) / 2; y: -width * 0.25
                 color: Qt.tint(root.tone, "#aaffffff")
+            }
+        }
+
+        // ── the core (face off: the abstract look) ──
+        // A glowing core inside the ring, two thin arcs in orbit and a ring of
+        // ticks (larger sizes). The core leans toward where Halo looks more
+        // than the arcs do, so it has depth; it swells with your voice while
+        // listening and with its words while speaking. At rest nothing turns.
+        Item {
+            id: core
+            visible: !root.face && root.size >= 12
+            anchors.fill: parent
+            readonly property real c: root.size / 2
+            readonly property bool busy: ["listening", "thinking", "speaking"].includes(root.mood)
+            // speaking without lip-sync data: a gentle made-up pulse
+            property real talk: 0
+            SequentialAnimation on talk {
+                running: root.mood === "speaking" && root.mouth < 0 && !root.still && root.visible
+                loops: Animation.Infinite
+                NumberAnimation { to: 0.8; duration: 180; easing.type: Easing.OutQuad }
+                NumberAnimation { to: 0.25; duration: 220; easing.type: Easing.InOutQuad }
+                NumberAnimation { to: 0.6; duration: 160; easing.type: Easing.OutQuad }
+                NumberAnimation { to: 0.1; duration: 260; easing.type: Easing.InQuad }
+            }
+            readonly property real energy: root.mood === "listening" ? Math.min(1, root.level)
+                                         : root.mood === "speaking" ? (root.mouth >= 0 ? root.mouth : talk)
+                                         : root.mood === "happy" ? 0.6 : 0
+            readonly property real px: root.still ? 0 : Math.max(-1, Math.min(1, root.lookX)) * root.size * 0.07
+            readonly property real py: root.still ? 0 : Math.max(-1, Math.min(1, root.lookY)) * root.size * 0.07
+
+            // orbiting arcs
+            Item {
+                anchors.fill: parent
+                visible: root.size >= 22
+                transform: Translate { x: core.px * 0.45; y: core.py * 0.45 }
+                opacity: root.mood === "sleeping" ? 0.35 : 0.9
+                RotationAnimation on rotation {
+                    running: core.busy && !root.still && root.visible
+                    from: 0; to: 360; loops: Animation.Infinite
+                    duration: root.mood === "thinking" ? 1400 : root.mood === "listening" ? 5200 : 3200
+                }
+                Shape {
+                    anchors.fill: parent
+                    preferredRendererType: Shape.CurveRenderer
+                    ShapePath {
+                        strokeColor: Theme.withAlpha(root.tone, 0.85); strokeWidth: Math.max(1, root.stroke * 0.45)
+                        fillColor: "transparent"; capStyle: ShapePath.RoundCap
+                        PathAngleArc { centerX: core.c; centerY: core.c; radiusX: core.c * 0.7; radiusY: core.c * 0.7; startAngle: -30; sweepAngle: 95 }
+                    }
+                    ShapePath {
+                        strokeColor: Theme.withAlpha(root.tone, 0.55); strokeWidth: Math.max(1, root.stroke * 0.45)
+                        fillColor: "transparent"; capStyle: ShapePath.RoundCap
+                        PathAngleArc { centerX: core.c; centerY: core.c; radiusX: core.c * 0.7; radiusY: core.c * 0.7; startAngle: 150; sweepAngle: 60 }
+                    }
+                }
+            }
+            // a ring of ticks, turning the other way (big sizes)
+            Item {
+                anchors.fill: parent
+                visible: root.details
+                opacity: root.mood === "sleeping" ? 0.2 : 0.5
+                RotationAnimation on rotation {
+                    running: core.busy && !root.still && root.visible
+                    from: 360; to: 0; loops: Animation.Infinite; duration: 9000
+                }
+                Repeater {
+                    model: 16
+                    Rectangle {
+                        required property int index
+                        width: Math.max(1, root.size * 0.018); height: root.size * (index % 4 === 0 ? 0.07 : 0.04)
+                        radius: width / 2
+                        color: root.tone
+                        x: core.c - width / 2; y: core.c - core.c * 0.56
+                        transform: Rotation { origin.x: width / 2; origin.y: core.c * 0.56; angle: index * 22.5 }
+                    }
+                }
+            }
+            // the core
+            Item {
+                width: root.size * 0.5; height: width
+                anchors.centerIn: parent
+                transform: Translate { x: core.px; y: core.py }
+                scale: 0.82 + core.energy * 0.38
+                Behavior on scale { NumberAnimation { duration: 90 } }
+                // glow
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: parent.width * 1.5; height: width; radius: width / 2
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Theme.withAlpha(root.tone, 0.0) }
+                        GradientStop { position: 0.5; color: Theme.withAlpha(root.tone, root.mood === "sleeping" ? 0.05 : 0.16 + core.energy * 0.2) }
+                        GradientStop { position: 1.0; color: Theme.withAlpha(root.tone, 0.0) }
+                    }
+                    rotation: 90
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    radius: width / 2
+                    opacity: root.mood === "sleeping" ? 0.35 : 1
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Qt.tint(root.tone, "#99ffffff") }
+                        GradientStop { position: 0.55; color: root.tone }
+                        GradientStop { position: 1.0; color: Qt.darker(root.tone, 1.6) }
+                    }
+                    layer.enabled: root.size >= 18
+                    layer.effect: MultiEffect { shadowEnabled: true; shadowColor: root.tone; shadowBlur: 0.8; shadowOpacity: 0.6 + core.energy * 0.4
+                                                shadowHorizontalOffset: 0; shadowVerticalOffset: 0 }
+                }
+                // a bright fleck, like a lens catching light
+                Rectangle {
+                    visible: root.size >= 22
+                    width: parent.width * 0.28; height: width * 0.6; radius: height / 2
+                    x: parent.width * 0.22; y: parent.height * 0.16
+                    rotation: -30
+                    color: Theme.withAlpha(Theme.onMedia, root.mood === "sleeping" ? 0.15 : 0.55)
+                }
             }
         }
 

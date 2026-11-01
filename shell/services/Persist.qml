@@ -94,7 +94,7 @@ Singleton {
             property bool screenTime: true        // record which apps you use, on this machine only
             // ── Halo, in person (services/Halo.qml · Settings → Halo) ──
             property bool haloPresence: true      // the ring beside the island's clock, and Halo's cards
-            property bool haloFace: true          // eyes on the ring
+            property bool haloFace: false         // the look: false = the abstract core, true = eyes on the ring
             property string haloName: "Halo"
             property string haloCall: ""          // what Halo calls you ("" = your first name)
             property string haloCharacter: "friendly"   // "calm" | "friendly" | "jarvis"

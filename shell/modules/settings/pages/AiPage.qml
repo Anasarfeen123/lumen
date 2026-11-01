@@ -93,10 +93,22 @@ Page {
             LSwitch { checked: Persist.data.haloPresence ?? true; onToggled: Persist.data.haloPresence = !checked }
         }
         SetRow {
-            icon: "sentiment_satisfied"
-            title: "A face"
-            description: "Two quiet eyes on the ring — they blink, glance, smile when something works and narrow when something's wrong."
-            LSwitch { checked: Persist.data.haloFace ?? true; onToggled: Persist.data.haloFace = !checked }
+            icon: "blur_circular"
+            title: "Look"
+            description: (Persist.data.haloFace ?? false)
+                ? "A face: two quiet eyes on the ring — they blink, glance, smile when something works and narrow when something's wrong."
+                : "A core: a glowing core with arcs in orbit — it swells with your voice, turns while it thinks and talks, and rests still."
+            Row {
+                spacing: Theme.space.s3
+                HaloOrb { size: 34; face: Persist.data.haloFace ?? false; mood: "rest"; anchors.verticalCenter: parent.verticalCenter }
+                Segmented {
+                    width: 180
+                    anchors.verticalCenter: parent.verticalCenter
+                    options: [{ id: "core", label: "Core" }, { id: "face", label: "Face" }]
+                    current: (Persist.data.haloFace ?? false) ? "face" : "core"
+                    onPicked: id => Persist.data.haloFace = id === "face"
+                }
+            }
         }
         SetRow {
             icon: "badge"
