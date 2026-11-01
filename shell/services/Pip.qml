@@ -170,7 +170,7 @@ Singleton {
               stdout: StdioCollector { onStreamFinished: { try { root.state = JSON.parse(text); } catch (e) { root.state = ({}); } } } }
     Connections {
         target: Hyprland
-        function onRawEvent(ev) { if (/^(closewindow|openwindow|pin|changefloatingmode|windowtitlev2)$/.test(ev.name)) refreshSoon.restart(); }
+        function onRawEvent(ev) { if (/^(closewindow|openwindow|pin|changefloatingmode)$/.test(ev.name)) refreshSoon.restart(); }
     }
     Timer { id: refreshSoon; interval: 300; onTriggered: root.refresh() }
 

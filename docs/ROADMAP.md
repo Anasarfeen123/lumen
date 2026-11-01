@@ -43,7 +43,9 @@ Tick items off as they land.
       "Out of date" (planner, AmazeCC app) when data is over 6 hours old. It failed 3 times in 3 days, and its background
       jobs error with "DATABASE_URL is not set" (club sync, attendance enrolment). Give it a local
       DB or disable DB-backed jobs locally. Lumen should say when AmazeCC data is stale.
-- [ ] **Idle CPU.** The shell averaged 1.3 % CPU over 21 h; §12 asks for ≈ 0 %. The fast timers
+- [~] **Idle CPU.** Found one big cause: a spinner in a window title (Claude Code's ◐◑ in kitty)
+      changed the title several times a second, and each change ran a git probe (Context) and a
+      Python PiP check. Both now ignore title changes that are only a spinner. Was: **Idle CPU.** The shell averaged 1.3 % CPU over 21 h; §12 asks for ≈ 0 %. The fast timers
       (lyrics, Halo mouth, countdown) are correctly gated, so profile animations and the ~192
       `Process` launches instead.
 

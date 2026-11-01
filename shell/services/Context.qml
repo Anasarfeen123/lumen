@@ -77,7 +77,11 @@ Singleton {
         }
     }
     onKindChanged: refreshDev()
-    onTitleChanged: devSettle.restart()                 // cd / file switches change the title
+    // cd / file switches change the title — but a spinner in it (Claude Code's
+    // ◐◑, braille dots, a progress count) changes it many times a second, and
+    // each probe runs git: only a change once those are stripped counts
+    readonly property string stableTitle: title.replace(/^[\s\u2800-\u28ff\u25d0-\u25d3\u25cb-\u25cf\u2580-\u259f\u2190-\u21ff✓✗✳✶✻✽·•*⏺⏳⌛]+/, "").replace(/\(\d+\)\s*$/, "").trim()
+    onStableTitleChanged: devSettle.restart()
     Timer { id: devSettle; interval: 600; onTriggered: root.refreshDev() }
     // While the card is open, keep git fresh
     Timer { interval: 5000; repeat: true; triggeredOnStart: true; running: Island.variant === "context" && root.kind === "dev"; onTriggered: root.refreshDev() }
