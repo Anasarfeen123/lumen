@@ -271,8 +271,10 @@ it's rough (Settings already has Display and Windows pages, for example).
 - [ ] **On-screen keyboard** for touchscreens and tablet mode.
 
 ### Platform
-- [ ] **Hot-reloading config file** (Noctalia): one readable `lumen.toml` that Settings writes
-      and power users can edit, applied without restarting.
+- [x] **Hot-reloading config file**: `~/.local/state/lumen/lumen.toml` (`lumen config` opens it) —
+      [look] and [shell], in step with Settings both ways; edits apply on save (look rebuilds the
+      theme); unknown keys and wrong types are refused with a notification. Nested data stays in
+      Settings.
 - [x] **Full CLI/IPC**: `lumen ipc` lists every target and function the shell exposes;
       `lumen ipc <target> <function> [args]` calls one in this session's shell.
 - [x] **Plugin lockfile**: `lumen widgets add <git-url>` lists every file and asks, then records
