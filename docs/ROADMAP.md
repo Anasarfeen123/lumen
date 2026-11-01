@@ -28,11 +28,9 @@ Tick items off as they land.
       `label: modelData.label ?? ""`.
 - [x] **Visualizer reads its config before writing it.** No preload; cava waits until it's saved. `services/Visualizer.qml` reads
       `$XDG_RUNTIME_DIR/lumen-cava.conf` before it exists, so the first start fails.
-- [~] **PipeWire volume warnings (~150).** Non-audio streams are no longer tracked. The rest come
-      from real app streams with no channel map (an SDL game's output, for one); Lumen needs to
-      track those for per-app volume, so they stay until Quickshell quiets that message. "channelVolumes and channelMap are not the same size
-      (2 vs 0)". `services/Audio.qml` tracks every stream, including ones with no audio channels.
-      Track only audio streams.
+- [ ] **PipeWire volume warnings (~150).** Tried filtering the tracked streams; it made the shell
+      crash in Quickshell's PipeWire unbind (2026-11-01), so it's back to tracking every stream.
+      The noise comes from app streams with no channel map; leave it to Quickshell.
 - [ ] **An SVG drawn at a huge size (36×, 252× in a longer session).** Not one of Lumen's
       `sourceSize`s (those are all photos); likely an icon-theme SVG. "qt.svg.draw: requested buffer size is too big".
       Find the Image/IconImage with an oversized `sourceSize`. There's also a malformed

@@ -24,10 +24,11 @@ Singleton {
     // (properties only arrive once a node is tracked, so track every stream)
     readonly property var streams: Pipewire.nodes.values.filter(n => n.isStream)
     readonly property var apps: streams.filter(n => n.audio && (n.properties?.["media.class"] ?? "") === "Stream/Output/Audio")
-    // Only streams that carry audio channels: tracking the others (video, MIDI,
-    // a stream still negotiating) floods the log with "channelVolumes and
-    // channelMap are not the same size"
-    PwObjectTracker { objects: [root.sink, root.source].concat(root.sinks).concat(root.streams.filter(n => n.audio && /Audio/.test(n.properties?.["media.class"] ?? ""))) }
+    // Every stream, not a filtered list: a filter on properties that arrive
+    // late keeps binding and unbinding nodes, and Quickshell's PipeWire code
+    // crashed unbinding one (2026-11-01). The log noise it would have saved
+    // isn't worth that.
+    PwObjectTracker { objects: [root.sink, root.source].concat(root.sinks).concat(root.streams) }
     // One entry per app (Firefox often has several streams); system noise hidden
     readonly property var appGroups: {
         const out = [];
