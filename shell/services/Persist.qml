@@ -54,6 +54,7 @@ Singleton {
             property string themeNight: "oled"
             property string themeDayFrom: "07:00"
             property string themeNightFrom: "19:00"
+            property var savedCommands: []            // launcher shortcuts: "> cmd", right-click → Save as a shortcut
             property string barVitals: "busy"         // CPU line + memory in the bar: "always" | "busy" | "never"
             property bool pipAuto: true               // a playing video follows you when you leave its workspace
             property string pipCorner: "br"           // video PiP corner: br | bl | tl | tr

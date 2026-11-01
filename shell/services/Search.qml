@@ -223,6 +223,14 @@ Singleton {
             a.push({ label: "Copy", icon: "content_copy", run: copy(r.title.replace(/^≈\s*/, "")) });
             break;
         default:
+            if (r.shellCmd) {
+                const all = Persist.data.savedCommands ?? [];
+                a.push({ label: "Run it", icon: "play_arrow", run: () => r.run() });
+                if (all.includes(r.shellCmd)) a.push({ label: "Forget this shortcut", icon: "bookmark_remove", run: () => Persist.data.savedCommands = all.filter(c => c !== r.shellCmd) });
+                else a.push({ label: "Save as a shortcut", icon: "bookmark_add", run: () => Persist.data.savedCommands = all.concat([r.shellCmd]).slice(-50) });
+                a.push({ label: "Open in a terminal", icon: "terminal", run: () => Quickshell.execDetached(["kitty", "--hold", "sh", "-c", r.shellCmd]) });
+                break;
+            }
             a.push({ label: r.on === true ? "Turn off" : r.on === false ? "Turn on" : r.badge === "Action" ? "Do it" : (r.badge || "Open"),
                      icon: r.on === true ? "toggle_off" : r.on === false ? "toggle_on" : "play_arrow", run: () => r.run() });
             if (settingsFor[r.title]) a.push({ label: "Settings for it", icon: "settings", run: () => SettingsState.launch(settingsFor[r.title]) });
@@ -236,8 +244,8 @@ Singleton {
 
         if (q.startsWith(">")) {
             const cmd = q.slice(1).trim();
-            if (cmd) out.push({ kind: "command", group: "Commands", title: cmd, subtitle: "Run command", glyph: "terminal", badge: "Run",
-                                run: () => Quickshell.execDetached(["sh", "-c", cmd]) });
+            if (cmd) out.push({ kind: "command", group: "Commands", title: cmd, subtitle: "Run command · right-click to save it as a shortcut", glyph: "terminal", badge: "Run",
+                                shellCmd: cmd, run: () => Quickshell.execDetached(["sh", "-c", cmd]) });
             return out;
         }
         // Commands with an argument
@@ -474,6 +482,13 @@ Singleton {
             out.push(...SearchMore.tmux.map(t => ({ kind: "command", group: "tmux", title: t.name, subtitle: t.windows + (t.windows === 1 ? " window" : " windows") + (t.attached ? " · attached" : ""),
                                                     glyph: "terminal", badge: "Attach", run: () => Quickshell.execDetached(["kitty", "tmux", "attach", "-t", t.name]) })));
             out.push({ kind: "command", group: "tmux", title: "New tmux session", glyph: "add", badge: "Run", run: () => Quickshell.execDetached(["kitty", "tmux", "new-session"]) });
+        }
+        // your saved shortcuts ("> command", right-click → Save as a shortcut)
+        {
+            const lw = text.toLowerCase(), all = Persist.data.savedCommands ?? [];
+            const hits = /^(shortcuts?|saved|commands?)$/.test(lw) ? all : lw.length >= 2 ? all.filter(c => c.toLowerCase().includes(lw)) : [];
+            out.push(...hits.slice(0, 6).map(c => ({ kind: "command", group: "Shortcuts", title: c, subtitle: "Your shortcut", glyph: "bolt", badge: "Run",
+                                                     shellCmd: c, saved: true, run: () => Quickshell.execDetached(["sh", "-c", c]) })));
         }
         // what you asked Halo to remember, and files you opened lately
         if (text.length >= 3) {

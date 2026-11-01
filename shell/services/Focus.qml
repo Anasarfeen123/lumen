@@ -39,8 +39,29 @@ Singleton {
     // What we changed, so turning a mode off puts it back
     property var saved: null
 
+    // A deep-work or study session ending: how it went, from the rounds and the
+    // screen-time timeline (where the time went while it ran)
+    property real sessionStart: 0
+    property int roundsAtStart: 0
+    function summary(kind) {
+        const mins = Math.round((Date.now() - sessionStart) / 60000);
+        if (mins < 10) return;
+        const start = new Date(sessionStart), from = start.getHours() * 60 + start.getMinutes();
+        const segs = (ScreenTime.data.timeline ?? []).filter(s => s[1] >= from);
+        const byApp = {};
+        for (const s of segs) byApp[s[2]] = (byApp[s[2]] ?? 0) + Math.max(1, s[1] - Math.max(s[0], from));
+        const top = Object.keys(byApp).sort((a, b) => byApp[b] - byApp[a]).slice(0, 3);
+        const rounds = Math.max(0, (ScreenTime.data.rounds ?? 0) - roundsAtStart);
+        const h = mins >= 60 ? Math.floor(mins / 60) + " h " + (mins % 60) + " min" : mins + " min";
+        Halo.say({ key: "focus-summary", icon: "self_improvement", title: (kind === "study" ? "Study" : "Deep work") + " · " + h + (rounds ? " · " + rounds + (rounds === 1 ? " round" : " rounds") : ""),
+                   text: top.length ? "Mostly in " + top.map(a => ScreenTime.nameOf(a) + " (" + byApp[a] + " min)").join(", ") + "." : "",
+                   level: "important", tone: "happy", duration: 14000, speak: false });
+    }
+
     function set(m) {
         if (m === mode) return;
+        if ((mode === "deep" || mode === "study") && sessionStart > 0) { summary(mode); sessionStart = 0; }
+        if (m === "deep" || m === "study") { sessionStart = Date.now(); roundsAtStart = ScreenTime.data.rounds ?? 0; }
         // Undo the previous mode
         if (mode === "game" && GameMode.on) GameMode.toggle();
         if ((mode === "deep" || mode === "study") && Countdown.cycle) Countdown.stop();

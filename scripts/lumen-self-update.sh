@@ -7,6 +7,9 @@
 #                                       you have uncommitted changes or your branch has diverged.
 #   lumen-self-update.sh stash-apply    stash your changes first (git stash push -u), then apply;
 #                                       get them back afterwards with: git -C <repo> stash pop
+#   lumen-self-update.sh rollback       back to where the last update started (only with no uncommitted
+#                                       changes, only backwards: git reset --keep, which refuses rather
+#                                       than overwrite); the next update brings it forward again
 #   lumen-self-update.sh set daily on|off   the shell's once-a-day check
 #   lumen-self-update.sh settings       {daily, announced}
 # Every mode also writes its result to $XDG_RUNTIME_DIR/lumen-self-update.json
@@ -19,6 +22,7 @@ RUN=${XDG_RUNTIME_DIR:-/tmp}
 STATE=$RUN/lumen-self-update.json
 LOG=$RUN/lumen-update.log
 PREFS=${XDG_STATE_HOME:-$HOME/.local/state}/lumen/self-update.json
+ROLLBACK=${XDG_STATE_HOME:-$HOME/.local/state}/lumen/update-rollback     # "<sha> <time>" before the last update
 
 log() { printf '%s %s\n' "$(date '+%F %T')" "$*" >> "$LOG"; }
 g() { git -C "$ROOT" "$@"; }
@@ -75,6 +79,9 @@ apply() {
     [ "$(printf '%s' "$r" | jq -r .diverged)" = true ] && fail diverged "Your copy and GitHub have both moved on. Lumen won't merge or overwrite — update it by hand with git." "$r"
     [ "$(printf '%s' "$r" | jq -r .behind)" = 0 ] && { publish "$(report current)"; exit 0; }
     before=$(g rev-parse --short HEAD)
+    # remember where this update started, for `rollback` (survives a reboot)
+    mkdir -p "$(dirname "$ROLLBACK")"
+    printf '%s %s\n' "$(g rev-parse HEAD)" "$(date +%s)" > "$ROLLBACK"
     publish "$(printf '%s' "$r" | jq -c '.state = "updating"')"
     log "pull --ff-only ($before → origin/$branch)"
     g pull --ff-only --quiet origin "$branch" >> "$LOG" 2>&1 || fail failed "The update couldn't be applied (see $LOG). Nothing was changed." "$r"
@@ -101,6 +108,18 @@ stash-apply)
         g stash push --include-untracked --quiet -m "$msg" >> "$LOG" 2>&1 || fail failed "Couldn't stash your changes (see $LOG). Nothing was changed."
     fi
     apply ;;
+rollback)
+    repo
+    [ -s "$ROLLBACK" ] || fail none "No update to roll back."
+    to=$(cut -d' ' -f1 "$ROLLBACK")
+    [ -z "$(dirty_files)" ] || fail dirty "You have changes that aren't committed. Commit or stash them first."
+    g merge-base --is-ancestor "$to" HEAD || fail diverged "That point isn't behind where you are now — roll back by hand with git."
+    now=$(g rev-parse --short HEAD)
+    log "rollback $now → $(g rev-parse --short "$to")"
+    g reset --keep --quiet "$to" >> "$LOG" 2>&1 || fail failed "Couldn't roll back (see $LOG). Nothing was changed."
+    python3 "$ROOT/theme/build.py" >> "$LOG" 2>&1 || true
+    rm -f "$ROLLBACK"
+    publish "$(report current | jq -c --arg b "$now" '.state = "rolledback" | .from = $b')" ;;
 set)
     [ "${2:-}" = daily ] || { echo "usage: lumen-self-update.sh set daily on|off" >&2; exit 2; }
     case ${3:-} in on) v=true ;; off) v=false ;; *) echo "usage: lumen-self-update.sh set daily on|off" >&2; exit 2 ;; esac

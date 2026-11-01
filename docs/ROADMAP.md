@@ -141,8 +141,9 @@ Tick items off as they land.
 - [x] Meeting mode: detection, held notifications, paused timer and awake screen were there; now a
       mic check when a call starts (which mic, muted or live, one-tap mute) and "Write notes" when
       it ends (a dated note, opened).
-- [ ] Focus session: Pomodoro + Do Not Disturb + a website block list, with a Halo summary
-      at the end.
+- [~] Focus session: Deep work / Study already run Pomodoro rounds with Do Not Disturb; ending
+      one now gives a Halo summary (time, rounds, where the time went). A website block list
+      isn't there — browsers don't take one from outside without an extension.
 - [x] Force a question to the AI: start it with `ai:` (or `@ai`), or press "Ask the AI instead"
       on an answer Halo gave by itself.
 - [~] Improve the avatar: a new abstract look, "Core" (now the default) — a glowing core, arcs
@@ -237,7 +238,8 @@ it's rough (Settings already has Display and Windows pages, for example).
       if not already covered by `qalc`.
 - [ ] **Game launcher** (HyDE): Steam/Lutris/Heroic games with cover art, starting game mode
       on launch. (Steam is installed but has no games yet.)
-- [ ] **Shortcuts menu** (Pyprland): a launcher mode for saved custom commands and scripts.
+- [x] **Shortcuts menu**: type `> command`, right-click → "Save as a shortcut"; saved ones come up
+      when you type part of them (or "saved"), Enter runs, right-click forgets or opens in kitty.
 
 ### Audio, power and hardware
 - [ ] **EasyEffects presets** (Ambxst): switch EQ presets (Speakers, Headphones, Voice) from
@@ -254,15 +256,15 @@ it's rough (Settings already has Display and Windows pages, for example).
 ### Platform
 - [ ] **Hot-reloading config file** (Noctalia): one readable `lumen.toml` that Settings writes
       and power users can edit, applied without restarting.
-- [ ] **Full CLI/IPC** (DankMaterialShell, Noctalia): `lumen ipc` for every surface and
-      setting, so scripts and keybinds can drive anything.
+- [x] **Full CLI/IPC**: `lumen ipc` lists every target and function the shell exposes;
+      `lumen ipc <target> <function> [args]` calls one in this session's shell.
 - [ ] **Plugin registry with a lockfile** (DankMaterialShell): installable widgets and
       launcher providers, reproducible on a new machine. Builds on the widget API in §4.
 - [ ] **Try it in a VM or live ISO** (HyDE's HyDEVM, ML4W's live ISO): a script that boots
       Lumen in a VM for testing changes and showing it off.
-- [ ] **Shows every command before running it** (ii's installer): `install.sh --dry-run`
-      that prints exactly what it would install or change.
-- [ ] **Safe update with config backup** (HyDE `install.sh -r`): `lumen update` that backs up
-      replaced files to a dated folder and can roll back.
+- [x] **Shows every command before running it**: `install.sh --dry-run` already existed.
+- [x] **Safe update that can roll back**: `lumen update` fast-forwards only (refusing with
+      uncommitted changes); `lumen update rollback` returns to where the last update started
+      (`git reset --keep`, so it refuses rather than overwrite anything).
 
 ---
