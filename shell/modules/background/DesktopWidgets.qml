@@ -26,7 +26,7 @@ PanelWindow {
 
     Column {
         x: 56
-        anchors.bottom: parent.bottom; anchors.bottomMargin: (Persist.data.desktopVisualizer ?? false) && Media.playing ? 250 : 72      // above the music bars
+        anchors.bottom: parent.bottom; anchors.bottomMargin: (Persist.data.desktopVisualizer ?? false) && Media.playing ? 120 : 72      // above the music bars
         Behavior on anchors.bottomMargin { NumberAnimation { duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
         spacing: 6
         layer.enabled: true
