@@ -65,14 +65,22 @@ PanelWindow {
     // Unpin rules (a Hyprland focus grab proved unreliable here):
     //   Esc · click the island again · focus moves to a window · 6 s with the
     //   pointer away
+    // An open island mustn't sit in your way:
+    //  · opened by a click (pinned): closes 0.7 s after the pointer leaves it
+    //  · a card it shows by itself (Halo, a notification, a message…): clicking
+    //    into a window puts it away, once it has been up a second
     Connections {
         target: Hyprland
-        enabled: Island.pinned && win.isFocused
-        function onActiveToplevelChanged() { Island.unpin(); }
+        enabled: win.isFocused
+        function onActiveToplevelChanged() {
+            if (Island.pinned) { Island.unpin(); return; }
+            if (Island.active && Island.expanded && !Island.pointerInside && ["halo", "notification", "message", "device", "screenshot", "system", "context"].includes(Island.kind)
+                && Date.now() - Island.activeSince > 1000) Island.dismiss();
+        }
     }
     Timer {
-        interval: 6000
-        running: Island.pinned && win.isFocused && !Island.pointerInside
+        interval: 700
+        running: Island.pinned && win.isFocused && !Island.pointerInside && !Island.timelineOpen
         onTriggered: Island.unpin()
     }
 

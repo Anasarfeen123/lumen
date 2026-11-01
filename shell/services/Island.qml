@@ -35,6 +35,8 @@ Singleton {
     }
 
     property var active: null
+    property real activeSince: 0         // when the card now showing appeared
+    onActiveChanged: activeSince = Date.now()
     property var queue: []
     property bool hovered: false        // hover *intent* (delayed) — drives expansion
     property bool pointerInside: false  // raw — pauses the dismiss timer immediately
