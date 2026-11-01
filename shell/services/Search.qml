@@ -512,6 +512,11 @@ Singleton {
                                                     glyph: "terminal", badge: "Attach", run: () => Quickshell.execDetached(["kitty", "tmux", "attach", "-t", t.name]) })));
             out.push({ kind: "command", group: "tmux", title: "New tmux session", glyph: "add", badge: "Run", run: () => Quickshell.execDetached(["kitty", "tmux", "new-session"]) });
         }
+        // recently closed apps: "reopen", "closed", "undo close"
+        if (/^(reopen|re-open|closed|undo close|recently closed)/i.test(text.trim()))
+            out.unshift(...ClosedWindows.closed.map((c, i) => ({ kind: "action", group: "Recently closed", title: "Reopen " + c.name,
+                subtitle: (c.ws ? "On workspace " + c.ws + " · " : "") + Qt.formatTime(new Date(c.at), Theme.clock12h ? "h:mm AP" : "HH:mm"),
+                icon: Apps.iconFor(Apps.entryFor(c.cls)), badge: "Open", run: () => ClosedWindows.reopen(i) })));
         // your saved shortcuts ("> command", right-click → Save as a shortcut)
         {
             const lw = text.toLowerCase(), all = Persist.data.savedCommands ?? [];

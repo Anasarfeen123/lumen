@@ -121,9 +121,16 @@ GlassSurface {
                 height: Theme.barHeight
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                acceptedButtons: Qt.LeftButton | Qt.RightButton
-                // Right-click: the tray drawer (background apps)
-                onClicked: m => m.button === Qt.RightButton ? TrayState.toggle(root.screen?.name ?? "") : Hypr.workspace(wsId)
+                acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+                // Right-click: the tray drawer (background apps) · middle-click: send the
+                // window you're in to this workspace (you stay where you are)
+                onClicked: m => {
+                    if (m.button === Qt.RightButton) TrayState.toggle(root.screen?.name ?? "");
+                    else if (m.button === Qt.MiddleButton) {
+                        const a = Hyprland.activeToplevel?.lastIpcObject?.address;
+                        if (a && wsId !== root.activeId) { Hypr.moveToWorkspace(a, wsId, false); Island.system("move_item", "Moved to workspace " + wsId, Hyprland.activeToplevel?.title ?? ""); }
+                    } else Hypr.workspace(wsId);
+                }
                 onContainsMouseChanged: {
                     if (!root.peek) return;
                     const ws = root.workspaces.find(w => w.id === wsId);

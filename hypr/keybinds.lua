@@ -77,6 +77,7 @@ key("SUPER + D", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle
 key("SUPER + ALT + P", hl.dsp.window.pin(), "Keep on all workspaces")
 group("Tools")
 key("CTRL + SUPER + C", global("lumen:captions"), "Live captions of what's playing (again: off)")
+key("CTRL + SUPER + SHIFT + T", global("lumen:reopenClosed"), "Reopen the app you just closed")
 key("CTRL + SUPER + F", global("lumen:findPointer"), "Find my pointer (rings close in on it)")
 key("CTRL + SUPER + D", global("lumen:draw"), "Draw on the screen (Esc when done, S saves a screenshot)")
 key("CTRL + SUPER + P", global("lumen:pip"), "Picture in picture (pop the window into a corner / put it back)")

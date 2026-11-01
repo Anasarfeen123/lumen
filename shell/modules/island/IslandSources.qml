@@ -55,8 +55,12 @@ Scope {
     }
     // The NVIDIA GPU stuck awake is watched by Power (it speaks for itself)
     readonly property bool _dgpuWatch: Power.dgpuStuck || true
-    // Halo's wrap-ups and reminders run in the background (singletons start when first named)
-    readonly property bool _halo: Brief.active || Halo.present || Doctor.enabled || Routines.active || Accounts.active || Pip.active || Alarms.list.length >= 0 || ThemeSchedule.active || LowPower.active || SnapLayouts.open || SessionSaver.on || Captions.on || TouchGestures.on || ConfigFile.on || true
+    // Background services start when first named. A list names every one: an
+    // "a || b || c" chain stopped at the first true value, so the ones after
+    // it (theme by time of day, session restore, touchpad gestures, the
+    // lumen.toml watcher…) never started.
+    readonly property var _services: [Brief, Halo, Doctor, Routines, Accounts, Pip, Alarms, ThemeSchedule, LowPower,
+                                      SnapLayouts, SessionSaver, Captions, TouchGestures, ConfigFile, ClosedWindows]
 
     // ── Now playing: announce briefly on play/track change, then back to the
     //    clock (which shows an equalizer while music plays) ──
