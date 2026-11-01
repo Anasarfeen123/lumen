@@ -29,13 +29,15 @@ Item {
     readonly property string address: ipc.address ?? (focused ? "0x" + focused.address : "")
     readonly property bool active: shown && onThisMonitor && appName !== ""
 
-    implicitWidth: active ? row.implicitWidth + Theme.space.s3 * 2 : 0
+    // It fades (and drifts a few pixels) rather than collapsing: a shrinking width
+    // squeezed and clipped the name ("kitty" → "W") as the bar closed
+    implicitWidth: appName !== "" ? row.implicitWidth + Theme.space.s3 * 2 : 0
     implicitHeight: Theme.barHeight
     opacity: active ? 1 : 0
     visible: opacity > 0
     clip: true
+    transform: Translate { x: root.active ? 0 : -6; Behavior on x { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard } } }
     Behavior on opacity { NumberAnimation { duration: Theme.motion.normal } }
-    Behavior on implicitWidth { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
 
     HoverTarget {
         id: button

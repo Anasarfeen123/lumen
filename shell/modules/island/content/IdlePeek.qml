@@ -6,7 +6,11 @@ import qs.components
 import qs.services
 
 Item {
-    implicitWidth: row.implicitWidth
+    id: root
+    // the room the island gives a peek (IslandWindow: up to the expanded width);
+    // the class line takes what's left after the date and time, and elides
+    readonly property real maxW: Theme.island.expandedWidth - 2 * Theme.space.s4
+    implicitWidth: Math.min(row.implicitWidth, maxW)
     implicitHeight: Theme.island.height
 
     SystemClock { id: clock; precision: SystemClock.Minutes }
@@ -16,8 +20,8 @@ Item {
         anchors.centerIn: parent
         spacing: Theme.space.s2
 
-        LText { role: "body"; color: Theme.textSecondary; text: Qt.formatDateTime(clock.date, "ddd d MMM") }
-        LText { role: "bodyStrong"; text: Qt.formatDateTime(clock.date, Theme.timeFormatFull) }
+        LText { id: dateT; role: "body"; color: Theme.textSecondary; text: Qt.formatDateTime(clock.date, "ddd d MMM") }
+        LText { id: timeT; role: "bodyStrong"; text: Qt.formatDateTime(clock.date, Theme.timeFormatFull) }
         LText {
             visible: Battery.available && !Battery.pluggedIn && text !== ""
             role: "body"
@@ -43,9 +47,16 @@ Item {
             LText {
                 anchors.verticalCenter: parent.verticalCenter
                 role: "body"; color: Theme.textSecondary
-                width: Math.min(implicitWidth, 260); elide: Text.ElideRight
+                // what's left of the island once the date, time, "·" and icon are in
+                // the course and room give way first; when it starts always shows
+                width: Math.max(50, Math.min(implicitWidth, root.maxW - dateT.width - timeT.width - whenT.implicitWidth - 4 * row.spacing - 30)); elide: Text.ElideRight
                 text: !parent.cls ? "" : parent.cls.title + (parent.cls.venue ? " · " + parent.cls.venue : "")
-                      + " · " + (Amazecc.isCurrent(parent.cls) ? "till " + Amazecc.clockLabel(parent.cls.end) : Amazecc.inLabel(parent.cls.start))
+            }
+            LText {
+                id: whenT
+                anchors.verticalCenter: parent.verticalCenter
+                role: "body"; color: Theme.textMuted
+                text: !parent.cls ? "" : "· " + (Amazecc.isCurrent(parent.cls) ? "till " + Amazecc.clockLabel(parent.cls.end) : Amazecc.inLabel(parent.cls.start))
             }
         }
     }

@@ -37,7 +37,9 @@ PanelWindow {
         if (merged) { mergeRelease.stop(); mergedLook = true; }
         else mergeRelease.restart();
     }
-    Timer { id: mergeRelease; interval: Theme.reducedMotion ? 0 : 400; onTriggered: win.mergedLook = false }
+    // (just before the bar finishes gliding home at 380 ms: the two overlap for a moment instead of
+    // leaving a frame where neither has its glass)
+    Timer { id: mergeRelease; interval: Theme.reducedMotion ? 0 : 340; onTriggered: win.mergedLook = false }
     // The overview's search field has taken the island's place
     readonly property bool handedOff: Overview.handoff && isFocused
 
@@ -140,7 +142,7 @@ PanelWindow {
         readonly property int padY: bodyExpanded ? Theme.space.s4 : 0
         readonly property real targetW: bodyExpanded
             ? Theme.island.expandedWidth
-            : Math.min(Theme.island.maxCompactWidth,
+            : Math.min(win.shown === "idlePeek" ? Theme.island.expandedWidth : Theme.island.maxCompactWidth,      // the peek may use the expanded width
                        Math.max(Theme.island.idleMinWidth, (loader.item?.implicitWidth ?? 0) + 2 * padX))
         readonly property real targetH: bodyExpanded
             ? (loader.item?.implicitHeight ?? 0) + 2 * padY

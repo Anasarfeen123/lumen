@@ -161,19 +161,20 @@ Item {
                 text: Caffeine.until > 0 ? Caffeine.remainingText : "Awake"
             }
         }
+        // the focus mode, by name (a running timer or Pomodoro shows in the island
+        // itself — the chip repeated it beside it)
         Chip {
-            want: Focus.mode !== "off" || Countdown.active
+            want: Focus.mode !== "off"
             onClicked: Sidebar.showDetail("focus")
             LIcon {
                 anchors.verticalCenter: parent.verticalCenter
-                icon: Focus.mode !== "off" ? Focus.current.icon : (Countdown.mode === "timer" ? "timer" : "timelapse")
+                icon: Focus.current.icon
                 size: 15; fill: 1; color: Theme.accent
             }
             LText {
                 anchors.verticalCenter: parent.verticalCenter
                 role: "caption"
-                text: (Focus.mode !== "off" ? Focus.current.label : (Countdown.label || "Timer"))
-                      + (Countdown.active ? "  ·  " + Countdown.display : "")
+                text: Focus.current.label
             }
         }
     }

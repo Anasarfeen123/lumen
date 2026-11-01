@@ -62,7 +62,8 @@ PanelWindow {
     GlassSurface {
         id: merged
         readonly property real fullWidth: bar.width - 2 * Theme.edgeGap
-        property real span: Math.min(fullWidth, Island.shapeWidth)
+        readonly property real homeSpan: Math.min(fullWidth, Island.shapeWidth)
+        property real span: homeSpan
         y: Theme.edgeGap
         height: Theme.barHeight
         width: span
@@ -77,31 +78,46 @@ PanelWindow {
             onWheel: event => wsSteps.feed(event.angleDelta.y)
         }
 
-        states: State {
-            name: "merged"
-            when: bar.merged
-            PropertyChanges { merged.span: merged.fullWidth; merged.opacity: 1 }
-        }
-        transitions: [
-            Transition {
-                to: "merged"
-                SequentialAnimation {
-                    NumberAnimation { target: merged; property: "opacity"; duration: Theme.reducedMotion ? 0 : 60 }
-                    ParallelAnimation {
-                        SpringAnimation { target: merged; property: "span"; spring: Theme.motion.springStrength * 0.75; damping: Theme.motion.springDamping + 0.08; epsilon: 0.5 }
-                        ScriptAction { script: sheen.run(true) }
-                    }
-                }
-            },
-            Transition {
-                from: "merged"
-                SequentialAnimation {
-                    ScriptAction { script: sheen.run(false) }
-                    NumberAnimation { target: merged; property: "span"; duration: Theme.reducedMotion ? 0 : 380; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
-                    NumberAnimation { target: merged; property: "opacity"; duration: Theme.reducedMotion ? 0 : Theme.motion.micro }
-                }
+        // Two explicit animations, their start and end fixed the moment they
+        // begin (states and transitions here produced three bugs: a spring that
+        // raced through the middle — one recorded frame went 843 → 1567 px; the
+        // closing bar's opacity set to 0 at once so it vanished in a frame; and
+        // the opening stopping at ¾ width, then jumping, as the island's own
+        // width changed under it). Each starts from wherever the bar is now, so
+        // opening and closing quickly reverses smoothly mid-way.
+        function go(on) {
+            openAnim.stop(); closeAnim.stop();
+            if (Theme.reducedMotion) {
+                span = on ? Qt.binding(() => merged.fullWidth) : Qt.binding(() => merged.homeSpan);
+                opacity = on ? 1 : 0;
+                return;
             }
-        ]
+            if (on) {
+                if (opacity < 0.01) span = homeSpan;     // from the island's exact shape
+                openSpan.from = span; openSpan.to = fullWidth;
+                openAnim.start();
+                sheen.run(true);
+            } else {
+                closeSpan.from = span; closeSpan.to = homeSpan;
+                closeAnim.start();
+                sheen.run(false);
+            }
+        }
+        ParallelAnimation {
+            id: openAnim
+            NumberAnimation { target: merged; property: "opacity"; to: 1; duration: 80 }
+            NumberAnimation { id: openSpan; target: merged; property: "span"; duration: 500; easing.type: Easing.InOutCubic }
+            // fully open: follow the screen's width from now on
+            onFinished: merged.span = Qt.binding(() => merged.fullWidth)
+        }
+        SequentialAnimation {
+            id: closeAnim
+            NumberAnimation { id: closeSpan; target: merged; property: "span"; duration: 380; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard }
+            NumberAnimation { target: merged; property: "opacity"; to: 0; duration: 120 }
+            onFinished: merged.span = Qt.binding(() => merged.homeSpan)
+        }
+        Connections { target: bar; function onMergedChanged() { merged.go(bar.merged); } }
+        Component.onCompleted: if (bar.merged) { span = Qt.binding(() => merged.fullWidth); opacity = 1; }
 
         // Two soft bands of light that travel with the bar's growing edges
         Item {
@@ -160,7 +176,8 @@ PanelWindow {
         id: appMenu
         barWindow: bar
         monitor: bar.monitor
-        shown: bar.merged
+        // appears as the bar's edge reaches it, leaves as the edge passes back
+        shown: bar.merged && merged.visible && merged.x <= x + width / 2
         x: workspaces.x + workspaces.width + Theme.space.s1
         y: Theme.edgeGap
     }
