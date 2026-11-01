@@ -56,6 +56,7 @@ Singleton {
             property string themeNightFrom: "19:00"
             property var sidebarOrder: ["quick", "sound", "tools", "computer"]   // the Controls sidebar's sections, top to bottom
             property var sidebarHidden: []            // …and the ones turned off
+            property bool pointerShake: true           // shake the pointer to find it (services/PointerGestures.qml)
             property bool touchGestures: false        // rest 3 fingers: circle to search · 4: talk (services/TouchGestures.qml)
             property var widgetsEnabled: []           // your widgets that are turned on (services/Widgets.qml)
             property bool desktopVisualizer: false    // faint audio bars on the wallpaper while music plays

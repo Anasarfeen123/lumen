@@ -60,7 +60,7 @@ Scope {
     // it (theme by time of day, session restore, touchpad gestures, the
     // lumen.toml watcher…) never started.
     readonly property var _services: [Brief, Halo, Doctor, Routines, Accounts, Pip, Alarms, ThemeSchedule, LowPower,
-                                      SnapLayouts, SessionSaver, Captions, TouchGestures, ConfigFile, ClosedWindows]
+                                      SnapLayouts, SessionSaver, Captions, TouchGestures, ConfigFile, ClosedWindows, PointerGestures]
 
     // ── Now playing: announce briefly on play/track change, then back to the
     //    clock (which shows an equalizer while music plays) ──

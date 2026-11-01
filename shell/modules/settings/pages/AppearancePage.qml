@@ -293,6 +293,12 @@ Page {
             }
         }
         SetRow {
+            icon: "swipe_left"
+            title: "Shake to find the pointer"
+            description: "Wiggle the mouse quickly and the pointer grows for a moment, with rings closing in on it. Ctrl+Super+F does it too."
+            LSwitch { checked: Persist.data.pointerShake ?? true; onToggled: Persist.data.pointerShake = !checked }
+        }
+        SetRow {
             icon: "keyboard"
             title: "Hide it while typing"
             LSwitch { checked: ((Theme.tokens.prefs ?? {}).pointer_hide_typing ?? "on") === "on"
