@@ -12,7 +12,7 @@ Item {
     property bool selected: false
     property bool armed: false
     signal activated()
-    signal hovered()
+    signal hovered(point at)          // where the pointer is on screen
     signal menuRequested(real x, real y)      // right-click: more it can do
 
     property bool thumbGone: false     // its file was cleared (it lives in RAM, gone after a logout)
@@ -103,6 +103,6 @@ Item {
         cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onClicked: m => { if (m.button === Qt.RightButton) root.menuRequested(m.x, m.y); else root.activated(); }
-        onPositionChanged: root.hovered()
+        onPositionChanged: m => root.hovered(mapToItem(null, m.x, m.y))
     }
 }

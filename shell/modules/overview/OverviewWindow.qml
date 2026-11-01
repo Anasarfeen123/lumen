@@ -141,6 +141,10 @@ PanelWindow {
                 else Overview.hide();
             } else if (win.gridMode && (k === Qt.Key_Left || k === Qt.Key_Right)) {
                 grid.move(k === Qt.Key_Left ? -1 : 1);
+            } else if (Overview.mode === "emoji" && !(event.modifiers & Qt.ControlModifier) && (k === Qt.Key_Left || k === Qt.Key_Right)) {
+                results.move(k === Qt.Key_Left ? -1 : 1);              // the emoji grid: across
+            } else if (Overview.mode === "emoji" && (k === Qt.Key_Down || k === Qt.Key_Up)) {
+                results.moveRow(k === Qt.Key_Down ? 1 : -1);           // …and down a row
             } else if (k === Qt.Key_Down || (k === Qt.Key_Tab && !(event.modifiers & Qt.ShiftModifier))
                        || (k === Qt.Key_N && event.modifiers & Qt.ControlModifier)) {
                 results.move(1);

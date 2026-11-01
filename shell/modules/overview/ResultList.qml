@@ -12,20 +12,29 @@ GlassSurface {
     radius: Theme.radius.lg
     implicitWidth: 600
     implicitHeight: count === 0 ? emptyLabel.implicitHeight + Theme.space.s6 * 2
-                                : Math.min(list.contentHeight, 470) + Theme.space.s2 * 2 + (Overview.mode === "clipboard" ? 38 : 0)    // rows + labels (+ filter chips)
+                                : Math.min(view.contentHeight + (emojiGrid ? 34 : 0), 470) + Theme.space.s2 * 2 + (Overview.mode === "clipboard" ? 38 : 0)    // rows + labels (+ filter chips, or the emoji's name)
     Behavior on implicitHeight { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard } }
 
-    readonly property int count: list.count
+    readonly property int count: view.count
+    // emoji are a grid; everything else a list — both share the selection logic below
+    readonly property bool emojiGrid: Overview.mode === "emoji"
+    readonly property var view: emojiGrid ? egrid : list
     property int armedIndex: -1
     signal done()
 
     function move(d) {
         if (count === 0) return;
-        list.currentIndex = (list.currentIndex + d + count) % count;
+        view.currentIndex = (view.currentIndex + d + count) % count;
         armedIndex = -1;
     }
+    // ↑/↓ in the emoji grid: a row at a time (in the list, one result)
+    function moveRow(d) {
+        if (!emojiGrid) { move(d); return; }
+        if (count === 0) return;
+        egrid.currentIndex = Math.max(0, Math.min(count - 1, egrid.currentIndex + d * egrid.cols));
+    }
     function activate(i, mode) {
-        const idx = i ?? list.currentIndex;
+        const idx = i ?? view.currentIndex;
         const r = Search.results[idx];
         if (!r) return;
         if (r.destructive && armedIndex !== idx) { armedIndex = idx; disarm.restart(); return; }
@@ -34,12 +43,12 @@ GlassSurface {
         r.run(mode);
     }
     function removeCurrent() {
-        const r = Search.results[list.currentIndex];
+        const r = Search.results[view.currentIndex];
         if (r?.kind === "clipboard") Clipboard.remove(r.id);
         else if (r?.kind === "clipPin") Clipboard.unpin(r.pinIndex);
     }
     function togglePin() {
-        const r = Search.results[list.currentIndex];
+        const r = Search.results[view.currentIndex];
         if (r?.kind === "clipboard") Clipboard.pin(r.entry);
         else if (r?.kind === "clipPin") Clipboard.unpin(r.pinIndex);
     }
@@ -51,7 +60,7 @@ GlassSurface {
     property int menuIndex: 0
     readonly property bool menuOpen: menuItems.length > 0
     function openMenu(i, at) {
-        const r = Search.results[i ?? list.currentIndex];
+        const r = Search.results[i ?? view.currentIndex];
         const items = Search.actionsFor(r);
         if (!items.length) return;
         menuIndex = 0;
@@ -74,7 +83,7 @@ GlassSurface {
 
     Connections {
         target: Search
-        function onResultsChanged() { list.currentIndex = 0; root.armedIndex = -1; }
+        function onResultsChanged() { list.currentIndex = 0; egrid.currentIndex = 0; root.armedIndex = -1; root.pointerBase = true; }
     }
 
     // Clipboard filters (Ctrl+← / Ctrl+→)
@@ -99,13 +108,25 @@ GlassSurface {
         }
     }
 
+    // Hover selects a row only when the pointer really moves: new results (or a
+    // list opening) under a resting pointer would otherwise steal the selection
+    // from the top result.
+    property point lastPointer: Qt.point(-1, -1)
+    property bool pointerBase: true
+    function pointerMoved(at) {
+        if (pointerBase) { pointerBase = false; lastPointer = at; return false; }
+        if (Math.abs(at.x - lastPointer.x) < 2 && Math.abs(at.y - lastPointer.y) < 2) return false;
+        lastPointer = at;
+        return true;
+    }
     ListView {
         id: list
         anchors.fill: parent
         anchors.margins: Theme.space.s2
         anchors.topMargin: chips.visible ? chips.height + Theme.space.s3 : Theme.space.s2
         clip: true
-        model: Search.results
+        visible: !root.emojiGrid
+        model: root.emojiGrid ? [] : Search.results
         currentIndex: 0
         highlightMoveDuration: 0
         boundsBehavior: Flickable.StopAtBounds
@@ -135,9 +156,62 @@ GlassSurface {
                 armed: cell.index === root.armedIndex
                 onActivated: root.activate(cell.index)
                 onMenuRequested: (mx, my) => { list.currentIndex = cell.index; root.openMenu(cell.index, mapToItem(root, mx, my)); }
-                onHovered: if (list.currentIndex !== cell.index) { list.currentIndex = cell.index; root.armedIndex = -1; }
+                onHovered: at => { if (root.pointerMoved(at) && list.currentIndex !== cell.index) { list.currentIndex = cell.index; root.armedIndex = -1; } }
             }
         }
+    }
+
+    // ── emoji: a grid of big ones, the selected one's name underneath ──
+    GridView {
+        id: egrid
+        visible: root.emojiGrid
+        anchors { fill: parent; margins: Theme.space.s2; bottomMargin: 34 + Theme.space.s2 }
+        clip: true
+        model: root.emojiGrid ? Search.results : []
+        readonly property int cols: Math.max(1, Math.floor(width / 56))
+        cellWidth: width / cols
+        cellHeight: 52
+        currentIndex: 0
+        highlightMoveDuration: 0
+        boundsBehavior: Flickable.StopAtBounds
+        delegate: Item {
+            id: ec
+            required property var modelData
+            required property int index
+            width: egrid.cellWidth; height: egrid.cellHeight
+            readonly property bool sel: index === egrid.currentIndex
+            Rectangle {
+                anchors.centerIn: parent
+                width: 46; height: 46; radius: Theme.radius.md
+                color: ec.sel ? Theme.withAlpha(Theme.accent, 0.22) : ema.containsMouse ? Theme.withAlpha(Theme.text, 0.08) : "transparent"
+                border.width: ec.sel ? 1 : 0; border.color: Theme.withAlpha(Theme.accent, 0.6)
+            }
+            Text {
+                anchors.centerIn: parent
+                text: ec.modelData.emoji ?? ""
+                font.pixelSize: ec.sel ? 30 : 26
+                Behavior on font.pixelSize { NumberAnimation { duration: Theme.motion.micro } }
+            }
+            MouseArea {
+                id: ema
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onPositionChanged: m => { if (root.pointerMoved(mapToItem(null, m.x, m.y))) egrid.currentIndex = ec.index; }
+                onClicked: m => { if (m.button === Qt.RightButton) { egrid.currentIndex = ec.index; root.openMenu(ec.index, mapToItem(root, m.x, m.y)); } else root.activate(ec.index); }
+            }
+        }
+    }
+    Row {
+        visible: root.emojiGrid && root.count > 0
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: Theme.space.s3 }
+        height: 26
+        spacing: Theme.space.s2
+        Text { anchors.verticalCenter: parent.verticalCenter; text: Search.results[egrid.currentIndex]?.emoji ?? ""; font.pixelSize: 18 }
+        LText { anchors.verticalCenter: parent.verticalCenter; text: Search.results[egrid.currentIndex]?.title ?? ""; color: Theme.textSecondary }
+        Item { width: 1; height: 1 }
+        LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"; color: Theme.textMuted; text: "↵ insert · arrows to move" }
     }
 
     // clicking elsewhere closes the menu
