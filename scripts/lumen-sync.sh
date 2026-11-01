@@ -7,6 +7,9 @@
 #   lumen-sync.sh import <file>    first saves what it replaces to
 #                                  ~/.local/state/lumen/before-import-<date>.tar.gz
 #   lumen-sync.sh list <file>      what's inside
+#   lumen-sync.sh theme-export [file]   just the look, to share: theme, accent, glass, corners,
+#                                       gaps, border and the wallpaper (~/lumen-theme-<accent>.tar.gz)
+#   lumen-sync.sh theme-import <file>   apply someone's look (your settings otherwise untouched)
 # Never in it: API keys, mail and 2FA accounts, AmazeCC's login (all in your
 # keyring or key files), screen time, notification history. Notes import
 # never overwrites a note that's newer on this computer.
@@ -31,7 +34,34 @@ stage() {   # copy what's exported into $1 (a temp dir)
     printf '{"made":"%s","from":"%s","notes":"%s"}\n' "$(date -Is)" "$(hostname)" "$NOTES" > "$1/lumen-setup.json"
 }
 
+LOOK_KEYS='["theme","accent","accent_intensity","accent_style","transparency","glass_level","corners","gaps","border","wallpaper_hue"]'
+
 case ${1:-} in
+theme-export)
+    acc=$(jq -r '.accent // "lumen"' "$STATE/state.json" 2>/dev/null || echo lumen)
+    out=${2:-$HOME/lumen-theme-$acc.tar.gz}
+    tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+    mkdir -p "$tmp/lumen-theme"
+    jq --argjson k "$LOOK_KEYS" 'with_entries(select(.key as $x | $k | index($x)))' "$STATE/state.json" > "$tmp/lumen-theme/look.json"
+    wp=$(cat "$STATE/wallpaper" 2>/dev/null || true)
+    [ -f "$wp" ] && cp "$wp" "$tmp/lumen-theme/wallpaper.${wp##*.}"
+    tar -czf "$out" -C "$tmp" lumen-theme
+    echo "$out" ;;
+theme-import)
+    in=${2:?usage: lumen-sync.sh theme-import <file>}
+    tar -tzf "$in" lumen-theme/look.json >/dev/null 2>&1 || { echo "Not a Lumen theme: $in" >&2; exit 1; }
+    tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+    tar -xzf "$in" -C "$tmp"
+    cp "$STATE/state.json" "$STATE/state.json.before-theme-$(date +%Y%m%d-%H%M%S)"
+    jq -s --argjson k "$LOOK_KEYS" '.[0] + (.[1] | with_entries(select(.key as $x | $k | index($x))))' "$STATE/state.json" "$tmp/lumen-theme/look.json" > "$STATE/state.json.tmp" \
+        && mv "$STATE/state.json.tmp" "$STATE/state.json"
+    for w in "$tmp"/lumen-theme/wallpaper.*; do
+        [ -f "$w" ] || continue
+        d=$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME/Pictures")/Wallpapers; mkdir -p "$d"
+        name="theme-$(basename "$in" .tar.gz).${w##*.}"; cp "$w" "$d/$name"
+        "$LUMEN_ROOT/scripts/wallpaper.sh" set "$d/$name" >/dev/null 2>&1 || printf '%s\n' "$d/$name" > "$STATE/wallpaper"
+    done
+    echo "Theme applied — run: lumen reload" ;;
 export)
     out=${2:-$HOME/lumen-setup-$(date +%Y-%m-%d).tar.gz}
     tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT

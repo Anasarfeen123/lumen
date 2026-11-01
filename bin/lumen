@@ -19,6 +19,7 @@
 #   lumen otp add <name>|list|code <name>|remove <name>   two-factor codes (secrets in the keyring)
 #   lumen ipc [<target> <function> [args…]]   list everything the shell exposes, or call one
 #   lumen sync export [file] | import <file> | list <file>   your whole setup as one file
+#   lumen sync theme-export [file] | theme-import <file>     just the look (theme, accent, glass, wallpaper)
 #   lumen recovery [command]        Lumen Recovery: a menu that works from a TTY (safe mode, restore settings…)
 #   lumen backup [now|status|…]     back up your files to a drive or folder (scripts/backup.sh)
 set -eu

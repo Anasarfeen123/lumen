@@ -59,6 +59,29 @@ Singleton {
         }
     }
 
+    // ── QR codes on screen (scripts/qr.py): pick the region; open, copy, or join the Wi-Fi ──
+    function scanQr() { qrProc.running = false; qrLater.restart(); }
+    Timer { id: qrLater; interval: 450; onTriggered: qrProc.running = true }       // after the launcher/Halo fades
+    Process {
+        id: qrProc
+        command: [root.scripts + "/qr.py", "region"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {}; try { r = JSON.parse(text); } catch (e) {}
+                if (r.error === "cancelled") return;
+                if (!r.codes?.length) { root.say("qr_code_scanner", "No QR code there", "Try picking a little more around it."); return; }
+                const c = r.codes[0], url = /^(https?:\/\/|www\.)\S+$/i.test(c);
+                const acts = [];
+                if (r.wifi?.ssid) acts.push({ label: "Join " + r.wifi.ssid, icon: "wifi", run: () => Quickshell.execDetached(["sh", "-c", 'nmcli dev wifi connect "$1" ${2:+password "$2"} && notify-send -a Lumen "Connected to $1" || notify-send -a Lumen "Couldn\'t join $1"', "sh", r.wifi.ssid, r.wifi.password]) });
+                if (url) acts.push({ label: "Open", icon: "open_in_new", run: () => Qt.openUrlExternally(/^www\./i.test(c) ? "https://" + c : c) });
+                acts.push({ label: "Copy", icon: "content_copy", run: () => Quickshell.execDetached(["wl-copy", "--", r.wifi ? r.wifi.password : c]) });
+                root.say("qr_code_scanner", r.wifi ? "Wi-Fi: " + r.wifi.ssid : url ? "A link" : "QR code",
+                         r.wifi ? (r.wifi.type || "open") + " network" + (r.wifi.password ? " · password copied with Copy" : "") : c.slice(0, 300) + (r.codes.length > 1 ? "\n(+" + (r.codes.length - 1) + " more)" : ""),
+                         { actions: acts, duration: 20000, speak: false });
+            }
+        }
+    }
+
     function say(icon, title, text, extra) { Halo.say(Object.assign({ key: "extra", icon, title, text: text ?? "", level: "asked", duration: 12000 }, extra ?? {})); }
     function job(cmd, then) { const p = runner.createObject(root, { cb: then }); p.command = cmd; p.running = true; }
     Component {
@@ -76,6 +99,8 @@ Singleton {
         let m;
         if ((m = /^(?:summari[sz]e|read|explain|what does|tldr|tl;dr)\s+(?:this\s+)?(?:page\s+)?(https?:\/\/\S+)(?:\s+say)?$/i.exec(q)))
             return { glyph: "travel_explore", title: "Reading the page", own: () => root.readWeb(m[1]) };
+        if (/^(scan|read)( a| the| this)? (qr|qr code|barcode)$|^qr$/.test(l))
+            return { glyph: "qr_code_scanner", title: "Pick the QR code", own: () => root.scanQr() };
         if (/^(turn on |show |start |enable )?(live )?(captions|subtitles)( on)?$/.test(l))
             return Captions.on ? { glyph: "closed_caption", title: "Live captions are on", already: true }
                                : { glyph: "closed_caption", title: "Live captions on", plain: true, run: () => Captions.toggle() };

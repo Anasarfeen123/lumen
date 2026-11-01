@@ -226,13 +226,13 @@ it's rough (Settings already has Display and Windows pages, for example).
       palette into GTK 3/4, Qt/Kvantum, kitty, VS Code and Firefox so apps match the shell.
       Lumen's rule is "a stable palette, not Material You" (§2.4), so derive from tokens, not
       from the wallpaper.
-- [ ] **Shareable theme packs** (HyDE *themepatcher*): accent + wallpaper + blur strength as
+- [x] **Shareable theme packs**: `lumen sync theme-export` / `theme-import` and "Share my theme" in search — theme, accent, glass, corners, gaps, border and the wallpaper; import keeps a copy of your settings first. Was: (HyDE *themepatcher*): accent + wallpaper + blur strength as
       one folder people can install.
 - [ ] **Matching login screen** (DankMaterialShell's greeter): a Lumen-styled greeter, or at
       least a matching theme for Plasma Login Manager.
 
 ### Tools
-- [ ] **QR and barcode scanner** (Ambxst): scan a region on screen, or the webcam; open the
+- [x] **QR scanner**: "Scan a QR code" in search or "scan qr" to Halo — pick the region; open a link, copy, or join a Wi-Fi code (OpenCV, on this computer; no barcodes or webcam). Was: (Ambxst): scan a region on screen, or the webcam; open the
       link or Wi-Fi details it contains.
 - [x] **Webcam mirror**: "Mirror" in search — a small, pinned, mirrored preview; again closes it.
 - [x] **OTP / 2FA codes**: `otp` / `2fa` in the launcher (Enter copies); `lumen otp add <name>`
