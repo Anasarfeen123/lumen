@@ -212,6 +212,7 @@ case ${1:-} in
                 tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | grep -Eq 'lumen/shell/?( |$)' && { pid=$p; break; }
             done
             [ -n "$pid" ] || { echo "lumen: no Lumen shell in this session" >&2; exit 1; }
+            for f in /proc/$$/fd/*; do fd=${f##*/}; [ "$fd" -gt 2 ] 2>/dev/null && eval "exec $fd>&-" 2>/dev/null; done   # (see lumen-shell-ipc)
             exec qs ipc --pid "$pid" show
         fi
         exec "$LUMEN_ROOT/bin/lumen-shell-ipc" "$@" ;;

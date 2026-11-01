@@ -20,6 +20,14 @@ for pid in $(pgrep -u "$(id -u)" -x qs; pgrep -u "$(id -u)" -x quickshell); do
         printf '%s\n' "$env" | grep -q '^LUMEN_ROOT=' || continue
         printf '%s\n' "$env" | grep -qx 'LUMEN_SETTINGS_APP=1' && continue
     fi
+    # Drop every inherited file but stdin/out/err first. A shell that Quickshell's
+    # crash handler relaunched leaves its "you are the relaunch" memfd open in
+    # everything it starts; a `qs ipc` that inherited it launched a whole new
+    # shell instead of sending a message (three bars, 2026-11-02).
+    for f in /proc/$$/fd/*; do
+        fd=${f##*/}
+        [ "$fd" -gt 2 ] 2>/dev/null && eval "exec $fd>&-" 2>/dev/null
+    done
     # shellcheck disable=SC2093  # intended: hand over to the first matching shell
     exec qs ipc --pid "$pid" call "$@"
 done
