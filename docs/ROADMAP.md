@@ -213,7 +213,7 @@ it's rough (Settings already has Display and Windows pages, for example).
       shows a workspace grid; this is "all windows, flat".
 - [x] **Lost windows** (Pyprland): "Bring back lost windows" in search
       (`scripts/lost-windows.sh`) centres floating windows that are off every screen.
-- [ ] **Monitor layout editor** (Noctalia, Ambxst): drag screens into place, set refresh rate
+- [x] **Monitor layout editor** (Settings → Display → Screens): drag screens into place (edges snap), resolution/refresh and scale; Apply is live with a 15 s "Keep these settings?" that reverts by itself; saved to ~/.local/state/lumen/monitors.lua (scripts/monitors.py). Was: (Noctalia, Ambxst): drag screens into place, set refresh rate
       and scale, then write it to the Lua config. Check what `DisplayPage.qml` already does.
 - [x] **Turn displays off** without sleeping: Ctrl+Super+Escape or "Turn the screen off" in
       search; any key or the mouse wakes them.

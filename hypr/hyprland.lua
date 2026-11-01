@@ -18,6 +18,14 @@ require("rules")
 require("keybinds")
 require("startup")
 
+-- The screen layout saved in Settings → Display → Screens (scripts/monitors.py)
+local state = (os.getenv("XDG_STATE_HOME") or (os.getenv("HOME") .. "/.local/state")) .. "/lumen/monitors.lua"
+local mf = io.open(state, "r")
+if mf then
+    mf:close()
+    dofile(state)
+end
+
 -- Machine-local overrides (untracked): ~/.config/lumen/local.lua
 local f = io.open(root .. "/local.lua", "r")
 if f then
