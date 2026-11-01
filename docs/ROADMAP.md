@@ -88,7 +88,9 @@ Tick items off as they land.
 
 
 ### Island and notifications
-- [ ] Undo after dismissing a notification, closing a window or clearing the clipboard.
+- [x] Undo after dismissing a notification, closing a window or clearing the clipboard: 5 s
+      Undo for a dismissed notification, a cleared app or all, and a deleted clipboard entry.
+      (A closed window can't come back — its app's state is gone.)
 - [x] Keyboard-layout and caps-lock changes shown in the island (already in `services/Keyboard.qml`).
 - [x] Low-disk warning past 90 % on `/` or `/home`, with "Clean caches" (lyrics, thumbnails, art).
 - [x] Pause/resume screen recording from the island: right-click. Segments are joined with
@@ -99,7 +101,9 @@ Tick items off as they land.
       buttons previous/next, scroll the player's volume (the island's middle-click already pauses).
 
 ### Windows and workspaces
-- [ ] Snap layouts: drag a window to the top edge for halves, thirds or 2×2.
+- [~] Snap layouts: Super+K opens a panel of layouts (halves, thirds, ⅔+⅓, quarters, side +
+      stack, centre, full); click a zone or press 1–9. Dragging to the top edge isn't there:
+      Hyprland doesn't report drags over IPC.
 
 ### Settings and search
 - [x] Right-click (or the Menu key) on launcher results: apps (open on a new workspace, copy the
@@ -108,10 +112,14 @@ Tick items off as they land.
       were already searchable.
 
 ### Power and display
-- [ ] Battery-aware visuals below 20 %: less blur, visualiser off, lower animation rates.
-- [ ] Per-app night-light exceptions for colour-accurate apps (Figma, image editors).
-- [ ] Theme schedule: Light by day, OLED at night, following the night-light sunset (add as option in settings).
-- [ ] Lock-screen quick actions: play/pause, start a timer.
+- [x] Battery-aware visuals below 20 %: one light blur pass, the visualiser rests; your blur
+      comes back on plugging in (services/LowPower.qml). Animation rates unchanged.
+- [x] Per-app night-light exceptions: night light steps aside while GIMP, Krita, Inkscape,
+      darktable, Figma, Blender… is focused (list in Settings → Display).
+- [x] Theme schedule: Settings → Appearance → By time of day — Sun or your hours, any day and
+      night theme (Light / OLED by default).
+- [x] Lock-screen quick actions: play/pause was there; a Timer card starts 5/10/25 min or shows
+      the running one with pause and stop.
 
 ---
 
@@ -131,13 +139,15 @@ Tick items off as they land.
       what `meeting.json` already covers).
 - [ ] Focus session: Pomodoro + Do Not Disturb + a website block list, with a Halo summary
       at the end.
-- [ ] Some of the "Direct Calling of API without AI" should have like way to force to give to AI
+- [x] Force a question to the AI: start it with `ai:` (or `@ai`), or press "Ask the AI instead"
+      on an answer Halo gave by itself.
 - [ ] Improve the layot and the Avatar, its too wierd and simple to say the least. It should be very abstract and no need to be humanoid, we can make it jarvis. Also, the pop up is very buggy.
 
 ### College (AmazeCC)
 - [ ] Island nudges: "Class in 10 min · AB1-305", "Attendance 74% — don't skip today".
 - [ ] Exam mode in the week before a FAT: countdown, today's study-plan slot, syllabus left.
-- [ ] Add more features, from amazecc, like hide CGPA in settings, etc, It could be really nice.
+- [~] More AmazeCC: "Hide CGPA and grades" (Settings → AmazeCC: dots until clicked in the app,
+      never read aloud). Plus the AmazeCC app itself (Ctrl+Super+A). More to come.
 
 ### Ecosystem
 - [X] Clipboard shared with the phone through Lumen Link, with the source shown in the island.

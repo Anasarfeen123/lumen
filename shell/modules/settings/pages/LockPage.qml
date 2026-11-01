@@ -63,6 +63,8 @@ Page {
                  LSwitch { checked: Persist.data.lockMedia; onToggled: Persist.data.lockMedia = !checked } }
         SetRow { icon: "battery_full"; title: "Battery"; description: "Charge ring and time remaining"
                  LSwitch { checked: Persist.data.lockBattery; onToggled: Persist.data.lockBattery = !checked } }
+        SetRow { icon: "timer"; title: "Timer"; description: "Start a 5, 10 or 25 minute timer without unlocking, or see the one running"
+                 LSwitch { checked: Persist.data.lockTimer ?? true; onToggled: Persist.data.lockTimer = !checked } }
         SetRow { icon: "calendar_month"; title: "Calendar"; description: "This month"
                  LSwitch { checked: Persist.data.lockCalendar; onToggled: Persist.data.lockCalendar = !checked } }
         SetRow { icon: "notifications"; title: "Notifications"; description: "A count and app names only — never their content"

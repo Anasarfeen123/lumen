@@ -18,8 +18,27 @@ AppPage {
 
     LText { visible: !page.ex.cgpa; color: Theme.textMuted; text: "Grades appear after AmazeCC reads your grade history (Sync)." }
 
+    // hidden (Settings → AmazeCC): one tap shows them until the app closes
+    Column {
+        visible: !!page.ex.cgpa && Amazecc.gradesHidden
+        width: parent.width
+        spacing: Theme.space.s3
+        topPadding: Theme.space.s6
+        LIcon { anchors.horizontalCenter: parent.horizontalCenter; icon: "visibility_off"; size: 36; color: Theme.textMuted }
+        LText { anchors.horizontalCenter: parent.horizontalCenter; color: Theme.textSecondary; text: "Your CGPA and grades are hidden" }
+        HoverTarget {
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: showRow.implicitWidth + 28; height: 38; radius: 19
+            onClicked: Amazecc.gradesRevealed = true
+            Rectangle { anchors.fill: parent; radius: 19; z: -1; color: Theme.withAlpha(Theme.accent, 0.16); border.width: 1; border.color: Theme.withAlpha(Theme.accent, 0.45) }
+            Row { id: showRow; anchors.centerIn: parent; spacing: 6
+                  LIcon { icon: "visibility"; size: 17; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                  LText { role: "bodyStrong"; color: Theme.accent; text: "Show grades"; anchors.verticalCenter: parent.verticalCenter } }
+        }
+    }
+
     Row {
-        visible: !!page.ex.cgpa
+        visible: !!page.ex.cgpa && !Amazecc.gradesHidden
         width: parent.width
         spacing: Theme.space.s4
         Card {
@@ -63,7 +82,7 @@ AppPage {
 
     // what this semester needs
     Card {
-        visible: !!page.ex.cgpa
+        visible: !!page.ex.cgpa && !Amazecc.gradesHidden
         width: parent.width
         id: aim
         title: "Aim for a CGPA"
@@ -94,7 +113,7 @@ AppPage {
     }
 
     Card {
-        visible: (page.ex.grades ?? []).length > 0
+        visible: (page.ex.grades ?? []).length > 0 && !Amazecc.gradesHidden
         width: parent.width
         title: "Every graded course"
         icon: "list_alt"

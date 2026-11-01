@@ -88,10 +88,22 @@ Singleton {
         }
     }
 
+    // Deleting keeps a copy for a moment (in RAM, $XDG_RUNTIME_DIR) so Undo can
+    // put it back; the next delete replaces it
+    readonly property string undoFile: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/lumen-clip-undo"
     function remove(id) {
-        Quickshell.execDetached(["sh", "-c", 'cliphist list | grep -m1 "^$1	" | cliphist delete', "sh", String(parseInt(id))]);
+        Quickshell.execDetached(["sh", "-c", 'umask 077; cliphist decode "$1" > "$2" && cliphist list | grep -m1 "^$1	" | cliphist delete',
+                                 "sh", String(parseInt(id)), undoFile]);
         entries = entries.filter(e => e.id !== id);
+        Island.push({ kind: "halo", key: "halo:undo", priority: Island.priority.system, duration: 5000, force: true,
+                      data: { key: "undo", icon: "undo", title: "Removed from the clipboard history", text: "", level: "asked", duration: 5000,
+                              actions: [{ label: "Undo", icon: "undo", run: () => root.restoreRemoved() }] } });
     }
+    function restoreRemoved() {
+        Quickshell.execDetached(["sh", "-c", '[ -s "$1" ] && cliphist store < "$1"; rm -f "$1"', "sh", undoFile]);
+        refreshSoon.restart();
+    }
+    Timer { id: refreshSoon; interval: 400; onTriggered: root.refresh() }
 
     // ── pins ──
     function isPinnedText(text) { return pins.some(p => p.kind === "text" && p.text === text); }

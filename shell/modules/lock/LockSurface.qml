@@ -246,6 +246,7 @@ Item {
 
             MediaCard { frost: frost; visible: Media.present && Persist.data.lockMedia }
             BatteryCard { frost: frost; visible: Battery.available && Persist.data.lockBattery }
+            TimerCard { frost: frost; visible: Persist.data.lockTimer ?? true }
             CalendarCard { frost: frost; today: clock.date; visible: Persist.data.lockCalendar }
             NotificationsCard { frost: frost; visible: Notifications.count > 0 && Persist.data.lockNotifications }
             ClassCard { id: classCard; frost: frost; visible: classCard.wanted }

@@ -65,5 +65,16 @@ Page {
                          onAccepted: t => { if (/^([01]?\d|2[0-3]):[0-5]\d$/.test(t.trim())) Persist.data.nightLightTo = t.trim(); else text = Persist.data.nightLightTo; } }
             }
         }
+        SetRow {
+            icon: "palette"
+            title: "Not in colour work"
+            description: "Night light steps aside while one of these apps is the window you're using" + (NightLight.excepted ? " — paused now" : "")
+            LField {
+                width: 300; clearOnAccept: false
+                text: (Persist.data.nightLightExcept ?? []).join(", ")
+                placeholder: "gimp, krita, inkscape…"
+                onAccepted: t => Persist.data.nightLightExcept = t.split(",").map(x => x.trim().toLowerCase()).filter(x => x)
+            }
+        }
     }
 }

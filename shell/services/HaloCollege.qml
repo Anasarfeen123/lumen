@@ -52,8 +52,10 @@ Singleton {
         return m <= 0 ? "now" : m < 60 ? "in " + m + " min" : "in " + Math.floor(m / 60) + " h " + (m % 60) + " min";
     }
     function courseOf(cls) { return Amazecc.courses.find(c => c.id === cls.id) ?? null; }
-    function card(icon, title, text, actions, tone) {
-        return { glyph: icon, title, own: () => Halo.say({ key: "college", icon, title, text, level: "asked", duration: 14000, tone: tone ?? "normal", actions: actions ?? [] }) };
+    function card(icon, title, text, actions, tone, quiet) {
+        // quiet: shown, never read aloud ("Hide CGPA and grades" in Settings → AmazeCC)
+        return { glyph: icon, title, own: () => Halo.say(Object.assign({ key: "college", icon, title, text, level: "asked", duration: 14000, tone: tone ?? "normal", actions: actions ?? [] },
+                                                                      quiet ? { speak: false } : {})) };
     }
     function needsSetup() {
         return { glyph: "school", title: "College", own: () => Halo.say({ key: "college", icon: "school", title: "AmazeCC isn't set up", text: "Sign in under Settings → AmazeCC and I can answer about classes, attendance, marks and exams.",
@@ -82,13 +84,13 @@ Singleton {
                         need > 10 ? "Not reachable this semester — even a perfect 10 SGPA takes you to " + ((cur * done + 10 * sem) / (done + sem)).toFixed(2) + ". It would take a few semesters."
                         : need <= 0 ? "You're already there (" + cur.toFixed(2) + ")."
                         : "You'd need an SGPA of about " + need.toFixed(2) + " this semester (assuming ~" + sem + " credits; now " + cur.toFixed(2) + " over " + done + " credits).",
-                        [], need > 10 ? "concerned" : "normal");
+                        [], need > 10 ? "concerned" : "normal", Amazecc.cfg.hideGrades ?? false);
         }
         if (/\b(my )?c?gpa\b|\bcumulative\b|\bgrade (distribution|history)\b|^my grades$/.test(l) && ex.cgpa) {
             const g = ex.cgpa.grades ?? {};
             return card("school", "CGPA " + ex.cgpa.cgpa + " · " + Number(ex.cgpa.creditsEarned) + " credits",
                         "Grades so far: " + Object.keys(g).filter(k => g[k]).map(k => k + " ×" + g[k]).join(" · ")
-                        + ((ex.grades ?? []).length ? "\n" + ex.grades.slice(0, 8).map(x => x.grade + " — " + x.title).join("\n") : ""));
+                        + ((ex.grades ?? []).length ? "\n" + ex.grades.slice(0, 8).map(x => x.grade + " — " + x.title).join("\n") : ""), [], "normal", Amazecc.cfg.hideGrades ?? false);
         }
         // on-duty leave this semester
         if (/\b(how many )?ods?\b|\bon duty\b/.test(l) && ex.od) {

@@ -42,6 +42,7 @@ Singleton {
             property int syncMinutes: 60
             property bool islandNext: true                // next class when you hover the island
             property bool lockScreen: true                // next class on the lock screen (no attendance details)
+            property bool hideGrades: false               // CGPA and grades as dots until you click (the app); Halo doesn't say them aloud
             property bool haloContext: true               // Halo may read this for questions about classes, attendance, marks, exams
             property bool calendarFile: true              // ~/Notes/Calendar/VIT.ics: classes, exams, holidays for the phone's calendar
             property bool classReminders: true
@@ -190,6 +191,9 @@ Singleton {
     // ── the AmazeCC app (shell/amazecc.qml): its own window and process, like
     // Settings and Notes — reused if it's open (Ctrl+Super+A, search, Halo) ──
     readonly property bool isApp: Quickshell.env("LUMEN_AMAZECC_APP") === "1"
+    // "Hide CGPA and grades": shown in the app only after a click, until it closes
+    property bool gradesRevealed: false
+    readonly property bool gradesHidden: (cfg.hideGrades ?? false) && !gradesRevealed
     readonly property string pidFile: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/lumen-amazecc-" + (Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") || "x") + ".pid"
     function launch(page) {
         Quickshell.execDetached(["sh", "-c",

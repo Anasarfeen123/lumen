@@ -89,6 +89,7 @@ key("Caps_Lock", global("lumen:capsLock"), nil, { transparent = true, non_consum
 
 -- ── Arrange: focus, move, resize, tabs ──
 group("Arrange")
+key("SUPER + K", global("lumen:snap"), "Snap layouts: halves, thirds, quarters (click a zone, or 1–9)")
 key("SUPER + left",  hl.dsp.focus({ direction = "left" }),  "Focus ← → ↑ ↓")
 key("SUPER + right", hl.dsp.focus({ direction = "right" }))
 key("SUPER + up",    hl.dsp.focus({ direction = "up" }))

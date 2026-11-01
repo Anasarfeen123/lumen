@@ -110,6 +110,12 @@ Page {
             LSwitch { checked: page.cfg.lockScreen; onToggled: page.cfg.lockScreen = !checked }
         }
         SetRow {
+            icon: "visibility_off"
+            title: "Hide CGPA and grades"
+            description: "In the AmazeCC app they show as dots until you click them (someone looking at your screen won't see them), and Halo shows them without saying them aloud"
+            LSwitch { checked: page.cfg.hideGrades ?? false; onToggled: page.cfg.hideGrades = !checked }
+        }
+        SetRow {
             icon: "notifications_active"
             title: "Class reminders"
             description: "The island tells you where to go before each class (not during Sleep focus)"

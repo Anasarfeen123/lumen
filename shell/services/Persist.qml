@@ -41,6 +41,7 @@ Singleton {
             id: adapter
             property bool nightLight: false
             property int nightLightTemp: 4500
+            property var nightLightExcept: ["gimp", "krita", "inkscape", "darktable", "rawtherapee", "figma", "blender", "photoshop", "affinity", "digikam", "kdenlive", "davinci", "resolve"]
             // Bar & island (Lumen Settings → Bar & Island)
             property bool islandDate: true
             property bool islandWorkspace: true
@@ -48,6 +49,11 @@ Singleton {
             property bool linkBluetoothAuto: true     // Lumen Link: bring the phone's Bluetooth network up by itself
             property string islandClock: "roll"       // the island's clock: "roll" (digits slide) | "flip" (split-flap cards)
             property string islandScroll: "timeline"
+            property string themeAuto: "off"          // theme by time of day: "off" | "sun" | "custom" (services/ThemeSchedule.qml)
+            property string themeDay: "light"
+            property string themeNight: "oled"
+            property string themeDayFrom: "07:00"
+            property string themeNightFrom: "19:00"
             property string barVitals: "busy"         // CPU line + memory in the bar: "always" | "busy" | "never"
             property bool pipAuto: true               // a playing video follows you when you leave its workspace
             property string pipCorner: "br"           // video PiP corner: br | bl | tl | tr
@@ -79,6 +85,7 @@ Singleton {
             // Lock screen widgets (Lumen Settings → Lock screen)
             property bool lockMedia: true
             property bool lockBattery: true
+            property bool lockTimer: true             // start / see a timer on the lock screen
             property bool lockCalendar: true
             property bool lockNotifications: true
             property bool lockPhone: true             // your phone (Lumen Link): battery, linked

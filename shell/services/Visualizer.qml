@@ -43,7 +43,7 @@ Singleton {
     }
 
     SupervisedProcess {
-        wanted: root.wanted && root.available && root.confReady
+        wanted: root.wanted && root.available && root.confReady && !LowPower.active   // rests on a low battery
         command: ["cava", "-p", root.configPath]
         stdout: SplitParser {
             onRead: line => {

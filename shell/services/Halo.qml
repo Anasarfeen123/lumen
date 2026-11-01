@@ -111,8 +111,13 @@ Singleton {
         if (!allowed(level)) return;
         card.time = Date.now();
         card.duration = card.duration ?? 9000;
-        // An answer to something you asked, with the panel open: it goes there
+        // An answer to something you asked, with the panel open: it goes there —
+        // and if Halo answered it itself, a way to put it to the model instead
         if (level === "asked" && Ai.open) {
+            if (Ai.configured && Ai.lastLocal && Date.now() - Ai.lastLocalAt < 4000 && !(card.actions ?? []).some(a => a?.forceAi)) {
+                const q = Ai.lastLocal;
+                card.actions = (card.actions ?? []).concat([{ label: "Ask the AI instead", icon: "auto_awesome", forceAi: true, run: () => Ai.send("ai: " + q) }]);
+            }
             Ai.note(card);
             if (card.tone === "happy") react("happy", 2600);
             if (card.speak !== false && Voice.wanted) Voice.say(card.speak ?? [card.title, card.text].filter(x => x).join(". "));

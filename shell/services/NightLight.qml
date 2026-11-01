@@ -5,6 +5,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import qs.components
 
 Singleton {
@@ -45,8 +46,13 @@ Singleton {
     }
 
     // Restarted automatically if it dies (e.g. across suspend/resume)
+    // Colour-accurate apps (Settings → Display): night light steps aside while
+    // one of them is the window you're using, and comes back when you leave it
+    readonly property var exceptions: Persist.data.nightLightExcept ?? ["gimp", "krita", "inkscape", "darktable", "rawtherapee", "figma", "blender", "photoshop", "affinity", "digikam", "kdenlive", "davinci", "resolve"]
+    readonly property string focusedClass: (Hyprland.activeToplevel?.lastIpcObject?.class ?? "").toLowerCase()
+    readonly property bool excepted: focusedClass !== "" && exceptions.some(e => e && focusedClass.includes(e.toLowerCase()))
     SupervisedProcess {
-        wanted: root.enabled
+        wanted: root.enabled && !root.excepted
         command: ["hyprsunset", "-t", String(root.temperature)]
     }
 }

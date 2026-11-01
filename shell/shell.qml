@@ -30,6 +30,7 @@ import qs.modules.welcome
 import qs.modules.lens
 import qs.modules.hands
 import qs.modules.pip
+import qs.modules.snap
 
 ShellRoot {
     id: root
@@ -211,6 +212,13 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: VideoPip {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    Variants {
+        model: Quickshell.screens
+        delegate: SnapWindow {
             required property var modelData
             screen: modelData
         }

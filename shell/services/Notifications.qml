@@ -340,11 +340,40 @@ Singleton {
     }
 
     function dismissApp(app) {
-        for (let i = history.count - 1; i >= 0; i--) if (history.get(i).appName === app) dismiss(history.get(i).nid);
+        const gone = [];
+        for (let i = history.count - 1; i >= 0; i--) if (history.get(i).appName === app) { gone.unshift(snapshot(i)); dismiss(history.get(i).nid); }
+        offerUndo(gone, gone.length === 1 ? "Notification dismissed" : gone.length + " from " + app + " dismissed");
+    }
+
+    // ── Undo (5 s): what you dismissed or cleared comes back to the history.
+    // Live buttons can't come back (they belonged to the sender's process).
+    property var undoable: []
+    function snapshot(i) { return JSON.parse(JSON.stringify(history.get(i))); }
+    function dismissByUser(nid) {
+        const i = indexOf(nid);
+        const s = i >= 0 ? snapshot(i) : null;
+        dismiss(nid);
+        if (s) offerUndo([s], "Notification dismissed");
+    }
+    function offerUndo(entries, title) {
+        if (!entries.length || isClient) return;
+        undoable = entries;
+        Island.push({ kind: "halo", key: "halo:undo", priority: Island.priority.system, duration: 5000, force: true,
+                      data: { key: "undo", icon: "undo", title, text: "", level: "asked", duration: 5000,
+                              actions: [{ label: "Undo", icon: "undo", run: () => root.undo() }] } });
+    }
+    function undo() {
+        const back = undoable;
+        undoable = [];
+        for (let k = back.length - 1; k >= 0; k--) history.insert(0, Object.assign({}, back[k], { restored: true }));
+        saveTimer.restart();
     }
 
     function clearAll() {
         if (isClient) { shellCall("clear"); return; }
+        const gone = [];
+        for (let i = 0; i < history.count; i++) gone.push(snapshot(i));
+        offerUndo(gone, gone.length === 1 ? "Notification cleared" : gone.length + " notifications cleared");
         for (const id in live) live[id].dismiss();
         live = {};
         history.clear();

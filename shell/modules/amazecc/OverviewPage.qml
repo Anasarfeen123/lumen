@@ -47,7 +47,7 @@ AppPage {
             onClicked: page.go("grades")
             Column {
                 anchors.verticalCenter: parent.verticalCenter
-                LText { text: page.ex.cgpa?.cgpa ?? "–"; font.pixelSize: 40; font.weight: Font.DemiBold; color: Theme.accent; font.features: ({ "tnum": 1 }) }
+                LText { text: Amazecc.gradesHidden ? "•.••" : page.ex.cgpa?.cgpa ?? "–"; font.pixelSize: 40; font.weight: Font.DemiBold; color: Theme.accent; font.features: ({ "tnum": 1 }) }
             }
             Column {
                 anchors.verticalCenter: parent.verticalCenter

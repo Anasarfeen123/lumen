@@ -387,9 +387,16 @@ Singleton {
 
     // Build the prompt: skill → context blocks → screenshot → ask
     property var pending: null          // { text, chips, ctx: [kinds], ctxText, screen }
+    // the last question Halo answered by itself (not the model), for "Ask the AI instead"
+    property string lastLocal: ""
+    property real lastLocalAt: 0
     function send(raw) {
         raw = raw.trim();
         if (!raw || busy) return;
+        // "ai: …" or "@ai …": straight to the model, past Halo's own answers
+        const forceAi = /^(?:ai:|@ai\b)\s*/i.exec(raw);
+        if (forceAi) raw = raw.slice(forceAi[0].length).trim();
+        if (!raw) return;
         // "$ df -h": your own command in Halo's terminal (it runs — you typed it)
         if (/^\$\s+\S/.test(raw)) {
             history = history.filter(h => h !== raw).concat([raw]).slice(-30);
@@ -402,8 +409,9 @@ Singleton {
         if (whatsappDraft(raw)) return;
         // Things Lumen can simply do ("turn on dark mode", "remind me at 9 to…"):
         // Halo does them itself, no model needed
-        if (!raw.startsWith("/") && !(configured && Agent.multi(raw)) && Halo.intent(raw)) {
+        if (!forceAi && !raw.startsWith("/") && !(configured && Agent.multi(raw)) && Halo.intent(raw)) {
             error = "";
+            lastLocal = raw; lastLocalAt = Date.now();      // its card offers "Ask the AI instead"
             history = history.filter(h => h !== raw).concat([raw]).slice(-30);
             messages = messages.concat([{ role: "user", text: raw, shown: raw, local: true }]);
             Halo.handle(raw, "panel");

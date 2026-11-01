@@ -38,7 +38,7 @@ Item {
             NumberAnimation { target: body; property: "opacity"; to: 0; duration: Theme.reducedMotion ? 0 : 200 }
         }
         NumberAnimation { target: root; property: "collapse"; to: 0; duration: Theme.reducedMotion ? 0 : 180; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard }
-        ScriptAction { script: Notifications.dismiss(root.nid) }
+        ScriptAction { script: Notifications.dismissByUser(root.nid) }
     }
     // Arriving: rise and fade in
     // Only genuinely new ones (the list is rebuilt on every change)

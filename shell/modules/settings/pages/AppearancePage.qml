@@ -7,6 +7,7 @@ import qs.services
 import ".."
 
 Page {
+    id: page
     title: "Appearance"
     subtitle: "One palette for the whole desktop. Changes apply instantly, everywhere: shell, windows, terminal and lock screen."
 
@@ -50,6 +51,50 @@ Page {
         }
     }
 
+
+    // ── Theme by time of day (services/ThemeSchedule.qml) ──
+    readonly property var themeOptions: (SettingsState.previews.themes ?? []).map(t => ({ id: t.id, label: t.name ?? (t.id.charAt(0).toUpperCase() + t.id.slice(1)) }))
+    Group {
+        title: "By time of day"
+        SetRow {
+            icon: "routine"
+            title: "Change theme by time"
+            description: (Persist.data.themeAuto ?? "off") === "sun" ? (Sun.known ? "Night theme from sunset (" + Qt.formatTime(Sun.sunset, Theme.timeFormatFull) + "), day theme from sunrise (" + Qt.formatTime(Sun.sunrise, Theme.timeFormatFull) + ")." : "Set your city in the planner's Weather card so Lumen knows when the sun sets.")
+                       : (Persist.data.themeAuto ?? "off") === "custom" ? "Night theme from " + (Persist.data.themeNightFrom ?? "19:00") + ", day theme from " + (Persist.data.themeDayFrom ?? "07:00") + "."
+                       : "Off — the theme stays as you pick it. Picking one by hand always holds until the next change."
+            Segmented {
+                width: 240
+                options: [{ id: "off", label: "Off" }, { id: "sun", label: "Sun" }, { id: "custom", label: "Hours" }]
+                current: Persist.data.themeAuto ?? "off"
+                onPicked: id => Persist.data.themeAuto = id
+            }
+        }
+        SetRow {
+            visible: (Persist.data.themeAuto ?? "off") !== "off"
+            icon: "light_mode"
+            title: "Day theme"
+            description: (Persist.data.themeAuto ?? "off") === "custom" ? "From " + (Persist.data.themeDayFrom ?? "07:00") : "From sunrise"
+            Segmented { width: 320; options: page.themeOptions; current: Persist.data.themeDay ?? "light"; onPicked: id => Persist.data.themeDay = id }
+        }
+        SetRow {
+            visible: (Persist.data.themeAuto ?? "off") !== "off"
+            icon: "dark_mode"
+            title: "Night theme"
+            description: (Persist.data.themeAuto ?? "off") === "custom" ? "From " + (Persist.data.themeNightFrom ?? "19:00") : "From sunset"
+            Segmented { width: 320; options: page.themeOptions; current: Persist.data.themeNight ?? "oled"; onPicked: id => Persist.data.themeNight = id }
+        }
+        SetRow {
+            visible: (Persist.data.themeAuto ?? "off") === "custom"
+            icon: "schedule"
+            title: "Hours"
+            description: "Day from · night from (24-hour, e.g. 07:00 and 19:30)"
+            Row {
+                spacing: Theme.space.s2
+                LField { width: 90; clearOnAccept: false; text: Persist.data.themeDayFrom ?? "07:00"; onAccepted: t => { if (/^\d{1,2}:\d{2}$/.test(t.trim())) Persist.data.themeDayFrom = t.trim(); } }
+                LField { width: 90; clearOnAccept: false; text: Persist.data.themeNightFrom ?? "19:00"; onAccepted: t => { if (/^\d{1,2}:\d{2}$/.test(t.trim())) Persist.data.themeNightFrom = t.trim(); } }
+            }
+        }
+    }
 
     // A slider that applies when you let go (each change rebuilds the theme)
     component PrefSlider: LSlider {
