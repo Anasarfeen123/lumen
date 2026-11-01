@@ -27,7 +27,15 @@ PanelWindow {
         const f = filter.toLowerCase();
         return Expose.items.filter(it => !f || (it.title + " " + it.cls).toLowerCase().includes(f));
     }
-    onShowingChanged: if (showing) { filter = ""; index = 0; keys.forceActiveFocus(); }
+    onShowingChanged: if (showing) { filter = ""; index = 0; pointerBase = true; keys.forceActiveFocus(); }
+    // hover selects only when the pointer moves (not the card that opened under it)
+    property bool pointerBase: true
+    property point lastPointer: Qt.point(-1, -1)
+    function pointerMoved(at) {
+        if (pointerBase) { pointerBase = false; lastPointer = at; return false; }
+        if (Math.abs(at.x - lastPointer.x) < 2 && Math.abs(at.y - lastPointer.y) < 2) return false;
+        lastPointer = at; return true;
+    }
     onShownChanged: index = Math.min(index, Math.max(0, shown.length - 1))
 
     // a grid that fits: as many columns as keep the cards near 16:10
@@ -128,7 +136,7 @@ PanelWindow {
                         hoverEnabled: true
                         acceptedButtons: Qt.LeftButton | Qt.MiddleButton
                         cursorShape: Qt.PointingHandCursor
-                        onContainsMouseChanged: if (containsMouse) win.index = cell.index
+                        onPositionChanged: m => { if (win.pointerMoved(mapToItem(null, m.x, m.y))) win.index = cell.index; }
                         onClicked: m => {
                             if (m.button === Qt.MiddleButton) { Hypr.closeWindow(cell.modelData.address); Expose.items = Expose.items.filter(x => x.address !== cell.modelData.address); if (!Expose.items.length) Expose.open = false; }
                             else Expose.go(cell.modelData);

@@ -130,7 +130,7 @@ Item {
                         width: 3; radius: 1.5
                         color: Media.playing ? (Media.hasTint ? Qt.tint(Theme.accent, Theme.withAlpha(Media.tint, 0.5)) : Theme.accent) : Theme.textMuted
                         readonly property real level: Media.playing && Visualizer.levels.length > 0 ? (Visualizer.levels[[1, 4, 7][index] % Visualizer.levels.length] ?? 0) : 0.25
-                        height: Media.playing ? Math.max(3, Math.min(1, level * 1.3) * 14) : [6, 10, 4][index]
+                        height: Media.playing ? Math.max(5, Math.min(1, level * 1.3) * 14) : [6, 10, 4][index]   // never dots: they read as "…"
                         Behavior on height { NumberAnimation { duration: 80 } }
                     }
                 }
