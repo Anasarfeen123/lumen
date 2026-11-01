@@ -2,9 +2,8 @@
 #   shell     shellcheck (errors) on bin/ and scripts/
 #   python    every script byte-compiles
 #   lua       the Hyprland config parses (luac -p)
-#   qml       every QML file parses (qmlformat). A full qmllint needs
-#             Quickshell's types, which a stock runner doesn't have, so this
-#             catches syntax errors only — the kind that stop the shell loading.
+#   qml       every QML file parses (qmllint on Fedora's Qt, warnings uncapped:
+#             Quickshell's types aren't there) — the errors that stop the shell loading.
 name: check
 on:
   push:
@@ -19,7 +18,7 @@ jobs:
       - name: Tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq shellcheck lua5.4 qt6-declarative-dev-tools
+          sudo apt-get install -y -qq shellcheck lua5.4
 
       - name: Shell scripts
         run: |
@@ -32,12 +31,23 @@ jobs:
       - name: Hyprland config (Lua)
         run: for f in hypr/*.lua; do luac5.4 -p "$f" || exit 1; done
 
+  qml:
+    # Fedora, for a Qt as new as the one Lumen runs on (Ubuntu's 6.4 can't
+    # parse some of the JavaScript Lumen uses, and its qmlformat reports its
+    # own formatter checks as errors)
+    runs-on: ubuntu-24.04
+    container: fedora:44
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: dnf install -y -q qt6-qtdeclarative-devel findutils
       - name: QML parses
         run: |
-          fmt=$(command -v qmlformat || ls /usr/lib/qt6/bin/qmlformat /usr/lib/x86_64-linux-gnu/qt6/bin/qmlformat 2>/dev/null | head -1)
-          [ -n "$fmt" ] || { echo "qmlformat not found"; exit 1; }
+          lint=$(command -v qmllint || ls /usr/lib64/qt6/bin/qmllint 2>/dev/null | head -1)
+          [ -n "$lint" ] || { echo "qmllint not found"; exit 1; }
           bad=0
-          while IFS= read -r f; do
-            "$fmt" "$f" > /dev/null 2> err.txt || { echo "::error file=$f::$(head -1 err.txt)"; bad=1; }
-          done < <(find shell -name '*.qml')
+          # warnings uncapped (Quickshell's types aren't here); a syntax error still fails
+          for f in $(find shell -name '*.qml'); do
+            "$lint" --max-warnings -1 "$f" > out.txt 2>&1 || { grep -m3 -iE "error|expected" out.txt | sed "s|^|::error file=$f::|"; bad=1; }
+          done
           exit $bad
