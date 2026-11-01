@@ -89,6 +89,14 @@ Singleton {
     }
 
     function receive(n) {
+        // Carried over from before a shell reload (keepOnReload re-delivers live
+        // ones): adopt it quietly — it's already in the history, and already seen
+        if (n.lastGeneration) {
+            n.tracked = true;
+            const l = Object.assign({}, live); l[n.id] = n; live = l;
+            n.closed.connect(() => root.forget(n.id, false));
+            return;
+        }
         if (fromPhoneBlocked(n.appName, n.desktopEntry, n.summary, n.body)) { n.dismiss(); return; }
         n.tracked = true;
         const quiet = (n.hints?.["x-lumen-kind"] ?? "") !== "";
