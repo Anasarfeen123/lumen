@@ -63,7 +63,7 @@ Page {
         SetRow {
             icon: "graphic_eq"
             title: "Music on the wallpaper"
-            description: "Faint bars that move with what's playing, along the bottom of an empty workspace"
+            description: "Bars that move with what's playing, along the bottom of the wallpaper"
             LSwitch { checked: Persist.data.desktopVisualizer ?? false; onToggled: Persist.data.desktopVisualizer = !checked }
         }
     }
