@@ -301,7 +301,9 @@ Scope {
         onLoaded: {
             const f = text().trim().split(/\s+/);
             if (!f[0]) return;
-            Island.system("restart_alt", "Lumen restarted", "The shell stopped unexpectedly (status " + (f[1] ?? "?") + ") and came back. If it keeps happening: lumen doctor");
+            Island.push({ kind: "halo", key: "halo:restarted", priority: Island.priority.system, duration: 8000, force: true,
+                          data: { key: "restarted", icon: "restart_alt", title: "Lumen restarted", level: "asked", duration: 8000, speak: false,
+                                  text: "The shell stopped unexpectedly (status " + (f[1] ?? "?") + ") and came back. If it keeps happening: lumen doctor" } });
             Quickshell.execDetached(["rm", "-f", path]);
         }
     }

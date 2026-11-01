@@ -96,7 +96,17 @@ Singleton {
     }
 
     // ev: { kind, priority, duration, key?, queueable?, data, force? }
+    readonly property real loadedAt: Date.now()
     function push(ev) {
+        // The first seconds after the shell (re)loads: every service reports what
+        // it finds — Wi-Fi connected, the phone's battery, the headphones, the
+        // volume, the workspace — and none of it is news. Those stay quiet;
+        // Halo's own cards (a crash restart, "reopen your windows") still show.
+        const settling = Date.now() - loadedAt < 6000;
+        if (settling && ["system", "device", "osd", "workspace", "notification", "message"].includes(ev.kind)) {
+            console.info("Island: quiet at startup:", ev.kind, ev.key ?? "");
+            return;
+        }
         if (!ready && !ev.force) return;
         ev.key = ev.key ?? ev.kind;
         ev.createdAt = ev.createdAt ?? Date.now();
