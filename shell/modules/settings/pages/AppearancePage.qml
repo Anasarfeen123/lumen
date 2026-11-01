@@ -1,5 +1,6 @@
 // Appearance: theme, accent, transparency, motion, clock.
 import QtQuick
+import Quickshell.Io
 import Quickshell
 import qs.theme
 import qs.components
@@ -65,6 +66,28 @@ Page {
             title: "Music on the wallpaper"
             description: "Bars that move with what's playing, along the bottom of the wallpaper"
             LSwitch { checked: Persist.data.desktopVisualizer ?? false; onToggled: Persist.data.desktopVisualizer = !checked }
+        }
+    }
+
+    // ── the login screen: KDE's greeter with Lumen's wallpaper (scripts/login-theme.sh) ──
+    Group {
+        title: "Login screen"
+        SetRow {
+            id: loginRow
+            property bool applied: false
+            property string state: ""
+            icon: "login"
+            title: "Your wallpaper on the login screen"
+            description: (loginRow.state || (loginRow.applied ? "On — dimmed with a vignette, as the lock screen frames it." : "The login screen is KDE's (it's shared with Plasma); this only gives it your wallpaper."))
+                         + " Asks for your admin password."
+            Process { id: loginStatus; running: true; command: [Theme.lumenRoot + "/scripts/login-theme.sh", "status"]
+                      stdout: StdioCollector { onStreamFinished: { try { loginRow.applied = JSON.parse(text).applied; } catch (e) {} } } }
+            Process { id: loginDo; onExited: code => { loginRow.state = code === 0 ? "" : "Didn't change (cancelled?). "; loginStatus.running = true; } }
+            Row {
+                spacing: Theme.space.s2
+                Button { text: loginRow.applied ? "Update" : "Use my wallpaper"; onActivated: { loginRow.state = "Waiting for your password… "; loginDo.command = [Theme.lumenRoot + "/scripts/login-theme.sh", "apply"]; loginDo.running = true; } }
+                Button { visible: loginRow.applied; text: "KDE's default"; onActivated: { loginDo.command = [Theme.lumenRoot + "/scripts/login-theme.sh", "remove"]; loginDo.running = true; } }
+            }
         }
     }
 

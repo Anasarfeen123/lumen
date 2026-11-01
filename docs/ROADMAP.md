@@ -234,8 +234,10 @@ it's rough (Settings already has Display and Windows pages, for example).
       from the wallpaper.
 - [x] **Shareable theme packs**: `lumen sync theme-export` / `theme-import` and "Share my theme" in search — theme, accent, glass, corners, gaps, border and the wallpaper; import keeps a copy of your settings first. Was: (HyDE *themepatcher*): accent + wallpaper + blur strength as
       one folder people can install.
-- [ ] **Matching login screen** (DankMaterialShell's greeter): a Lumen-styled greeter, or at
-      least a matching theme for Plasma Login Manager.
+- [~] **Matching login screen**: Settings → Appearance → Login screen gives Plasma Login Manager
+      your wallpaper, dimmed with a vignette (scripts/login-theme.sh, root step login-admin.sh via
+      pkexec, one drop-in file; "KDE's default" removes it). The greeter itself is KDE's and
+      can't be restyled — it also serves Plasma.
 
 ### Tools
 - [x] **QR scanner**: "Scan a QR code" in search or "scan qr" to Halo — pick the region; open a link, copy, or join a Wi-Fi code (OpenCV, on this computer; no barcodes or webcam). Was: (Ambxst): scan a region on screen, or the webcam; open the
