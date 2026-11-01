@@ -30,7 +30,8 @@ Singleton {
     property var looks: []              // the last few, oldest first
     property var findings: []           // what's wrong right now: [{ id, card, time }]
     readonly property bool worried: findings.some(f => Date.now() - f.time < 15 * 60000)
-    property var rest: ({})             // id → don't say again before (ms)
+    // id → don't say again before (ms) — kept across reloads (a reload is not news)
+    readonly property var rest: Persist.data.haloDoctorRest ?? ({})
     property bool replyNext: false      // "how's my computer?": answer even if all is well
 
     Timer {
@@ -56,7 +57,12 @@ Singleton {
                 pct(g.cores, last?.ncpu ?? 8) + "% of the processor"].filter(x => x).join(" · ");
     }
     function canSay(id) { return (rest[id] ?? 0) < Date.now(); }
-    function rested(id, ms) { const r = Object.assign({}, rest); r[id] = Date.now() + ms; rest = r; }
+    function rested(id, ms) {
+        const now = Date.now(), r = {};
+        for (const k in rest) if (rest[k] > now) r[k] = rest[k];          // drop the expired ones
+        r[id] = now + ms;
+        Persist.data.haloDoctorRest = r;
+    }
     function notNow(id) { return { label: "Not now", icon: "snooze", run: () => root.rested(id, 3 * 3600000) }; }
     function closeApp(g) {
         return { label: "Close " + g.name, icon: "close", run: () => {
@@ -172,7 +178,8 @@ Singleton {
                                       askHalo("My disk is almost full (" + bytes(tight.free) + " left on " + tight.mount + "). What can I safely clean on Fedora? Give me the commands, safest first."), notNow("disk")] }, 24 * 3600000);
 
         // a background service failed
-        for (const u of d.failed ?? [])
+        // (not crash-report helpers or one-off app launches: nothing to restart there)
+        for (const u of (d.failed ?? []).filter(u => !/^(drkonqi-coredump-launcher|systemd-coredump|drkonqi-.*)@|^app-.*@[0-9a-f]{16,}\.service$/.test(u)))
             found("failed:" + u, { icon: "error", title: "A background service stopped: " + u.replace(/\.service$/, ""),
                                    text: "It failed and didn't come back by itself.", level: "important",
                                    actions: [{ label: "Restart it", icon: "restart_alt", run: () => SystemMonitor.service(u, "restart") },
@@ -218,7 +225,7 @@ Singleton {
         function check(): void { root.checkNow(true); }
         function state(): string { return JSON.stringify({ findings: root.findings.map(f => f.card.title), last: root.last }); }
         // Dev only (LUMEN_DEV): feed a made-up look
-        function feed(json: string): void { if (Quickshell.env("LUMEN_DEV") === "1") { root.rest = ({}); try { root.ingest(JSON.parse(json)); } catch (e) {} } }
+        function feed(json: string): void { if (Quickshell.env("LUMEN_DEV") === "1") { Persist.data.haloDoctorRest = ({}); try { root.ingest(JSON.parse(json)); } catch (e) {} } }
         function enable(): void { if (Quickshell.env("LUMEN_DEV") === "1") root.devEnabled = true; }
     }
 }
