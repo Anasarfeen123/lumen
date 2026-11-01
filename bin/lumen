@@ -16,6 +16,7 @@
 #   lumen run [--title T] -- <command…>   run it; the island shows it working, then ✓ or ✗
 #   lumen snapshot save|restore|list|delete [name]   a whole setup of windows, saved and restored
 #   lumen update [check|apply]       Lumen itself: what changed on GitHub · fast-forward to it (then lumen reload)
+#   lumen otp add <name>|list|code <name>|remove <name>   two-factor codes (secrets in the keyring)
 #   lumen recovery [command]        Lumen Recovery: a menu that works from a TTY (safe mode, restore settings…)
 #   lumen backup [now|status|…]     back up your files to a drive or folder (scripts/backup.sh)
 set -eu
@@ -162,6 +163,9 @@ case ${1:-} in
                 set_state "$2" "$3"; python3 "$LUMEN_ROOT/theme/build.py" >/dev/null; restart_idle ;;
             *) echo "lumen: unknown setting '${2:-}=${3:-}'" >&2; exit 2 ;;
         esac ;;
+    otp)
+        # two-factor codes: lumen otp add <name> (secret on stdin) · list · code <name> · remove <name>
+        shift; exec "$LUMEN_ROOT/scripts/otp.py" "$@" ;;
     reload)
         hyprctl reload >/dev/null 2>&1 || true
         "$LUMEN_ROOT/bin/lumen-shell-ipc" shell reload ;;

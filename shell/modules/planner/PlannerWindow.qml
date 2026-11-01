@@ -267,6 +267,83 @@ PanelWindow {
             // ── Calendar: the month ──
             MonthCard { visible: win.tab === "calendar"; width: parent.width; today: clock.date }
 
+            // ── Exam mode: the week before an exam, a countdown and today's revision ──
+            Card {
+                id: examMode
+                readonly property var next: Amazecc.cfg.enabled ? Amazecc.nextExam : null
+                readonly property int days: next ? Amazecc.daysTo(next.when) : 99
+                readonly property var plan: visible ? (HaloCollege.plan(14) ?? []) : []
+                readonly property var todayPlan: plan.find(p => Amazecc.dateKey(p.day) === Amazecc.dateKey(clock.date)) ?? null
+                visible: win.tab === "today" && !!next && days <= 7
+                title: "Exam mode"
+                icon: "local_fire_department"
+                headerRight: LText { role: "caption"; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
+                                     text: Amazecc.exams.filter(e => e.when > Date.now() && Amazecc.daysTo(e.when) <= 7).length + " this week" }
+                Column {
+                    width: parent.width
+                    spacing: Theme.space.s2
+                    Row {
+                        spacing: Theme.space.s3
+                        Column {
+                            anchors.verticalCenter: parent.verticalCenter
+                            LText { text: examMode.days === 0 ? "Today" : examMode.days === 1 ? "Tomorrow" : examMode.days + " days"
+                                    font.pixelSize: 26; font.weight: Font.DemiBold; color: examMode.days <= 2 ? Theme.warning : Theme.accent }
+                            LText { role: "caption"; color: Theme.textMuted; text: "until " + (examMode.next?.kind ?? "") }
+                        }
+                        Column {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: col.width - 140
+                            LText { width: parent.width; elide: Text.ElideRight; role: "bodyStrong"; text: examMode.next?.title ?? "" }
+                            LText { width: parent.width; elide: Text.ElideRight; role: "caption"; color: Theme.textMuted
+                                    text: examMode.next ? [Planner.whenLabel(examMode.next.when, !examMode.next.timed), examMode.next.venue, examMode.next.seat ? "seat " + examMode.next.seat : ""].filter(x => x).join(" · ") : "" }
+                        }
+                    }
+                    // today's slot in the study plan
+                    Rectangle {
+                        visible: !!examMode.todayPlan
+                        width: parent.width; height: todayCol.implicitHeight + Theme.space.s2 * 2
+                        radius: Theme.radius.sm
+                        color: Theme.withAlpha(Theme.accent, 0.08)
+                        Column {
+                            id: todayCol
+                            x: Theme.space.s3; y: Theme.space.s2
+                            width: parent.width - Theme.space.s3 * 2
+                            LText { role: "caption"; color: Theme.accent; text: examMode.todayPlan?.eve ? "TONIGHT — THE EVE OF THE EXAM" : "REVISE TODAY" }
+                            LText { width: parent.width; wrapMode: Text.Wrap; role: "body"; text: (examMode.todayPlan?.items ?? []).join(" · ") }
+                        }
+                    }
+                    // the rest of the week
+                    Repeater {
+                        model: Amazecc.exams.filter(e => e.when > Date.now() && e !== examMode.next && Amazecc.daysTo(e.when) <= 7).slice(0, 4)
+                        Row {
+                            required property var modelData
+                            width: parent.width; spacing: Theme.space.s2
+                            LText { width: 64; role: "caption"; color: Theme.textMuted; text: Qt.formatDate(new Date(modelData.when), "ddd d MMM") }
+                            LText { width: parent.width - 72; elide: Text.ElideRight; role: "caption"; text: modelData.kind + " · " + modelData.title }
+                        }
+                    }
+                    Row {
+                        spacing: Theme.space.s2
+                        HoverTarget {
+                            width: rn.implicitWidth + 20; height: 28; radius: 14
+                            onClicked: Amazecc.revisionNote(examMode.next)
+                            Rectangle { anchors.fill: parent; radius: 14; z: -1; color: "transparent"; border.width: 1; border.color: Theme.border }
+                            Row { id: rn; anchors.centerIn: parent; spacing: 5
+                                  LIcon { icon: "checklist"; size: 14; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                                  LText { role: "caption"; text: "Revision note"; anchors.verticalCenter: parent.verticalCenter } }
+                        }
+                        HoverTarget {
+                            width: pl.implicitWidth + 20; height: 28; radius: 14
+                            onClicked: { Planner.open = false; Ai.show(); Halo.handle("make a revision plan", "panel"); }
+                            Rectangle { anchors.fill: parent; radius: 14; z: -1; color: "transparent"; border.width: 1; border.color: Theme.border }
+                            Row { id: pl; anchors.centerIn: parent; spacing: 5
+                                  LIcon { icon: "event_note"; size: 14; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                                  LText { role: "caption"; text: "Full plan"; anchors.verticalCenter: parent.verticalCenter } }
+                        }
+                    }
+                }
+            }
+
             // ── Classes (AmazeCC: today's timetable, attendance that needs care) ──
             Card {
                 id: classes

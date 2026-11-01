@@ -20,6 +20,45 @@ import qs.theme
 Singleton {
     id: root
     readonly property string scripts: Theme.lumenRoot + "/scripts"
+    // ── "what was I doing?": the screen-time timeline of a day, as stretches of
+    // 10 minutes or more, with what the windows were called; reopen the apps ──
+    function whatWasIDoing(when) {
+        const now = new Date(), d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        let from = 0, to = 1440, label = "Yesterday";
+        const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+        const w = when.replace(/^on /, "");
+        if (w === "yesterday") d.setDate(d.getDate() - 1);
+        else if (/^(today|earlier)$/.test(w)) label = "Today";
+        else if (w === "this morning") { label = "This morning"; to = 12 * 60; }
+        else if (w === "this afternoon") { label = "This afternoon"; from = 12 * 60; to = 17 * 60; }
+        else if (w === "this evening") { label = "This evening"; from = 17 * 60; }
+        else if (days.includes(w)) { const back = (d.getDay() - days.indexOf(w) + 7) % 7 || 7; d.setDate(d.getDate() - back); label = w.charAt(0).toUpperCase() + w.slice(1); }
+        dayReader.label = label; dayReader.from = from; dayReader.to = to;
+        dayReader.command = ["cat", ScreenTime.dir + "/" + ScreenTime.dayKey(d) + ".json"];
+        dayReader.running = true;
+    }
+    Process {
+        id: dayReader
+        property string label: ""
+        property int from: 0
+        property int to: 1440
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let day = null; try { day = JSON.parse(text); } catch (e) {}
+                const segs = (day?.timeline ?? []).filter(s => s[1] - s[0] >= 10 && s[1] > dayReader.from && s[0] < dayReader.to);
+                const hm = m => Theme.timeDigits(new Date(2000, 0, 1, Math.floor(m / 60), m % 60)) + (Theme.clock12h ? " " + Theme.timePeriod(new Date(2000, 0, 1, Math.floor(m / 60))) : "");
+                if (!segs.length) {
+                    root.say("history", dayReader.label + ": nothing recorded", day ? "No stretch of 10 minutes or more." : "Screen time keeps a timeline from now on (Settings → the planner's Week tab turns it on or off).");
+                    return;
+                }
+                const lines = segs.slice(0, 10).map(s => hm(s[0]) + "–" + hm(s[1]) + "  " + ScreenTime.nameOf(s[2]) + (s[3]?.[0] ? " — " + s[3][0] : ""));
+                const apps = [...new Set(segs.map(s => s[2]))].slice(0, 6);
+                root.say("history", dayReader.label + ": " + segs.length + (segs.length === 1 ? " stretch" : " stretches"), lines.join("\n"),
+                         { duration: 20000, actions: [{ label: "Reopen these apps", icon: "restore", run: () => apps.forEach(a => { const e = DesktopEntries.heuristicLookup(a); if (e) Apps.launch(e); }) }] });
+            }
+        }
+    }
+
     function say(icon, title, text, extra) { Halo.say(Object.assign({ key: "extra", icon, title, text: text ?? "", level: "asked", duration: 12000 }, extra ?? {})); }
     function job(cmd, then) { const p = runner.createObject(root, { cb: then }); p.command = cmd; p.running = true; }
     Component {
@@ -37,6 +76,9 @@ Singleton {
         let m;
         if ((m = /^(?:summari[sz]e|read|explain|what does|tldr|tl;dr)\s+(?:this\s+)?(?:page\s+)?(https?:\/\/\S+)(?:\s+say)?$/i.exec(q)))
             return { glyph: "travel_explore", title: "Reading the page", own: () => root.readWeb(m[1]) };
+        // "what was I doing yesterday / this morning / on monday"
+        if ((m = /^what (?:was i|did i) (?:doing|do|work(?:ing)? on)\s*(yesterday|today|this morning|this afternoon|this evening|earlier|on \w+|\w+day)?$/.exec(l)))
+            return { glyph: "history", title: "Your day", own: () => root.whatWasIDoing(m[1] ?? "yesterday") };
         if (/^(tidy|clean|clean up|organi[sz]e|sort)( up)? (my |the )?downloads?( folder)?$/.test(l))
             return { glyph: "cleaning_services", title: "Tidying Downloads", own: () => root.tidyPlan() };
         if (/^undo (the |that )?tidy|^put (my )?downloads back$/.test(l))

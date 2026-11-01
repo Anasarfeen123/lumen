@@ -112,11 +112,16 @@ Singleton {
         since = Date.now();
         heldAt = Notifications.count;
         const hold = enabled && !Notifications.dnd;
-        saved = { dnd: hold, caffeine: !Caffeine.on, countdown: Countdown.active && !Countdown.paused, mock: mockLive };
+        saved = { dnd: hold, caffeine: !Caffeine.on, countdown: Countdown.active && !Countdown.paused, mock: mockLive, app: appName };
         if (hold && !mockLive) Notifications.setDnd(true, true);
         if (saved.caffeine) Caffeine.on = true;             // no dimming mid-call
         if (saved.countdown) Countdown.toggle();            // pause the focus timer
-        Island.system(icon, "On a call" + (appName ? " · " + appName : ""), hold ? "Notifications held until it ends" : "", "normal");
+        // a quick mic check: which microphone is live, and whether it's muted
+        Island.push({ kind: "halo", key: "halo:call", priority: Island.priority.system, duration: 8000, force: true,
+                      data: { key: "call", icon: icon, title: "On a call" + (appName ? " · " + appName : ""), level: "asked", duration: 8000, speak: false,
+                              text: "Mic: " + Audio.label(Audio.source) + (Audio.micMuted ? " — muted" : " — live") + (hold ? " · notifications held" : ""),
+                              tone: Audio.micMuted ? "concerned" : "normal",
+                              actions: [{ label: Audio.micMuted ? "Unmute" : "Mute", icon: Audio.micMuted ? "mic" : "mic_off", run: () => Audio.toggleMicMute() }] } });
     }
     function end() {
         if (!saved) return;
@@ -127,8 +132,22 @@ Singleton {
         if (s.countdown && Countdown.active && Countdown.paused) Countdown.toggle();
         const held = s.mock ? mockHeld : Math.max(0, Notifications.count - heldAt);
         const mins = Math.max(1, Math.round((Date.now() - since) / 60000));
-        Island.system("call_end", "Call ended · " + mins + " min",
-                      s.dnd || s.mock ? (held === 0 ? "No notifications waited" : held === 1 ? "1 notification held" : held + " notifications held") : "", "normal");
+        const app = s.app ?? appName;
+        // notes while it's fresh: a dated note in Lumen Notes, opened ready to write
+        Island.push({ kind: "halo", key: "halo:callend", priority: Island.priority.system, duration: 12000, force: true,
+                      data: { key: "callend", icon: "call_end", title: "Call ended · " + mins + " min", level: "asked", duration: 12000, speak: false,
+                              text: s.dnd || s.mock ? (held === 0 ? "No notifications waited" : held === 1 ? "1 notification held" : held + " notifications held") : "",
+                              actions: [{ label: "Write notes", icon: "edit_note", run: () => root.notes(app, mins) }] } });
+    }
+    // "Meeting · Teams · 1 Nov 15:30" — created, then opened in Notes
+    property bool notesPending: false
+    function notes(app, mins) {
+        notesPending = true;
+        Notes.create("Meeting" + (app ? " · " + app : "") + " · " + Qt.formatDateTime(new Date(Date.now() - mins * 60000), "d MMM HH:mm"));
+    }
+    Connections {
+        target: Notes
+        function onCreated(file) { if (root.notesPending) { root.notesPending = false; Notes.launch(file.replace(/^.*\//, "")); } }
     }
 
     // ── dev mock (LUMEN_DEV): a call without a call ──

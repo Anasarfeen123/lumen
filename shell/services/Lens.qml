@@ -56,6 +56,7 @@ Singleton {
     }
     function reset() { sel = Qt.rect(0, 0, 0, 0); crop = ""; cropReady = ""; text = ""; reading = false; asked = false; }
     function close() {
+        autoTranslate = false;
         if (!open) return;
         open = false;
         cleanup.restart();                  // after the overlay has faded away
@@ -107,6 +108,10 @@ Singleton {
         onExited: code => { if (code === 0) Ai.askImage(keeper.question, keeper.file, root.text); }
     }
     function copyText() { if (text) { Ai.copy(text); Island.system("content_copy", "Copied the text", text.split(/\s+/).length + " words"); close(); } }
+    // "Translate text on screen": circle something and it's translated as soon as it's read
+    property bool autoTranslate: false
+    function startTranslate() { autoTranslate = true; start(); }
+    onReadingChanged: if (!reading && autoTranslate && crop) { autoTranslate = false; translate(); }
     function translate() { ask("Translate this into English. Reply with only the translation" + (text ? "." : " of the text in the image.")); }
     function webSearch() {
         if (!text) return;

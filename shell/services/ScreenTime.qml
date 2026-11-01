@@ -46,6 +46,18 @@ Singleton {
             if (root.app && !/^(org\.quickshell|org\.freedesktop\.impl\.portal|xdg-desktop-portal|polkit|lumen-)/.test(root.app)) {
                 d.apps[root.app] = (d.apps[root.app] ?? 0) + 5;
                 d.total += 5;
+                // the timeline ("what was I doing?"): [startMin, endMin, app, [titles…]] —
+                // one segment per stretch in an app, gaps under 3 minutes bridged
+                const now = new Date(), m = now.getHours() * 60 + now.getMinutes();
+                const t = (Hyprland.activeToplevel?.title ?? "").slice(0, 90);
+                const tl = (d.timeline ?? []).slice();
+                const last = tl.length ? tl[tl.length - 1] : null;
+                if (last && last[2] === root.app && m - last[1] <= 3) {
+                    const seg = [last[0], m, last[2], last[3].slice()];
+                    if (t && !seg[3].includes(t) && seg[3].length < 5) seg[3].push(t);
+                    tl[tl.length - 1] = seg;
+                } else if (tl.length < 800) tl.push([m, m, root.app, t ? [t] : []]);
+                d.timeline = tl;
             }
             if (Focus.mode !== "off") d.focus += 5;
             root.data = d;

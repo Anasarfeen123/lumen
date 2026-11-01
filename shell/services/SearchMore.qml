@@ -12,6 +12,8 @@ Singleton {
     property var recent: []             // [{ name, path, when }]
     property var tmux: []               // [{ name, windows, attached }]
     property var procs: []              // [{ pid, name, cpu, mem }]
+    property var otp: []                // [{ name, code, left }] — "otp" / "2fa" (scripts/otp.py)
+    function refreshOtp() { if (!otpProc.running) otpProc.running = true; }
     readonly property bool hasTmux: tmuxCheck.found
 
     function refresh() {
@@ -55,6 +57,11 @@ Singleton {
             onStreamFinished: root.tmux = text.trim().split("\n").filter(l => l).map(l => { const f = l.split("|"); return { name: f[0], windows: +f[1], attached: f[2] !== "0" }; })
         }
         onExited: code => { if (code !== 0) root.tmux = []; }
+    }
+    Process {
+        id: otpProc
+        command: [Quickshell.env("HOME") + "/.config/lumen/scripts/otp.py", "list"]
+        stdout: StdioCollector { onStreamFinished: { try { root.otp = JSON.parse(text); } catch (e) { root.otp = []; } } }
     }
     Process {
         id: psProc

@@ -30,6 +30,8 @@ Singleton {
         { title: "Circle to search", glyph: "gesture", keys: "circle to search lens look up what is this screen google lens ocr", fn: () => Lens.start() },
         { title: "Talk to Halo", glyph: "mic", keys: "talk voice speak halo jarvis listen", fn: () => Halo.talk() },
         { title: "Screenshot (region)", glyph: "screenshot_region", keys: "screenshot capture snip", cmd: [Theme.lumenRoot + "/scripts/screenshot.sh", "region"], delay: true },
+        { title: "Translate text on screen", glyph: "translate", keys: "translate screen text ocr language foreign english meaning", fn: () => Lens.startTranslate() },
+        { title: "Mirror", glyph: "photo_camera_front", keys: "mirror webcam camera check myself selfie before call preview", cmd: [Theme.lumenRoot + "/scripts/mirror.sh"] },
         { title: "Turn the screen off", glyph: "desktop_access_disabled", keys: "screen off display off dpms blank monitor off keep awake music", cmd: ["sh", "-c", 'sleep 0.6; hyprctl dispatch "hl.dsp.dpms({ action = [[off]] })"'], delay: true },
         { title: "Bring back lost windows", glyph: "move_selection_left", keys: "lost windows off screen offscreen missing window gone recover rescue", cmd: [Theme.lumenRoot + "/scripts/lost-windows.sh"] },
         { title: "AmazeCC", glyph: "school", keys: "amazecc college vtop vit app attendance timetable marks grades exams cgpa circulars library proctor", fn: () => Amazecc.launch("") },
@@ -113,6 +115,7 @@ Singleton {
             if (Overview.mode !== "search") return;
             Calc.evaluate(Overview.query.trim());
             if (/^(kill|end|top)\b/i.test(Overview.query.trim())) SearchMore.refreshProcs();
+            if (/^(otp|2fa|code)\b/i.test(Overview.query.trim())) SearchMore.refreshOtp();
         }
         function onModeChanged() {
             if (Overview.mode === "clipboard") { Clipboard.filter = "all"; Clipboard.refresh(); }
@@ -364,6 +367,20 @@ Singleton {
             if ((m = /^(?:ask|ai)\s+(.+)$/i.exec(q)))
                 out.push({ kind: "command", group: "Halo", title: "Ask Halo: " + m[1], subtitle: Ai.configured ? "Answers in the AI panel" : "Set up AI first (Settings → AI)",
                            glyph: "auto_awesome", badge: "Ask", run: () => { Ai.show(); Ai.send(m[1]); } });
+            // two-factor codes: "otp", "2fa github" — Enter copies the code
+            {
+                const om = /^(?:otp|2fa)\s*(.*)$/i.exec(q);
+                if (om) {
+                    const want = om[1].trim().toLowerCase();
+                    const rows = SearchMore.otp.filter(o => !want || o.name.toLowerCase().includes(want));
+                    out.push(...rows.map(o => ({ kind: "command", group: "Two-factor codes", title: o.name,
+                                                 subtitle: o.code.slice(0, 3) + " " + o.code.slice(3) + " · " + o.left + " s left", glyph: "password", badge: "Copy",
+                                                 run: () => Quickshell.execDetached(["sh", "-c", 'c=$("$1" code "$2") && printf %s "$c" | wl-copy', "sh", Theme.lumenRoot + "/scripts/otp.py", o.name]) })));
+                    if (!rows.length)
+                        out.push({ kind: "command", group: "Two-factor codes", title: SearchMore.otp.length ? "No code matches" : "No two-factor codes yet", glyph: "password", badge: "",
+                                   subtitle: "Add one in a terminal: lumen otp add <name>   (then paste the secret or otpauth:// link)", run: () => {} });
+                }
+            }
             // processes: "kill firefox", "top" — the busiest first; ending one asks twice
             {
                 const pm = /^(?:kill|end|top)\s*(.*)$/i.exec(q);

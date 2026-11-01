@@ -134,10 +134,13 @@ Tick items off as they land.
 ### Halo
 - [x] `halo` CLI using the panel's models and memory (`halo "why did this fail" < log`); linked
       into ~/.local/bin with `lumen` at login.
-- [ ] "What was I doing?": a timeline from `app-usage.json` to jump back into yesterday.
+- [x] "What was I doing?": screen time now keeps a timeline per day (apps, a few window titles,
+      this computer only); ask Halo "what was I doing yesterday / this morning / on Monday" and
+      reopen those apps. Fills in from now on.
 - [ ] Live captions for any video or call through whisper.cpp, as an island overlay.
-- [ ] Meeting mode: detect Teams/Meet, Do Not Disturb on, mic check, notes at the end (see
-      what `meeting.json` already covers).
+- [x] Meeting mode: detection, held notifications, paused timer and awake screen were there; now a
+      mic check when a call starts (which mic, muted or live, one-tap mute) and "Write notes" when
+      it ends (a dated note, opened).
 - [ ] Focus session: Pomodoro + Do Not Disturb + a website block list, with a Halo summary
       at the end.
 - [x] Force a question to the AI: start it with `ai:` (or `@ai`), or press "Ask the AI instead"
@@ -148,8 +151,10 @@ Tick items off as they land.
       very buggy" — which popup, and what goes wrong?
 
 ### College (AmazeCC)
-- [ ] Island nudges: "Class in 10 min · AB1-305", "Attendance 74% — don't skip today".
-- [ ] Exam mode in the week before a FAT: countdown, today's study-plan slot, syllabus left.
+- [x] Island nudges: "Class in 10 min · AB1-305" and "don't skip tomorrow" were already there.
+- [x] Exam mode in the week before an exam: a card on the planner's Today tab — countdown, room
+      and seat, today's slot in the study plan, the rest of the week, revision note, full plan.
+      (Syllabus left: VTOP doesn't give it.)
 - [~] More AmazeCC: "Hide CGPA and grades" (Settings → AmazeCC: dots until clicked in the app,
       never read aloud). Plus the AmazeCC app itself (Ctrl+Super+A). More to come.
 
@@ -186,8 +191,8 @@ it's rough (Settings already has Display and Windows pages, for example).
 ### Desktop and screen
 - [ ] **Anti-flashbang** (ii): dim a window that suddenly goes bright white while the screen
       is dark (a white page at night, a light-mode app opening).
-- [ ] **Screen translation** (ii): pick a region, OCR it, show the translation on top. Lumen
-      already has OCR and Halo, so this is mostly wiring.
+- [x] **Screen translation**: "Translate text on screen" in search — circle it and it's translated
+      as soon as it's read (circle to search's Translate, started for you).
 - [ ] **Screen border / rounded screen corners** (Caelestia): an optional thin frame that
       gives the whole screen rounded edges. Check `modules/corners` first.
 - [ ] **Desktop widgets** (Noctalia, Caelestia): optional clock, weather or now-playing on the
@@ -218,9 +223,9 @@ it's rough (Settings already has Display and Windows pages, for example).
 ### Tools
 - [ ] **QR and barcode scanner** (Ambxst): scan a region on screen, or the webcam; open the
       link or Wi-Fi details it contains.
-- [ ] **Webcam mirror** (Ambxst): a small floating preview to check yourself before a call.
-- [ ] **OTP / 2FA codes** (Ax-Shell): codes in the launcher, copied in one keystroke, with the
-      secrets in the keyring.
+- [x] **Webcam mirror**: "Mirror" in search — a small, pinned, mirrored preview; again closes it.
+- [x] **OTP / 2FA codes**: `otp` / `2fa` in the launcher (Enter copies); `lumen otp add <name>`
+      stores the secret (or an otpauth:// link) in the keyring. Checked against RFC 6238.
 - [x] **tmux session picker**: "tmux" in the launcher lists sessions (Enter attaches in kitty)
       and offers a new one.
 - [ ] **Kanban board** (Ax-Shell): columns for the planner's to-dos (Doing / Next / Done).
@@ -231,12 +236,12 @@ it's rough (Settings already has Display and Windows pages, for example).
 - [ ] **Dictionary and unit/currency conversion** in the launcher (`define x`, `5 km in mi`),
       if not already covered by `qalc`.
 - [ ] **Game launcher** (HyDE): Steam/Lutris/Heroic games with cover art, starting game mode
-      on launch.
+      on launch. (Steam is installed but has no games yet.)
 - [ ] **Shortcuts menu** (Pyprland): a launcher mode for saved custom commands and scripts.
 
 ### Audio, power and hardware
 - [ ] **EasyEffects presets** (Ambxst): switch EQ presets (Speakers, Headphones, Voice) from
-      the output picker.
+      the output picker. (No presets saved yet.)
 - [x] **Low-battery warnings with levels**: 20 % and 10 % were there; at 5 % a 60-second
       countdown to sleep, cancelled by plugging in or "Not now".
 - [ ] **Separate idle times on AC and battery** (DankMaterialShell), plus hibernate in the

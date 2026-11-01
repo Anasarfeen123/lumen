@@ -37,6 +37,9 @@ rule({ class = "^(lumen-faceid)$" }, { float = true, center = true, size = { 760
 local pip = "^([Pp]icture[-\\s]?[Ii]n[-\\s]?[Pp]icture)(.*)$"
 rule({ title = pip }, { float = true, pin = true, keep_aspect_ratio = true, no_initial_focus = true,
                         size = { "(monitor_w*0.25)", "(monitor_h*0.25)" }, move = { "(monitor_w*0.73)", "(monitor_h*0.72)" } })
+-- The webcam mirror (scripts/mirror.sh): small, pinned, bottom-right
+rule({ title = "^(Lumen mirror)$" }, { float = true, pin = true, no_initial_focus = true, keep_aspect_ratio = true,
+                                       size = { 384, 288 }, move = { "(monitor_w-400)", "(monitor_h-304)" }, opacity = "1.0 1.0" })
 -- Screen-share indicator popups: out of the way, bottom-centre
 local sharing = ".*is sharing (a window|your screen).*"
 rule({ title = sharing }, { float = true, pin = true, move = { "(monitor_w*0.5-window_w*0.5)", "(monitor_h-window_h-12)" } })
