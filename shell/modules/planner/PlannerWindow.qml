@@ -644,7 +644,7 @@ PanelWindow {
                                 readonly property bool isToday: index === ScreenTime.days.length - 1
                                 width: bars.width / 7; height: bars.height
                                 Rectangle {
-                                    id: bar
+                                    id: dayBar
                                     anchors { horizontalCenter: parent.horizontalCenter; bottom: dayLbl.top; bottomMargin: 4 }
                                     width: 14; radius: 4
                                     height: Math.max(3, (parent.height - 18) * modelData.total / bars.peak)
