@@ -56,7 +56,7 @@ Scope {
     // The NVIDIA GPU stuck awake is watched by Power (it speaks for itself)
     readonly property bool _dgpuWatch: Power.dgpuStuck || true
     // Halo's wrap-ups and reminders run in the background (singletons start when first named)
-    readonly property bool _halo: Brief.active || Halo.present || Doctor.enabled || Routines.active || Accounts.active || Pip.active || Alarms.list.length >= 0 || ThemeSchedule.active || LowPower.active || SnapLayouts.open || true
+    readonly property bool _halo: Brief.active || Halo.present || Doctor.enabled || Routines.active || Accounts.active || Pip.active || Alarms.list.length >= 0 || ThemeSchedule.active || LowPower.active || SnapLayouts.open || SessionSaver.on || true
 
     // ── Now playing: announce briefly on play/track change, then back to the
     //    clock (which shows an equalizer while music plays) ──
@@ -142,6 +142,36 @@ Scope {
         }
         function onLowChanged() {
             if (Battery.low) { Island.system("battery_2_bar", "Battery low", Math.round(Battery.percentage * 100) + "% remaining", "warning"); Sounds.play("warning", Battery.critical); }
+        }
+        // 5 %: sleep in a minute unless you plug in or say not now — open work
+        // survives in memory, instead of the battery dying under it
+        function onPercentageChanged() {
+            const nearlyOut = Battery.available && !Battery.pluggedIn && Battery.percentage <= 0.05;
+            if (nearlyOut && !sleepSoon.running && !root.sleepDeclined && Persist.automates) {
+                sleepSoon.left = 60;
+                sleepSoon.start();
+                Sounds.play("warning", true);
+                root.sleepCard();
+            }
+        }
+    }
+    property bool sleepDeclined: false
+    Connections { target: Battery; function onPluggedInChanged() { if (Battery.pluggedIn) { sleepSoon.stop(); root.sleepDeclined = false; } } }
+    function sleepCard() {
+        Island.push({ kind: "halo", key: "halo:sleepsoon", priority: Island.priority.notification, duration: 61000, force: true,
+                      data: { key: "sleepsoon", icon: "battery_alert", title: "Battery " + Math.round(Battery.percentage * 100) + "% — sleeping in " + sleepSoon.left + " s",
+                              text: "To keep your work safe. Plug in to stay awake.", level: "urgent", tone: "concerned", duration: 61000,
+                              actions: [{ label: "Not now", icon: "close", run: () => { sleepSoon.stop(); root.sleepDeclined = true; } }] } });
+    }
+    Timer {
+        id: sleepSoon
+        property int left: 60
+        interval: 1000; repeat: true
+        onTriggered: {
+            if (Battery.pluggedIn) { stop(); return; }
+            left -= 1;
+            if (left % 15 === 0 && left > 0) root.sleepCard();
+            if (left <= 0) { stop(); Quickshell.execDetached(["systemctl", "suspend"]); }
         }
     }
 

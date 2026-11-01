@@ -79,7 +79,9 @@ Tick items off as they land.
 ### Reliability
 - [x] Restart the shell automatically if Quickshell dies, and say so in the island
       (`scripts/shell-supervisor.sh`: backs off, gives up after 5 crashes in 5 minutes).
-- [ ] Restore the window/workspace layout after a crash or a fresh login.
+- [x] Restore the window/workspace layout after a crash or a fresh login: the shell saves
+      "last-session" every 5 minutes; when several of its windows are missing it offers to
+      reopen them (only what's missing, same workspaces).
 
 ### Synconization and Environment
 - [ ] Syncing youtube videos and other medias from video to phone and vice-versa
@@ -130,7 +132,8 @@ Tick items off as they land.
       AmazeCC class, weather and the next to-do.
 
 ### Halo
-- [ ] `halo` CLI using the panel's models and memory (`halo "why did this fail" < log`).
+- [x] `halo` CLI using the panel's models and memory (`halo "why did this fail" < log`); linked
+      into ~/.local/bin with `lumen` at login.
 - [ ] "What was I doing?": a timeline from `app-usage.json` to jump back into yesterday.
 - [ ] Live captions for any video or call through whisper.cpp, as an island overlay.
 - [ ] Meeting mode: detect Teams/Meet, Do Not Disturb on, mic check, notes at the end (see
@@ -152,7 +155,9 @@ Tick items off as they land.
 
 ### Ecosystem
 - [X] Clipboard shared with the phone through Lumen Link, with the source shown in the island.
-- [ ] Global search across notes, clipboard, Halo memory and recent files.
+- [x] Global search across notes, clipboard, Halo memory and recent files: the launcher adds
+      "Halo remembers" and "Recent files" (open, show in folder, copy path); notes were there,
+      the clipboard keeps its own mode.
 - [ ] Multi-monitor island: mirror it or show only a clock on the second screen.
 - [ ] Lumen Sync: one-click export/import of the whole setup (settings, pins, notes, Halo
       memory, accent, wallpaper), building on `backup.sh` and `cloud-backup.sh`.
@@ -216,11 +221,11 @@ it's rough (Settings already has Display and Windows pages, for example).
 - [ ] **Webcam mirror** (Ambxst): a small floating preview to check yourself before a call.
 - [ ] **OTP / 2FA codes** (Ax-Shell): codes in the launcher, copied in one keystroke, with the
       secrets in the keyring.
-- [ ] **tmux session picker** (Ax-Shell, Ambxst): list sessions in the launcher; Enter
-      attaches in kitty.
+- [x] **tmux session picker**: "tmux" in the launcher lists sessions (Enter attaches in kitty)
+      and offers a new one.
 - [ ] **Kanban board** (Ax-Shell): columns for the planner's to-dos (Doing / Next / Done).
-- [ ] **Process manager in the launcher** (DankMaterialShell): type `kill` or `top` to search
-      processes and end one, with confirmation.
+- [x] **Process manager in the launcher**: `kill <name>` / `top` lists processes, busiest first,
+      with PID, CPU and memory; ending one is Enter twice.
 - [ ] **File search in the launcher** (DankMaterialShell *dsearch*): indexed, fast, with
       previews.
 - [ ] **Dictionary and unit/currency conversion** in the launcher (`define x`, `5 km in mi`),
@@ -232,8 +237,8 @@ it's rough (Settings already has Display and Windows pages, for example).
 ### Audio, power and hardware
 - [ ] **EasyEffects presets** (Ambxst): switch EQ presets (Speakers, Headphones, Voice) from
       the output picker.
-- [ ] **Low-battery warnings with levels** (Caelestia): 20 % nudge, 10 % warning, 5 % "saving
-      your work and sleeping". Check what the battery service already does.
+- [x] **Low-battery warnings with levels**: 20 % and 10 % were there; at 5 % a 60-second
+      countdown to sleep, cancelled by plugging in or "Not now".
 - [ ] **Separate idle times on AC and battery** (DankMaterialShell), plus hibernate in the
       power menu when swap allows it.
 - [ ] **GPU and temperature details** (HyprPanel, DankMaterialShell): per-GPU usage (AMD and

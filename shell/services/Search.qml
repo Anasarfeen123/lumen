@@ -109,7 +109,11 @@ Singleton {
     // Keep the calculator fed as the query changes
     Connections {
         target: Overview
-        function onQueryChanged() { if (Overview.mode === "search") Calc.evaluate(Overview.query.trim()); }
+        function onQueryChanged() {
+            if (Overview.mode !== "search") return;
+            Calc.evaluate(Overview.query.trim());
+            if (/^(kill|end|top)\b/i.test(Overview.query.trim())) SearchMore.refreshProcs();
+        }
         function onModeChanged() {
             if (Overview.mode === "clipboard") { Clipboard.filter = "all"; Clipboard.refresh(); }
             if (Overview.mode === "emoji") Emoji.ensure();
@@ -119,6 +123,7 @@ Singleton {
             projectScan.running = true;
             snapScan.running = true;
             Notes.refresh();                // "n …" searches today's notes
+            SearchMore.refresh();           // recent files, tmux sessions
             if (Overview.mode === "clipboard") Clipboard.refresh();
             if (Overview.mode === "emoji") Emoji.ensure();
         }
@@ -199,6 +204,15 @@ Singleton {
             a.push({ label: "Copy as plain text", icon: "format_clear", run: () => Clipboard.use(r.id, "plain") });
             a.push({ label: "Pin", icon: "keep", run: () => Clipboard.pin(r.entry) });
             a.push({ label: "Delete", icon: "delete", run: () => Clipboard.remove(r.id) });
+            break;
+        case "file":
+            a.push({ label: "Open", icon: "open_in_new", run: () => r.run() });
+            a.push({ label: "Show in its folder", icon: "folder_open", run: () => Quickshell.execDetached([Theme.lumenRoot + "/scripts/doctor.sh", "reveal", r.path]) });
+            a.push({ label: "Copy the path", icon: "content_copy", run: copy(r.path) });
+            break;
+        case "process":
+            // ending one stays on Enter, which asks twice (never destroy on one action)
+            a.push({ label: "Copy the PID", icon: "content_copy", run: copy(r.pid) });
             break;
         case "calc":
         case "web":
@@ -350,6 +364,18 @@ Singleton {
             if ((m = /^(?:ask|ai)\s+(.+)$/i.exec(q)))
                 out.push({ kind: "command", group: "Halo", title: "Ask Halo: " + m[1], subtitle: Ai.configured ? "Answers in the AI panel" : "Set up AI first (Settings → AI)",
                            glyph: "auto_awesome", badge: "Ask", run: () => { Ai.show(); Ai.send(m[1]); } });
+            // processes: "kill firefox", "top" — the busiest first; ending one asks twice
+            {
+                const pm = /^(?:kill|end|top)\s*(.*)$/i.exec(q);
+                if (pm) {
+                    const want = pm[1].trim().toLowerCase();
+                    const mb = b => b >= 1073741824 ? (b / 1073741824).toFixed(1) + " GB" : Math.round(b / 1048576) + " MB";
+                    out.push(...SearchMore.procs.filter(p => !want || p.name.toLowerCase().includes(want)).slice(0, 8).map(p => ({
+                        kind: "process", group: "Processes", title: p.name, subtitle: "PID " + p.pid + " · CPU " + p.cpu.toFixed(0) + "% · " + mb(p.mem),
+                        glyph: "memory", badge: "End", destructive: true, pid: p.pid,
+                        run: () => Quickshell.execDetached(["kill", "-TERM", p.pid]) })));
+                }
+            }
             if (out.length) return out;
         }
         // Timers: "timer 5m", "25 min timer", "t 90s", "stopwatch"
@@ -426,6 +452,23 @@ Singleton {
         if (/^=\s*$/.test(text))
             return [{ kind: "calc", group: "Calculator", title: "Type a calculation", glyph: "calculate", badge: "",
                       subtitle: "Maths, units (5 ft to cm), percentages, and money in ₹ ($100, 2 lakh / 12)", run: () => {} }];
+        // tmux sessions: "tmux"
+        if (/^tmux\b/i.test(q) && SearchMore.hasTmux) {
+            out.push(...SearchMore.tmux.map(t => ({ kind: "command", group: "tmux", title: t.name, subtitle: t.windows + (t.windows === 1 ? " window" : " windows") + (t.attached ? " · attached" : ""),
+                                                    glyph: "terminal", badge: "Attach", run: () => Quickshell.execDetached(["kitty", "tmux", "attach", "-t", t.name]) })));
+            out.push({ kind: "command", group: "tmux", title: "New tmux session", glyph: "add", badge: "Run", run: () => Quickshell.execDetached(["kitty", "tmux", "new-session"]) });
+        }
+        // what you asked Halo to remember, and files you opened lately
+        if (text.length >= 3) {
+            const lw = text.toLowerCase();
+            const mem = (Persist.data.haloMemory ?? []).filter(m => (m.text ?? "").toLowerCase().includes(lw)).slice(0, 3);
+            out.push(...mem.map(m => ({ kind: "memory", group: "Halo remembers", title: m.text, glyph: "psychology", badge: "Copy",
+                                        run: () => Quickshell.execDetached(["wl-copy", "--", m.text]) })));
+            const home = Quickshell.env("HOME") ?? "";
+            const files = SearchMore.recent.filter(f => f.name.toLowerCase().includes(lw)).slice(0, 4);
+            out.push(...files.map(f => ({ kind: "file", group: "Recent files", title: f.name, subtitle: f.path.replace(home, "~").replace(/\/[^/]*$/, ""),
+                                          glyph: "description", badge: "Open", path: f.path, run: () => Quickshell.execDetached(["xdg-open", f.path]) })));
+        }
         out.push(...chatHits);
         if (text !== "")
             out.push({ kind: "web", group: "Web", title: `Search the web for “${text}”`, subtitle: "", glyph: "travel_explore", badge: "Web",

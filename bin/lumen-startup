@@ -39,6 +39,12 @@ if [ -z "${LUMEN_NESTED:-}" ]; then
         [ -e "$dest" ] || { mkdir -p "${dest%/*}"; ln -s "$f" "$dest"; }
     done
 
+    # Lumen's commands in your PATH (~/.local/bin): `lumen` and `halo` — only
+    # where nothing of that name is there already
+    for c in lumen halo; do
+        [ -e "$HOME/.local/bin/$c" ] || { mkdir -p "$HOME/.local/bin"; ln -s "$LUMEN_ROOT/bin/$c" "$HOME/.local/bin/$c"; }
+    done
+
     # Admin password prompts: the shell is the polkit agent (services/Polkit.qml)
     # and starts KDE's itself if it can't register. Without the shell: KDE's.
     agent=/usr/libexec/kf6/polkit-kde-authentication-agent-1

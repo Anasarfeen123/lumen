@@ -1,0 +1,68 @@
+#!/bin/sh
+# halo — ask Lumen Halo from a terminal, with the same model and memory as the
+# panel (Settings → Halo). Anything piped in comes along as context.
+#   halo "how do I list open ports"
+#   journalctl -b -p err | halo "why did this fail"
+#   git diff | halo "write a commit message"
+#   halo -m gemma3:4b "…"        a different model this once
+# The answer streams to stdout. Nothing leaves this computer unless your Halo
+# provider is a cloud one (then it goes there, as in the panel).
+set -eu
+LUMEN_ROOT=${LUMEN_ROOT:-$HOME/.config/lumen}
+STATE=${XDG_STATE_HOME:-$HOME/.local/state}/lumen/shell.json
+
+model_override=""
+if [ "${1:-}" = "-m" ]; then model_override=${2:?halo -m <model> "question"}; shift 2; fi
+q=${*:-}
+[ -n "$q" ] || { sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+
+provider=$(jq -r '.aiProvider // "off"' "$STATE" 2>/dev/null || echo off)
+[ "$provider" = off ] && { echo "halo: Halo is off — pick where answers come from in Settings → Halo → Models" >&2; exit 1; }
+model=${model_override:-$(jq -r '.aiModel // ""' "$STATE" 2>/dev/null)}
+# Automatic (Ollama): the panel's pick — a loaded text model, else the first text model
+if [ "$provider" = ollama ] && { [ -z "$model" ] || [ "$model" = auto ]; }; then
+    model=$("$LUMEN_ROOT/scripts/ai.sh" status 2>/dev/null | jq -r '
+        [.ollamaInfo[] | select(.vision | not) | .name] as $text
+        | ([.loaded[] | select(. as $m | $text | index($m))] + $text)[0] // empty')
+    [ -n "$model" ] || { echo "halo: no local model — install one in Settings → Halo → Models" >&2; exit 1; }
+fi
+
+# Piped input: the context, trimmed to a sane size (the last 12 000 characters)
+context=""
+# only a real pipe or file — an empty, never-closing stdin (a script, a launcher) mustn't hang it
+if [ -p /dev/stdin ] || [ -f /dev/stdin ]; then context=$(tail -c 12000); fi
+
+name=$(jq -r '.haloName // "Halo"' "$STATE" 2>/dev/null)
+memory=""
+if [ "$(jq -r '.haloUseMemory // true' "$STATE" 2>/dev/null)" = true ]; then
+    memory=$(jq -r '[.haloMemory[]?.text] | map("- " + .) | join("\n")' "$STATE" 2>/dev/null || true)
+fi
+system="You are $name, the assistant built into the user's Linux desktop (Lumen, on Hyprland, Fedora). \
+You are answering in a terminal: plain text, short, no Markdown headings; put commands on their own lines. \
+Be direct and accurate; say when you're unsure."
+[ -n "$memory" ] && system="$system
+What the user asked you to remember:
+$memory"
+
+text=$q
+[ -n "$context" ] && text="$q
+
+Here is the input (piped in):
+\`\`\`
+$context
+\`\`\`"
+
+req=$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/halo-cli.XXXXXX.json")
+trap 'rm -f "$req"' EXIT
+jq -n --arg p "$provider" --arg m "$model" --arg s "$system" --arg t "$text" \
+    '{provider: $p, model: $m, system: $s, messages: [{role: "user", text: $t}]}' > "$req"
+
+status=0
+"$LUMEN_ROOT/scripts/ai.sh" ask "$req" | while IFS= read -r line; do
+    case $line in
+        *'"e":'*) printf '\nhalo: %s\n' "$(printf '%s\n' "$line" | jq -r '.e')" >&2; exit 1 ;;
+        *'"t":'*) printf '%s\n' "$line" | jq -j '.t' ;;      # straight out: keeps the answer's own newlines
+    esac
+done || status=$?
+echo
+exit "$status"
