@@ -15,11 +15,14 @@ Singleton {
 
     Process {
         id: led
+        property bool quiet: true
+        running: true             // at startup too, so the bar's Caps Lock badge is right after a reload
         command: ["sh", "-c", "cat /sys/class/leds/*::capslock/brightness 2>/dev/null | sort -r | head -1"]
         stdout: StdioCollector {
             onStreamFinished: {
                 const on = text.trim() !== "" && text.trim() !== "0";
                 root.caps = on;
+                if (led.quiet) { led.quiet = false; return; }          // the startup read: just know, don't announce
                 Island.push({ kind: "system", key: "capslock", priority: Island.priority.osd, duration: 1200, force: true,
                               data: { icon: on ? "keyboard_capslock_badge" : "keyboard_capslock", title: on ? "Caps Lock on" : "Caps Lock off", detail: "", tone: "normal" } });
             }

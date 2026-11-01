@@ -192,6 +192,11 @@ def resolve(theme_name: str | None, accent_name: str | None, accent_hue: float |
         motion[k] = round(motion[k] * speed)
     window["follow_mouse"] = 0 if state.get("follow_mouse") == "off" else 1
     cursor = {"theme": state.get("cursor", "Bibata-Modern-Classic"), "size": int(state.get("cursor_size", 24))}
+    # left-handed mouse: the theme's mirrored copy when it has one (Bibata ships "-Right")
+    if state.get("left_handed") == "on" and not cursor["theme"].endswith("-Right"):
+        for d in (os.path.expanduser("~/.local/share/icons"), os.path.expanduser("~/.icons"), "/usr/share/icons"):
+            if os.path.isdir(os.path.join(d, cursor["theme"] + "-Right", "cursors")):
+                cursor["theme"] += "-Right"; break
     # Mouse, touchpad and keyboard (Settings → Mouse & touchpad / Keyboard)
     def onoff(k, d): return (state.get(k, d) == "on")
     layout = state.get("kb_layout", "us")

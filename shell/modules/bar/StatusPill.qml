@@ -4,6 +4,7 @@
 //   Speaker / mic muted    only while muted
 //   Battery                icon + %, coloured only when low/critical
 //   Unread notifications  a small accent dot (opens the notification centre)
+//   Caps Lock              a small "A" badge, only while it's on
 // Scroll adjusts volume. Click opens the sidebar.
 import QtQuick
 import Quickshell
@@ -48,6 +49,15 @@ GlassSurface {
                 anchors.centerIn: parent
                 spacing: Theme.space.s2
 
+                // Caps Lock left on: a small badge until it's off again
+                Rectangle {
+                    visible: Keyboard.caps
+                    width: capsT.implicitWidth + 8; height: 16; radius: 4
+                    color: Theme.withAlpha(Theme.accent, 0.2)
+                    border.width: 1; border.color: Theme.withAlpha(Theme.accent, 0.55)
+                    anchors.verticalCenter: parent.verticalCenter
+                    LText { id: capsT; anchors.centerIn: parent; role: "caption"; font.weight: Font.Bold; color: Theme.accent; text: "A" }
+                }
                 Rectangle {
                     visible: Notifications.count > 0
                     width: 6; height: 6; radius: 3
