@@ -539,6 +539,16 @@ PanelWindow {
                         placeholder: "Your city, e.g. “Delhi” — then weather appears here"
                         onAccepted: t => Weather.setPlace(t)
                     }
+                    // a one-tap guess: your college's city when AmazeCC is set up
+                    HoverTarget {
+                        visible: Weather.place === null && Amazecc.cfg?.enabled === true
+                        width: guessRow.implicitWidth + 24; height: 30; radius: 15
+                        onClicked: Weather.setPlace("Chennai")
+                        Rectangle { anchors.fill: parent; radius: 15; z: -1; color: Theme.withAlpha(Theme.accent, 0.12); border.width: 1; border.color: Theme.withAlpha(Theme.accent, 0.4) }
+                        Row { id: guessRow; anchors.centerIn: parent; spacing: 6
+                              LIcon { icon: "school"; size: 15; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                              LText { role: "caption"; color: Theme.accent; text: "Use Chennai — your campus"; anchors.verticalCenter: parent.verticalCenter } }
+                    }
                     LText { visible: Weather.error !== ""; role: "caption"; color: Theme.error; text: Weather.error }
                     // Now
                     Row {
