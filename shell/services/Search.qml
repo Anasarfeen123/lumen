@@ -26,11 +26,11 @@ Singleton {
         { title: "Log out", glyph: "logout", keys: "logout log out exit sign out", cmd: ["hyprctl", "dispatch", "hl.dsp.exit()"], destructive: true },
         { title: "Restart", glyph: "restart_alt", keys: "restart reboot", cmd: ["systemctl", "reboot"], destructive: true },
         { title: "Shut down", glyph: "power_settings_new", keys: "shutdown shut down power off poweroff", cmd: ["systemctl", "poweroff"], destructive: true },
-        { title: "Draw on the screen", glyph: "draw", keys: "draw on screen annotate ink pen marker highlight presentation scribble", fn: () => DrawState.open = true },
-        { title: "Circle to search", glyph: "gesture", keys: "circle to search lens look up what is this screen google lens ocr", fn: () => Lens.start() },
+        { title: "Draw on the screen", glyph: "draw", keys: "draw on screen annotate ink pen marker highlight presentation scribble", fn: () => DrawState.open = true , delay: true },
+        { title: "Circle to search", glyph: "gesture", keys: "circle to search lens look up what is this screen google lens ocr", fn: () => Lens.start() , delay: true },
         { title: "Talk to Halo", glyph: "mic", keys: "talk voice speak halo jarvis listen", fn: () => Halo.talk() },
         { title: "Screenshot (region)", glyph: "screenshot_region", keys: "screenshot capture snip", cmd: [Theme.lumenRoot + "/scripts/screenshot.sh", "region"], delay: true },
-        { title: "Translate text on screen", glyph: "translate", keys: "translate screen text ocr language foreign english meaning", fn: () => Lens.startTranslate() },
+        { title: "Translate text on screen", glyph: "translate", keys: "translate screen text ocr language foreign english meaning", fn: () => Lens.startTranslate() , delay: true },
         { title: "Export my setup", glyph: "ios_share", keys: "export setup backup settings move new computer lumen sync carry", cmd: ["sh", "-c", 'f=$("$0" export) && notify-send -a Lumen "Setup exported" "$f — lumen sync import <file> on the other computer"', Theme.lumenRoot + "/scripts/lumen-sync.sh"] },
         { title: "Mirror", glyph: "photo_camera_front", keys: "mirror webcam camera check myself selfie before call preview", cmd: [Theme.lumenRoot + "/scripts/mirror.sh"] },
         { title: "Turn the screen off", glyph: "desktop_access_disabled", keys: "screen off display off dpms blank monitor off keep awake music", cmd: ["sh", "-c", 'sleep 0.6; hyprctl dispatch "hl.dsp.dpms({ action = [[off]] })"'], delay: true },
@@ -135,9 +135,13 @@ Singleton {
         }
     }
 
+    // after the launcher has faded away (things that capture the screen)
+    property var laterFn: null
+    function later(fn) { laterFn = fn; laterTimer.restart(); }
+    Timer { id: laterTimer; interval: 450; onTriggered: { const f = root.laterFn; root.laterFn = null; if (f) f(); } }
     function exec(cmd, delay) {
         // Capture tools must start after the overlay is gone
-        if (delay) Quickshell.execDetached(["sh", "-c", "sleep 0.25; exec \"$0\" \"$@\"", ...cmd]);
+        if (delay) Quickshell.execDetached(["sh", "-c", "sleep 0.45; exec \"$0\" \"$@\"", ...cmd]);
         else Quickshell.execDetached(cmd);
     }
 
@@ -468,7 +472,7 @@ Singleton {
                          subtitle: x.a.destructive ? "Press Enter twice to confirm" : st === null ? "" : st ? "On — Enter turns it off" : "Off — Enter turns it on",
                          glyph: x.a.glyph, badge: x.a.title.endsWith(" settings") ? "Open" : st === null ? "Action" : st ? "On" : "Off", destructive: x.a.destructive ?? false,
                          on: st,
-                         run: () => x.a.fn ? x.a.fn() : root.exec(x.a.cmd, x.a.delay) };
+                         run: () => x.a.fn ? (x.a.delay ? root.later(x.a.fn) : x.a.fn()) : root.exec(x.a.cmd, x.a.delay) };
             });
             // settings rows form their own group after actions
             const actOnly = actRows.filter(r => r.group === "Actions"), setRows = actRows.filter(r => r.group === "Settings");

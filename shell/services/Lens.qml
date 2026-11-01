@@ -34,7 +34,7 @@ Singleton {
         if (open || shooter.running) return;
         cleanup.stop();
         // Panels over the screen first slide away, so they aren't in the picture
-        if (Ai.open || Overview.open || Sidebar.open) { Ai.open = false; Overview.open = false; Sidebar.open = false; later.restart(); return; }
+        if (Ai.open || Overview.open || Sidebar.open || Planner.open) { Ai.open = false; Overview.open = false; Sidebar.open = false; Planner.open = false; later.restart(); return; }
         Ai.prepare();
         const mon = Hyprland.focusedMonitor?.name ?? Quickshell.screens[0]?.name ?? "";
         stamp = Date.now();
@@ -43,7 +43,7 @@ Singleton {
         shooter.command = [script, "shot", mon, shooter.out];
         shooter.running = true;
     }
-    Timer { id: later; interval: 320; onTriggered: root.start() }
+    Timer { id: later; interval: 450; onTriggered: root.start() }
     Process {
         id: shooter
         property string out: ""
