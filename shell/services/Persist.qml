@@ -110,6 +110,7 @@ Singleton {
             property real haloVoiceRate: 1.0
             property bool haloDoctor: true        // the watchful doctor: hogs, drain, heat, disk, crashes
             property var haloDoctorIgnore: []     // apps it never mentions
+            property var haloDoctorRest: ({})     // what the doctor said, and until when it stays quiet about it
             property bool haloAway: true          // "while you were away", on your return
             property bool haloMorning: true       // a short brief at the first unlock of the day
             property string haloWrapUp: "21:30"   // the evening wrap-up ("" = off)
