@@ -179,9 +179,31 @@ Item {
     }
 
     // ── Content ─────────────────────────────────────────────────────────────
+    // cards rise in one after another (i: its place in the row)
+    function stagger(i) { return Math.max(0, Math.min(1, root.widgetsIn * 1.7 - i * 0.12)); }
     Item {
         id: content
         anchors.fill: parent
+
+        // soft shade at the top and bottom, so the clock and the password read on any wallpaper
+        Rectangle {
+            anchors { top: parent.top; left: parent.left; right: parent.right }
+            height: parent.height * 0.42
+            opacity: root.heroIn
+            gradient: Gradient {
+                GradientStop { position: 0; color: Theme.withAlpha(Theme.scrim, 0.42) }
+                GradientStop { position: 1; color: "transparent" }
+            }
+        }
+        Rectangle {
+            anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
+            height: parent.height * 0.45
+            opacity: root.authIn
+            gradient: Gradient {
+                GradientStop { position: 0; color: "transparent" }
+                GradientStop { position: 1; color: Theme.withAlpha(Theme.scrim, 0.55) }
+            }
+        }
 
         // Clicking anywhere keeps the keyboard in the password box; moving the
         // pointer counts as "I'm here" and starts Face ID
@@ -218,9 +240,9 @@ Item {
                     text: Theme.timeDigits(clock.date)
                     color: Theme.text
                     font.family: Theme.fontUi
-                    font.pixelSize: 136
-                    font.variableAxes: ({ "wght": 380, "ROND": 100 })
-                    font.letterSpacing: -3
+                    font.pixelSize: 168
+                    font.variableAxes: ({ "wght": 300, "ROND": 100 })
+                    font.letterSpacing: -5
                     font.features: ({ "tnum": 1 })
                 }
                 Text {
@@ -234,23 +256,44 @@ Item {
                     font.variableAxes: ({ "wght": 560, "ROND": 100 })
                 }
             }
+            // a line of what matters: the weather, the next class or event
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: Theme.space.s4
+                topPadding: Theme.space.s2
+                readonly property var cls: Amazecc.cfg?.enabled && Amazecc.cfg?.lockScreen && !classCard.visible ? (Amazecc.current ?? Amazecc.next) : null
+                Row {
+                    visible: Weather.ready
+                    spacing: 6
+                    LIcon { icon: Weather.icon(Weather.now?.code ?? 0, Weather.now?.isDay); size: 20; fill: 1; color: Theme.withAlpha(Theme.text, 0.9); anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: Math.round(Weather.now?.temp ?? 0) + "° " + Weather.describe(Weather.now?.code ?? 0); color: Theme.withAlpha(Theme.text, 0.85)
+                           font.family: Theme.fontUi; font.pixelSize: 18; anchors.verticalCenter: parent.verticalCenter }
+                }
+                Rectangle { visible: Weather.ready && !!parent.cls; width: 4; height: 4; radius: 2; color: Theme.withAlpha(Theme.text, 0.5); anchors.verticalCenter: parent.verticalCenter }
+                Row {
+                    visible: !!parent.cls
+                    spacing: 6
+                    LIcon { icon: "school"; size: 18; color: Theme.withAlpha(Theme.text, 0.9); anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: parent.parent.cls ? (Amazecc.isCurrent(parent.parent.cls) ? "Now · " : Amazecc.clockLabel(parent.parent.cls.start) + " · ") + parent.parent.cls.title : ""
+                           color: Theme.withAlpha(Theme.text, 0.85); font.family: Theme.fontUi; font.pixelSize: 18; anchors.verticalCenter: parent.verticalCenter }
+                }
+            }
         }
 
         // Widgets
         Row {
             id: widgets
             anchors.horizontalCenter: parent.horizontalCenter
-            y: Math.round(root.height * 0.43) + (1 - root.widgetsIn) * 24
-            opacity: root.widgetsIn
+            y: Math.round(root.height * 0.46)
             spacing: Theme.space.s4
 
-            MediaCard { frost: frost; visible: Media.present && Persist.data.lockMedia }
-            BatteryCard { frost: frost; visible: Battery.available && Persist.data.lockBattery }
-            TimerCard { frost: frost; visible: Persist.data.lockTimer ?? true }
-            CalendarCard { frost: frost; today: clock.date; visible: Persist.data.lockCalendar }
-            NotificationsCard { frost: frost; visible: Notifications.count > 0 && Persist.data.lockNotifications }
-            ClassCard { id: classCard; frost: frost; visible: classCard.wanted }
-            GlanceCard { id: glance; frost: frost; visible: glance.wanted }
+            MediaCard { frost: frost; visible: Media.present && Persist.data.lockMedia; opacity: root.stagger(0); transform: Translate { y: (1 - root.stagger(0)) * 22 } }
+            BatteryCard { frost: frost; visible: Battery.available && Persist.data.lockBattery; opacity: root.stagger(1); transform: Translate { y: (1 - root.stagger(1)) * 22 } }
+            TimerCard { frost: frost; visible: Persist.data.lockTimer ?? true; opacity: root.stagger(2); transform: Translate { y: (1 - root.stagger(2)) * 22 } }
+            CalendarCard { frost: frost; today: clock.date; visible: Persist.data.lockCalendar; opacity: root.stagger(3); transform: Translate { y: (1 - root.stagger(3)) * 22 } }
+            NotificationsCard { frost: frost; visible: Notifications.count > 0 && Persist.data.lockNotifications; opacity: root.stagger(4); transform: Translate { y: (1 - root.stagger(4)) * 22 } }
+            ClassCard { id: classCard; frost: frost; visible: classCard.wanted; opacity: root.stagger(5); transform: Translate { y: (1 - root.stagger(5)) * 22 } }
+            GlanceCard { id: glance; frost: frost; visible: glance.wanted; opacity: root.stagger(6); transform: Translate { y: (1 - root.stagger(6)) * 22 } }
         }
 
         // Who + password

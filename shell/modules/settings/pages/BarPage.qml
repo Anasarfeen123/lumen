@@ -18,6 +18,12 @@ Page {
             LSwitch { checked: Persist.data.islandDate; onToggled: Persist.data.islandDate = !checked }
         }
         SetRow {
+            icon: "apps"
+            title: "App icons on workspaces"
+            description: "Each workspace in the bar shows its app's icon; off: simple dots"
+            LSwitch { checked: Persist.data.workspaceIcons ?? true; onToggled: Persist.data.workspaceIcons = !checked }
+        }
+        SetRow {
             icon: "rounded_corner"
             title: "Rounded screen corners"
             description: "The screen's corners drawn round, like a phone's display"

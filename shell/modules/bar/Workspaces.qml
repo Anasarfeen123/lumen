@@ -1,10 +1,13 @@
-// Workspace indicator: calm dots, one accent capsule for the active workspace
-// that glides between slots (motion-large, emphasized) — DESIGN.md §7.
-//   empty: faint dot · occupied: solid dot · active: accent capsule
+// Workspace indicator: one accent capsule for the active workspace that glides
+// between slots (motion-large, emphasized) — DESIGN.md §7.
+//   empty: faint dot · occupied: its main app's icon (a dot with "Icons" off,
+//   Settings → Bar & Island) · active: the accent capsule, softly glowing
 // Click a slot to switch; scroll anywhere on the pill to step through.
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Widgets
 import qs.theme
 import qs.components
 import qs.services
@@ -28,7 +31,15 @@ GlassSurface {
     // Always show at least 5 slots; grow to fit the highest workspace in use.
     readonly property int count: Math.max(5, activeId, ...workspaces.map(ws => ws.id))
 
-    readonly property int slot: 22           // slot pitch
+    readonly property bool icons: Persist.data.workspaceIcons ?? true
+    readonly property int slot: icons ? 28 : 22           // slot pitch
+    // the app that best stands for a workspace: its first window
+    function appOf(wsId) {
+        const ws = workspaces.find(w => w.id === wsId);
+        const t = ws?.toplevels?.values?.[0];
+        const cls = t?.lastIpcObject?.class ?? t?.wayland?.appId ?? "";
+        return cls ? Apps.entryFor(cls) : null;
+    }
     readonly property int pad: Theme.space.s3
 
     implicitWidth: pad * 2 + count * slot
@@ -67,10 +78,15 @@ GlassSurface {
 
         x: edgeL
         width: edgeR - edgeL
-        height: 10
+        height: root.icons && root.occupied[root.activeId] ? 22 : 10
         radius: height / 2
-        color: Theme.accent
+        color: root.icons && root.occupied[root.activeId] ? Theme.withAlpha(Theme.accent, 0.32) : Theme.accent
+        border.width: root.icons && root.occupied[root.activeId] ? 1 : 0
+        border.color: Theme.withAlpha(Theme.accent, 0.7)
         y: (root.height - height) / 2
+        Behavior on height { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+        layer.enabled: true
+        layer.effect: MultiEffect { shadowEnabled: true; shadowColor: Theme.accent; shadowBlur: 0.6; shadowOpacity: 0.55; shadowHorizontalOffset: 0; shadowVerticalOffset: 0 }
         visible: root.activeId >= 1 && root.activeId <= root.count
 
         Behavior on edgeL {
@@ -117,8 +133,20 @@ GlassSurface {
                     else root.peek.leave();
                 }
 
+                readonly property var entry: root.icons && cell.isOccupied ? root.appOf(cell.wsId) : null
+                IconImage {
+                    anchors.centerIn: parent
+                    visible: !!cell.entry
+                    implicitSize: cell.isActive ? 16 : cell.containsMouse ? 17 : 14
+                    source: cell.entry ? Apps.iconFor(cell.entry) : ""
+                    opacity: cell.isActive || cell.containsMouse ? 1 : 0.62
+                    asynchronous: true
+                    Behavior on implicitSize { NumberAnimation { duration: Theme.motion.micro } }
+                    Behavior on opacity { NumberAnimation { duration: Theme.motion.micro } }
+                }
                 Rectangle {
                     anchors.centerIn: parent
+                    visible: !cell.entry
                     property real d: cell.isActive ? 0 : cell.containsMouse ? 9 : cell.isOccupied ? 7 : 5
                     width: d
                     height: d

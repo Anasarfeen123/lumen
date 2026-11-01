@@ -54,6 +54,7 @@ Singleton {
             property string themeNight: "oled"
             property string themeDayFrom: "07:00"
             property string themeNightFrom: "19:00"
+            property bool workspaceIcons: true        // the bar's workspaces: each one's app icon (false: dots)
             property bool screenCorners: false        // rounded screen corners (modules/corners/ScreenCorners.qml)
             property int screenCornerRadius: 14
             property bool todoBoard: false           // the planner's to-dos as a board (Next / Doing / Done)

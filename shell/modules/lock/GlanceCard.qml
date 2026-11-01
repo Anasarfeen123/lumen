@@ -12,7 +12,7 @@ FrostPane {
     implicitHeight: 176
 
     readonly property var phone: Link.phone
-    readonly property bool showPhone: Persist.data.lockPhone && phone !== null
+    readonly property bool showPhone: Persist.data.lockPhone && (phone?.reachable ?? false)     // a paired phone that's away: nothing to say
     readonly property int unread: Inbox.unreadTotal
     readonly property int chats: Inbox.unreadConversations.length
     readonly property bool showMessages: Persist.data.lockMessages && WhatsApp.enabled && unread > 0
