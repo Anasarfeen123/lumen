@@ -33,7 +33,17 @@ PanelWindow {
     WlrLayershell.keyboardFocus: showing ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     onShowingChanged: {
-        if (showing) { selected = 0; confirming = ""; uptimeProc.running = true; panel.forceActiveFocus(); }
+        if (showing) { selected = 0; confirming = ""; pointerBase = true; uptimeProc.running = true; panel.forceActiveFocus(); }
+    }
+
+    // hover selects only when the pointer moves (a menu opening under a resting
+    // pointer mustn't pick Log out for you)
+    property bool pointerBase: true
+    property point lastPointer: Qt.point(-1, -1)
+    function pointerMoved(at) {
+        if (pointerBase) { pointerBase = false; lastPointer = at; return false; }
+        if (Math.abs(at.x - lastPointer.x) < 2 && Math.abs(at.y - lastPointer.y) < 2) return false;
+        lastPointer = at; return true;
     }
 
     function choose(i) {
@@ -112,35 +122,56 @@ PanelWindow {
                         readonly property bool isSelected: win.selected === index
                         readonly property bool isConfirming: win.confirming === modelData.id
 
-                        width: 92
-                        height: 92
-                        radius: Theme.radius.md
-                        highlighted: isSelected
+                        readonly property bool risky: tile.modelData.confirm
+                        readonly property color tone: tile.risky ? Theme.error : Theme.accent
+                        width: 104
+                        height: 116
+                        radius: Theme.radius.lg
+                        highlighted: false
+                        hoverFeedback: false
                         onClicked: win.choose(index)
-                        onContainsMouseChanged: if (containsMouse && win.selected !== index) { win.selected = index; win.confirming = ""; }
+                        onPositionChanged: m => { if (win.pointerMoved(mapToItem(null, m.x, m.y)) && win.selected !== index) { win.selected = index; win.confirming = ""; } }
 
                         Rectangle {
                             anchors.fill: parent
-                            radius: Theme.radius.md
-                            color: tile.isConfirming ? Theme.withAlpha(Theme.error, 0.18) : "transparent"
-                            border.width: tile.isSelected ? 1 : 0
-                            border.color: tile.isConfirming ? Theme.error : Theme.accent
+                            radius: Theme.radius.lg
+                            color: tile.isConfirming ? Theme.withAlpha(Theme.error, 0.14) : tile.isSelected ? Theme.withAlpha(Theme.text, 0.06) : "transparent"
+                            border.width: tile.isConfirming ? 1 : 0
+                            border.color: Theme.withAlpha(Theme.error, 0.6)
                             Behavior on color { ColorAnimation { duration: Theme.motion.micro } }
+                        }
+                        // its letter: press it to choose
+                        LText {
+                            anchors { top: parent.top; right: parent.right; margins: 8 }
+                            role: "caption"; color: Theme.textMuted
+                            opacity: tile.isSelected ? 0.9 : 0.5
+                            text: tile.modelData.key
                         }
                         Column {
                             anchors.centerIn: parent
                             spacing: Theme.space.s2
-                            LIcon {
+                            // the icon in a round well: filled with the accent when chosen — red for the ones that end your session
+                            Rectangle {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                icon: tile.modelData.icon
-                                size: 28
-                                fill: tile.isSelected ? 1 : 0
-                                color: tile.isConfirming ? Theme.error : tile.isSelected ? Theme.text : Theme.textSecondary
+                                width: 56; height: 56; radius: 28
+                                color: tile.isSelected || tile.isConfirming ? tile.tone : Theme.withAlpha(Theme.text, 0.07)
+                                border.width: tile.isSelected ? 0 : 1
+                                border.color: Theme.border
+                                scale: tile.pressed ? 0.92 : tile.isSelected ? 1.06 : 1
+                                Behavior on color { ColorAnimation { duration: Theme.motion.normal } }
+                                Behavior on scale { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.OutBack } }
+                                LIcon {
+                                    anchors.centerIn: parent
+                                    icon: tile.modelData.icon
+                                    size: 26
+                                    fill: tile.isSelected ? 1 : 0
+                                    color: tile.isSelected || tile.isConfirming ? (tile.risky ? Theme.onMedia : Theme.onAccent) : Theme.textSecondary
+                                }
                             }
                             LText {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 role: "bodyStrong"
-                                color: tile.isConfirming ? Theme.error : Theme.text
+                                color: tile.isConfirming ? Theme.error : tile.isSelected ? Theme.text : Theme.textSecondary
                                 text: tile.isConfirming ? tile.modelData.label + "?" : tile.modelData.label
                             }
                         }
