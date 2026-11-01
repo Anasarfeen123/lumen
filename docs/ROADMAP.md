@@ -214,7 +214,10 @@ it's rough (Settings already has Display and Windows pages, for example).
       search; any key or the mouse wakes them.
 
 ### Theming
-- [ ] **Theme everything from the accent** (DankMaterialShell, ML4W, HyDE): push Lumen's
+- [~] **Theme everything from the accent**: kitty, Qt (qt6ct), KDE apps and the prompt were
+      already themed; `lumen reload` now also sets GNOME's dark/light and nearest accent, which
+      Firefox, Chromium/Electron and libadwaita follow. GTK's own CSS stays ii's (Matugen) and VS
+      Code's settings stay yours. Was: **Theme everything from the accent** (DankMaterialShell, ML4W, HyDE): push Lumen's
       palette into GTK 3/4, Qt/Kvantum, kitty, VS Code and Firefox so apps match the shell.
       Lumen's rule is "a stable palette, not Material You" (§2.4), so derive from tokens, not
       from the wallpaper.

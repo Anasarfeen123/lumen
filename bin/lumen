@@ -48,6 +48,29 @@ reload() {
     # Running kitties re-read their config (colours, opacity) on SIGUSR1;
     # the shell watches generated/tokens.json by itself.
     pkill -USR1 -u "$(id -u)" -x kitty 2>/dev/null || true
+    desktop_scheme
+}
+
+# Apps outside Lumen's own theming (Firefox, Chromium/Electron, GTK/libadwaita)
+# follow GNOME's dark/light and accent preferences: set them from Lumen's theme.
+# User-level only (gsettings), never in a test session, never ~/.config/gtk-*.
+desktop_scheme() {
+    [ -n "${LUMEN_NESTED:-}" ] && return 0
+    command -v gsettings >/dev/null 2>&1 || return 0
+    tokens=$LUMEN_ROOT/generated/tokens.json
+    # dark if the theme's background is dark
+    bg=$(jq -r '.colors.bg // "000000"' "$tokens" 2>/dev/null | tr -d '#')
+    lum=$(printf '%d' "0x${bg%????}" 2>/dev/null || echo 0)
+    if [ "$lum" -lt 128 ]; then scheme=prefer-dark; else scheme=default; fi
+    gsettings set org.gnome.desktop.interface color-scheme "$scheme" 2>/dev/null || true
+    # the named accent nearest Lumen's hue (GNOME has nine)
+    hue=$(jq -r '.accent_hue // 212' "$tokens" 2>/dev/null)
+    accent=$(awk -v h="$hue" 'BEGIN { h = h % 360;
+        n = split("red:25 orange:60 yellow:100 green:145 teal:190 blue:255 purple:300 pink:345 red:385", a, " ");   # OKLCH hues
+        best = "blue"; bd = 999;
+        for (i = 1; i <= n; i++) { split(a[i], p, ":"); d = h - p[2]; if (d < 0) d = -d; if (d < bd) { bd = d; best = p[1] } }
+        print best }')
+    gsettings set org.gnome.desktop.interface accent-color "$accent" 2>/dev/null || true
 }
 
 # Restart hypridle with the regenerated config — only the one Lumen started in
