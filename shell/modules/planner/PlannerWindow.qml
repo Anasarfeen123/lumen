@@ -175,6 +175,22 @@ PanelWindow {
                     text: win.nextUp ? win.nextUp.when ?? (win.nextUp.now ? "till " + Qt.formatTime(new Date(win.nextUp.end), Theme.clock12h ? "h:mm AP" : "HH:mm") : win.untilText(win.nextUp.at)) : ""
                 }
             }
+            // the next to-do, one line (tap: the To-do tab)
+            HoverTarget {
+                readonly property var open: Planner.todos.filter(t => !t.done)
+                visible: open.length > 0
+                width: parent.width; height: 30; radius: Theme.radius.sm
+                onClicked: win.tab = "todo"
+                Row {
+                    anchors { left: parent.left; leftMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
+                    spacing: Theme.space.s2
+                    LIcon { icon: "check_box_outline_blank"; size: 16; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                    LText { width: Math.min(implicitWidth, 280); elide: Text.ElideRight; anchors.verticalCenter: parent.verticalCenter
+                            text: (parent.parent.open.find(t => Planner.stageOf(t) === "doing") ?? parent.parent.open[0])?.text ?? "" }
+                    LText { visible: parent.parent.open.length > 1; role: "caption"; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
+                            text: "+" + (parent.parent.open.length - 1) }
+                }
+            }
             // the tabs: a track with the open one's pill gliding to it
             Rectangle {
                 width: parent.width; height: 38; radius: 19

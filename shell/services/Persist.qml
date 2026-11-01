@@ -54,6 +54,8 @@ Singleton {
             property string themeNight: "oled"
             property string themeDayFrom: "07:00"
             property string themeNightFrom: "19:00"
+            property var sidebarOrder: ["quick", "sound", "tools", "computer"]   // the Controls sidebar's sections, top to bottom
+            property var sidebarHidden: []            // …and the ones turned off
             property bool workspaceIcons: true        // the bar's workspaces: each one's app icon (false: dots)
             property bool screenCorners: false        // rounded screen corners (modules/corners/ScreenCorners.qml)
             property int screenCornerRadius: 14

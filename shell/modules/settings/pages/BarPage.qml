@@ -93,4 +93,41 @@ Page {
             LSwitch { checked: Persist.data.hotCornerRight; onToggled: Persist.data.hotCornerRight = !checked }
         }
     }
+
+    // ── the right sidebar's sections: show, hide, reorder ──
+    Group {
+        title: "Sidebar (Controls)"
+        Repeater {
+            model: {
+                const names = { quick: ["tune", "Quick settings"], sound: ["volume_up", "Sound & light"], tools: ["construction", "Tools"], computer: ["laptop", "This computer"] };
+                const order = Persist.data.sidebarOrder ?? ["quick", "sound", "tools", "computer"];
+                return order.concat(Object.keys(names).filter(x => !order.includes(x))).map(id => ({ id, icon: names[id][0], label: names[id][1] }));
+            }
+            SetRow {
+                id: secRow
+                required property var modelData
+                required property int index
+                icon: modelData.icon
+                title: modelData.label
+                description: index === 0 ? "At the top" : ""
+                function move(d) {
+                    const o = (Persist.data.sidebarOrder ?? ["quick", "sound", "tools", "computer"]).slice();
+                    const i = o.indexOf(modelData.id), j = i + d;
+                    if (i < 0 || j < 0 || j >= o.length) return;
+                    o.splice(i, 1); o.splice(j, 0, modelData.id);
+                    Persist.data.sidebarOrder = o;
+                }
+                Row {
+                    spacing: Theme.space.s2
+                    IconButton { icon: "arrow_upward"; enabled: index > 0; onActivated: secRow.move(-1) }
+                    IconButton { icon: "arrow_downward"; enabled: index < 3; onActivated: secRow.move(1) }
+                    LSwitch {
+                        anchors.verticalCenter: parent.verticalCenter
+                        checked: !(Persist.data.sidebarHidden ?? []).includes(modelData.id)
+                        onToggled: { const h = Persist.data.sidebarHidden ?? []; Persist.data.sidebarHidden = checked ? h.concat([modelData.id]) : h.filter(x => x !== modelData.id); }
+                    }
+                }
+            }
+        }
+    }
 }

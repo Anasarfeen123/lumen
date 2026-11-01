@@ -196,172 +196,209 @@ Item {
                 }
             }
 
-            // Quick settings: one calm grid of round toggles (they fill with the accent when on)
-            SectionLabel { text: "Quick settings" }
-            Grid {
-                id: toggles
-                width: parent.width
-                columns: 4
-                rowSpacing: Theme.space.s2
-                columnSpacing: (width - 4 * 76) / 3
+            // the sections, in your order (Settings → Bar & Island → Sidebar), placed one under another
+            Item {
+                id: secs
+                width: main.width
+                readonly property var order: { const o = Persist.data.sidebarOrder ?? []; return o.concat(["quick", "sound", "tools", "computer"].filter(x => !o.includes(x))); }
+                readonly property var items: ({ quick: sec_quick, sound: sec_sound, tools: sec_tools, computer: sec_computer })
+                function yOf(id) { let y = 0; for (const k of order) { if (k === id) return y; const it = items[k]; if (it && it.visible) y += it.height + main.spacing; } return y; }
+                height: { let h = 0; for (const k of order) { const it = items[k]; if (it && it.visible) h += it.height + main.spacing; } return Math.max(0, h - main.spacing); }
+                Column {
+                    id: sec_quick
+                    width: main.width
+                    y: secs.yOf("quick")
+                    spacing: Theme.space.s3
+                    visible: !(Persist.data.sidebarHidden ?? []).includes("quick")
+                    // Quick settings: one calm grid of round toggles (they fill with the accent when on)
+                    SectionLabel { text: "Quick settings" }
+                    Grid {
+                        id: toggles
+                        width: parent.width
+                        columns: 4
+                        rowSpacing: Theme.space.s2
+                        columnSpacing: (width - 4 * 76) / 3
 
-                // Arrow keys between toggles (RoundToggle calls this)
-                function moveFocus(item, dx, dy) {
-                    const vis = children.filter(c => c.visible && c.activeFocusOnTab);
-                    const i = vis.indexOf(item);
-                    const n = i + dx + dy * columns;
-                    if (n >= 0 && n < vis.length) vis[n].forceActiveFocus();
-                    else if (n < 0) wifiTile.forceActiveFocus();
-                }
-                function focusFirst() { const v = children.filter(c => c.visible && c.activeFocusOnTab); if (v.length) v[0].forceActiveFocus(); }
+                        // Arrow keys between toggles (RoundToggle calls this)
+                        function moveFocus(item, dx, dy) {
+                            const vis = children.filter(c => c.visible && c.activeFocusOnTab);
+                            const i = vis.indexOf(item);
+                            const n = i + dx + dy * columns;
+                            if (n >= 0 && n < vis.length) vis[n].forceActiveFocus();
+                            else if (n < 0) wifiTile.forceActiveFocus();
+                        }
+                        function focusFirst() { const v = children.filter(c => c.visible && c.activeFocusOnTab); if (v.length) v[0].forceActiveFocus(); }
 
-                RoundToggle {
-                    // Opens the list of Focus modes (Work, Game, Sleep …)
-                    icon: Focus.mode !== "off" ? Focus.current.icon : (Notifications.dnd ? "do_not_disturb_on" : "do_not_disturb_off")
-                    label: Focus.mode !== "off" ? Focus.current.label : "Focus"
-                    active: Focus.mode !== "off" || Notifications.dnd
-                    onToggled: root.detail = "focus"
-                }
-                RoundToggle {
-                    icon: "coffee"
-                    label: !Caffeine.on ? "Caffeine" : Caffeine.until > 0 ? Caffeine.remainingText : "Awake"
-                    active: Caffeine.on
-                    hasMore: true                         // right-click / hold: durations and the lid
-                    onToggled: Caffeine.toggle()
-                    onMore: root.detail = "caffeine"
-                }
-                RoundToggle {
-                    icon: "nightlight"
-                    label: "Night light"
-                    active: NightLight.enabled
-                    onToggled: NightLight.toggle()
-                }
-                RoundToggle {
-                    icon: Audio.micMuted ? "mic_off" : "mic"
-                    label: Audio.micMuted ? "Mic off" : "Mic"
-                    active: !Audio.micMuted
-                    onToggled: Audio.toggleMicMute()
-                }
-                RoundToggle {
-                    icon: "flight"
-                    label: "Airplane"
-                    active: Airplane.on
-                    onToggled: Airplane.toggle()
-                }
-                RoundToggle {
-                    icon: Power.icon
-                    label: Power.saver ? "Saver" : Power.label
-                    active: Power.profile !== PowerProfile.Balanced   // saver or performance = "on"
-                    onToggled: Power.cycle()
-                }
-                RoundToggle {
-                    icon: "sports_esports"
-                    label: "Game mode"
-                    active: GameMode.on
-                    onToggled: GameMode.toggle()
-                }
-                RoundToggle {
-                    icon: Theme.dark ? "dark_mode" : "light_mode"
-                    label: Theme.dark ? "Dark" : "Light"
-                    active: Theme.dark
-                    onToggled: Quickshell.execDetached([Theme.lumenRoot + "/bin/lumen", "theme", Theme.dark ? "light" : "dark"])
-                }
-                RoundToggle {
-                    visible: KbdLight.available
-                    icon: "keyboard"
-                    label: KbdLight.level === 0 ? "Keys off" : "Keys " + KbdLight.level + "/" + KbdLight.max
-                    active: KbdLight.level > 0
-                    onToggled: KbdLight.cycle()
-                }
-                RoundToggle {
-                    visible: Warp.available
-                    icon: "cloud"
-                    label: "WARP"
-                    active: Warp.connected
-                    busy: Warp.busy
-                    onToggled: Warp.toggle()
-                }
-                RoundToggle {
-                    visible: Vpn.available
-                    icon: Vpn.active ? "vpn_lock" : "vpn_key"
-                    label: "VPN"
-                    active: Vpn.active
-                    onToggled: Vpn.toggle()
-                }
-                RoundToggle {
-                    icon: glassOn ? "blur_on" : "blur_off"
-                    label: "Glass"
-                    readonly property bool glassOn: Theme.tokens.transparency ?? true
-                    active: glassOn
-                    onToggled: Quickshell.execDetached([Theme.lumenRoot + "/bin/lumen", "transparency", "toggle"])
-                }
-            }
-
-            // Sound & light
-            SectionLabel { text: "Sound & light" }
-            Column {
-                width: parent.width
-                spacing: Theme.space.s2
-
-                Row {
-                    width: parent.width
-                    spacing: Theme.space.s2
-                    LSlider {
-                        id: volSlider
-                        width: parent.width - outputButton.width - parent.spacing
-                        icon: Audio.muted ? "volume_off" : Audio.volume < 0.34 ? "volume_mute" : Audio.volume < 0.67 ? "volume_down" : "volume_up"
-                        value: Audio.volume
-                        dimmed: Audio.muted
-                        onMoved: v => Audio.nudge(v - Audio.volume)
-                        Percent { value: Audio.muted ? -1 : Audio.volume }
+                        RoundToggle {
+                            // Opens the list of Focus modes (Work, Game, Sleep …)
+                            icon: Focus.mode !== "off" ? Focus.current.icon : (Notifications.dnd ? "do_not_disturb_on" : "do_not_disturb_off")
+                            label: Focus.mode !== "off" ? Focus.current.label : "Focus"
+                            active: Focus.mode !== "off" || Notifications.dnd
+                            onToggled: root.detail = "focus"
+                        }
+                        RoundToggle {
+                            icon: "coffee"
+                            label: !Caffeine.on ? "Caffeine" : Caffeine.until > 0 ? Caffeine.remainingText : "Awake"
+                            active: Caffeine.on
+                            hasMore: true                         // right-click / hold: durations and the lid
+                            onToggled: Caffeine.toggle()
+                            onMore: root.detail = "caffeine"
+                        }
+                        RoundToggle {
+                            icon: "nightlight"
+                            label: "Night light"
+                            active: NightLight.enabled
+                            onToggled: NightLight.toggle()
+                        }
+                        RoundToggle {
+                            icon: Audio.micMuted ? "mic_off" : "mic"
+                            label: Audio.micMuted ? "Mic off" : "Mic"
+                            active: !Audio.micMuted
+                            onToggled: Audio.toggleMicMute()
+                        }
+                        RoundToggle {
+                            icon: "flight"
+                            label: "Airplane"
+                            active: Airplane.on
+                            onToggled: Airplane.toggle()
+                        }
+                        RoundToggle {
+                            icon: Power.icon
+                            label: Power.saver ? "Saver" : Power.label
+                            active: Power.profile !== PowerProfile.Balanced   // saver or performance = "on"
+                            onToggled: Power.cycle()
+                        }
+                        RoundToggle {
+                            icon: "sports_esports"
+                            label: "Game mode"
+                            active: GameMode.on
+                            onToggled: GameMode.toggle()
+                        }
+                        RoundToggle {
+                            icon: Theme.dark ? "dark_mode" : "light_mode"
+                            label: Theme.dark ? "Dark" : "Light"
+                            active: Theme.dark
+                            onToggled: Quickshell.execDetached([Theme.lumenRoot + "/bin/lumen", "theme", Theme.dark ? "light" : "dark"])
+                        }
+                        RoundToggle {
+                            visible: KbdLight.available
+                            icon: "keyboard"
+                            label: KbdLight.level === 0 ? "Keys off" : "Keys " + KbdLight.level + "/" + KbdLight.max
+                            active: KbdLight.level > 0
+                            onToggled: KbdLight.cycle()
+                        }
+                        RoundToggle {
+                            visible: Warp.available
+                            icon: "cloud"
+                            label: "WARP"
+                            active: Warp.connected
+                            busy: Warp.busy
+                            onToggled: Warp.toggle()
+                        }
+                        RoundToggle {
+                            visible: Vpn.available
+                            icon: Vpn.active ? "vpn_lock" : "vpn_key"
+                            label: "VPN"
+                            active: Vpn.active
+                            onToggled: Vpn.toggle()
+                        }
+                        RoundToggle {
+                            icon: glassOn ? "blur_on" : "blur_off"
+                            label: "Glass"
+                            readonly property bool glassOn: Theme.tokens.transparency ?? true
+                            active: glassOn
+                            onToggled: Quickshell.execDetached([Theme.lumenRoot + "/bin/lumen", "transparency", "toggle"])
+                        }
                     }
-                    IconButton {
-                        id: outputButton
-                        icon: Audio.apps.length > 0 ? "tune" : "speaker_group"
-                        onActivated: root.detail = "output"
+
+                }
+                Column {
+                    id: sec_sound
+                    width: main.width
+                    y: secs.yOf("sound")
+                    spacing: Theme.space.s3
+                    visible: !(Persist.data.sidebarHidden ?? []).includes("sound")
+                    // Sound & light
+                    SectionLabel { text: "Sound & light" }
+                    Column {
+                        width: parent.width
+                        spacing: Theme.space.s2
+
+                        Row {
+                            width: parent.width
+                            spacing: Theme.space.s2
+                            LSlider {
+                                id: volSlider
+                                width: parent.width - outputButton.width - parent.spacing
+                                icon: Audio.muted ? "volume_off" : Audio.volume < 0.34 ? "volume_mute" : Audio.volume < 0.67 ? "volume_down" : "volume_up"
+                                value: Audio.volume
+                                dimmed: Audio.muted
+                                onMoved: v => Audio.nudge(v - Audio.volume)
+                                Percent { value: Audio.muted ? -1 : Audio.volume }
+                            }
+                            IconButton {
+                                id: outputButton
+                                icon: Audio.apps.length > 0 ? "tune" : "speaker_group"
+                                onActivated: root.detail = "output"
+                            }
+                        }
+                        LSlider {
+                            visible: Brightness.available
+                            width: parent.width - outputButton.width - parent.spacing
+                            icon: "brightness_6"
+                            value: Brightness.value
+                            onMoved: v => Brightness.set(v)
+                            Percent { value: Brightness.value }
+                        }
                     }
+
                 }
-                LSlider {
-                    visible: Brightness.available
-                    width: parent.width - outputButton.width - parent.spacing
-                    icon: "brightness_6"
-                    value: Brightness.value
-                    onMoved: v => Brightness.set(v)
-                    Percent { value: Brightness.value }
+                Column {
+                    id: sec_tools
+                    width: main.width
+                    y: secs.yOf("tools")
+                    spacing: Theme.space.s3
+                    visible: !(Persist.data.sidebarHidden ?? []).includes("tools")
+                    // Tools: one tap, and the sidebar steps aside for them
+                    SectionLabel { text: "Tools" }
+                    Grid {
+                        id: tools
+                        width: parent.width
+                        columns: 5
+                        rowSpacing: Theme.space.s2
+                        columnSpacing: Theme.space.s2
+                        readonly property real cell: (width - columnSpacing * (columns - 1)) / columns
+                        readonly property string ipc: Theme.lumenRoot + "/bin/lumen-shell-ipc"
+                        readonly property string scripts: Theme.lumenRoot + "/scripts"
+                        Tool { icon: "screenshot_region"; label: "Screenshot"; run: [tools.scripts + "/screenshot.sh", "region"] }
+                        Tool { icon: "swipe_down"; label: "Long shot"; run: [tools.scripts + "/screenshot.sh", "scroll"] }
+                        Tool { icon: Island.recording ? "stop_circle" : "screen_record"; label: Island.recording ? "Stop" : "Record"; on: Island.recording
+                               run: [tools.scripts + "/screen-record.sh", Island.recording ? "stop" : "toggle", "region"] }
+                        Tool { icon: "document_scanner"; label: "Copy text"; run: [tools.scripts + "/screen-text.sh"] }
+                        Tool { icon: "gesture"; label: "Circle"; run: [tools.ipc, "lens", "start"] }
+                        Tool { icon: "draw"; label: "Draw"; run: [tools.ipc, "draw", "toggle"] }
+                        Tool { icon: "picture_in_picture"; label: "PiP"; on: Pip.active; run: [tools.ipc, "pip", "toggle"] }
+                        Tool { icon: "colorize"; label: "Colour"; run: ["hyprpicker", "-a"] }
+                        Tool { icon: "wallpaper"; label: "Wallpaper"; run: [tools.ipc, "wallpapers", "toggle"] }
+                        Tool { icon: "lock"; label: "Lock"; run: [tools.ipc, "lock", "lock"] }
+                    }
+
+                }
+                Column {
+                    id: sec_computer
+                    width: main.width
+                    y: secs.yOf("computer")
+                    spacing: Theme.space.s3
+                    visible: !(Persist.data.sidebarHidden ?? []).includes("computer")
+                    // This computer: your phone, what's playing, how it's doing
+                    SectionLabel { text: "This computer" }
+                    PhoneCard { width: parent.width }
+
+                    NowPlayingCard { width: parent.width; visible: Media.present }
+
+                    SystemStats { width: parent.width }
                 }
             }
-
-            // Tools: one tap, and the sidebar steps aside for them
-            SectionLabel { text: "Tools" }
-            Grid {
-                id: tools
-                width: parent.width
-                columns: 5
-                rowSpacing: Theme.space.s2
-                columnSpacing: Theme.space.s2
-                readonly property real cell: (width - columnSpacing * (columns - 1)) / columns
-                readonly property string ipc: Theme.lumenRoot + "/bin/lumen-shell-ipc"
-                readonly property string scripts: Theme.lumenRoot + "/scripts"
-                Tool { icon: "screenshot_region"; label: "Screenshot"; run: [tools.scripts + "/screenshot.sh", "region"] }
-                Tool { icon: "swipe_down"; label: "Long shot"; run: [tools.scripts + "/screenshot.sh", "scroll"] }
-                Tool { icon: Island.recording ? "stop_circle" : "screen_record"; label: Island.recording ? "Stop" : "Record"; on: Island.recording
-                       run: [tools.scripts + "/screen-record.sh", Island.recording ? "stop" : "toggle", "region"] }
-                Tool { icon: "document_scanner"; label: "Copy text"; run: [tools.scripts + "/screen-text.sh"] }
-                Tool { icon: "gesture"; label: "Circle"; run: [tools.ipc, "lens", "start"] }
-                Tool { icon: "draw"; label: "Draw"; run: [tools.ipc, "draw", "toggle"] }
-                Tool { icon: "picture_in_picture"; label: "PiP"; on: Pip.active; run: [tools.ipc, "pip", "toggle"] }
-                Tool { icon: "colorize"; label: "Colour"; run: ["hyprpicker", "-a"] }
-                Tool { icon: "wallpaper"; label: "Wallpaper"; run: [tools.ipc, "wallpapers", "toggle"] }
-                Tool { icon: "lock"; label: "Lock"; run: [tools.ipc, "lock", "lock"] }
-            }
-
-            // This computer: your phone, what's playing, how it's doing
-            SectionLabel { text: "This computer" }
-            PhoneCard { width: parent.width }
-
-            NowPlayingCard { width: parent.width; visible: Media.present }
-
-            SystemStats { width: parent.width }
         }
 
         Loader {
