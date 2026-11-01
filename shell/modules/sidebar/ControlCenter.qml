@@ -64,7 +64,7 @@ Item {
     // ── Header: you, the day, the battery ───────────────────────────────────
     readonly property string userName: Quickshell.env("USER") ?? ""
     readonly property int hour: clock.date.getHours()
-    readonly property string greeting: hour < 5 ? "Good night" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : hour < 22 ? "Good evening" : "Good night"
+    readonly property string greeting: hour < 5 ? "Up late" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
     property int faceVersion: 0
     onVisibleChanged: if (visible) faceVersion++      // pick up a new picture
 

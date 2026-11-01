@@ -35,9 +35,12 @@ Item {
                 radius: width / 2
                 // Album colour softened toward the accent (bright art stays calm)
                 color: Media.hasTint ? Qt.tint(Theme.accent, Theme.withAlpha(Media.tint, 0.6)) : Theme.accent
-                opacity: 0.3
+                // a bar with nothing to show isn't drawn (no row of dots under the clock)
+                readonly property real level: Visualizer.levels[index] ?? 0
+                opacity: level > 0.06 ? 0.32 : 0
+                Behavior on opacity { NumberAnimation { duration: 160 } }
                 Behavior on color { ColorAnimation { duration: 900 } }
-                height: Math.max(2, (Visualizer.levels[index] ?? 0) * row.height)
+                height: Math.max(3, level * row.height)
                 Behavior on height { NumberAnimation { duration: 60 } }
             }
         }

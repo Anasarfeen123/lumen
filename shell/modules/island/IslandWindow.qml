@@ -217,9 +217,10 @@ PanelWindow {
             active: win.shown === "mediaExpanded" && !win.hidden
         }
 
+        // (not while the bar's media chip shows the music moving: one equalizer is enough)
         Spectrum {
             anchors.fill: parent
-            active: Media.playing && win.shown === "idle" && !win.hidden
+            active: Media.playing && win.shown === "idle" && !win.hidden && !Media.present
         }
 
         Loader {

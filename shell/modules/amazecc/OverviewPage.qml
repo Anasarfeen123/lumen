@@ -11,7 +11,7 @@ AppPage {
     signal go(string page)
     SystemClock { id: clock; precision: SystemClock.Minutes }
     readonly property int hour: clock.date.getHours()
-    title: (hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening") + (Amazecc.username ? "" : "")
+    title: (hour < 5 ? "Up late" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening") + (Amazecc.username ? "" : "")
     subtitle: Amazecc.headline || Qt.formatDate(clock.date, "dddd, d MMMM")
 
     readonly property var ex: Amazecc.extra ?? {}

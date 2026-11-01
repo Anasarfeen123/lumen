@@ -44,7 +44,7 @@ Item {
 
     readonly property bool still: Theme.reducedMotion
     readonly property color tone: mood === "concerned" ? Theme.warning
-                                 : mood === "sleeping" ? Theme.textMuted : Theme.accent
+                                 : mood === "sleeping" ? Theme.withAlpha(Theme.accent, 0.55) : Theme.accent     // asleep: its own colour, dimmed — not a grey ring
     readonly property real stroke: Math.max(1.6, size * 0.1)
     readonly property bool details: size >= 28
     readonly property bool hasMouth: face && size >= 22
@@ -298,7 +298,7 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: width / 2
-                    opacity: root.mood === "sleeping" ? 0.35 : 1
+                    opacity: root.mood === "sleeping" ? 0.6 : 1
                     gradient: Gradient {
                         GradientStop { position: 0.0; color: Qt.tint(root.tone, "#99ffffff") }
                         GradientStop { position: 0.55; color: root.tone }

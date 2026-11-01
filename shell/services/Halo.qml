@@ -160,8 +160,10 @@ Singleton {
     // ── a few lines in its own voice ──
     function greeting() {
         const h = clock.date.getHours();
-        const part = h < 5 ? "evening" : h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
+        const part = h < 5 ? "late" : h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
         const n = you ? ", " + you : "";
+        // between midnight and five it's neither evening nor morning
+        if (part === "late") return character === "jarvis" ? "Up late" + n + ". Everything's running as it should." : "Up late" + n + ".";
         if (character === "calm") return "Good " + part + n + ".";
         if (character === "jarvis") return "Good " + part + n + ". Everything's running as it should.";
         return (part === "morning" ? "Morning" : "Good " + part) + n + "!";

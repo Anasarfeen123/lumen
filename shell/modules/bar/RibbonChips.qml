@@ -116,11 +116,24 @@ Item {
                 if (!p?.volumeSupported) return;
                 p.volume = Math.max(0, Math.min(1, p.volume + (w.angleDelta.y > 0 ? 0.05 : -0.05)));
             }
-            ClippingRectangle {
-                width: 18; height: 18; radius: 9
-                color: Theme.surfaceHover
+            // a small equalizer that moves with the music (the album art spins in the island already)
+            Binding { target: Visualizer; property: "barWanted"; value: true; when: media.visible && Media.playing }
+            Row {
                 anchors.verticalCenter: parent.verticalCenter
-                Image { anchors.fill: parent; source: Media.artUrl; fillMode: Image.PreserveAspectCrop; sourceSize: Qt.size(36, 36); asynchronous: true }
+                height: 14
+                spacing: 2
+                Repeater {
+                    model: 3
+                    Rectangle {
+                        required property int index
+                        anchors.bottom: parent.bottom
+                        width: 3; radius: 1.5
+                        color: Media.playing ? (Media.hasTint ? Qt.tint(Theme.accent, Theme.withAlpha(Media.tint, 0.5)) : Theme.accent) : Theme.textMuted
+                        readonly property real level: Media.playing && Visualizer.levels.length > 0 ? (Visualizer.levels[[1, 4, 7][index] % Visualizer.levels.length] ?? 0) : 0.25
+                        height: Media.playing ? Math.max(3, Math.min(1, level * 1.3) * 14) : [6, 10, 4][index]
+                        Behavior on height { NumberAnimation { duration: 80 } }
+                    }
+                }
             }
             LText {
                 anchors.verticalCenter: parent.verticalCenter

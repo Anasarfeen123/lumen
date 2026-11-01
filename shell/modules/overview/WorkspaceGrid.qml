@@ -29,7 +29,8 @@ Row {
         return list;
     }
     readonly property int newId: ids[ids.length - 1]
-    readonly property real tileWidth: Math.min(300, (maxWidth - spacing * (ids.length - 1)) / Math.max(1, ids.length))
+    // few workspaces: larger previews you can actually read; many: they share the width
+    readonly property real tileWidth: Math.min(ids.length <= 3 ? 440 : ids.length <= 5 ? 340 : 300, (maxWidth - spacing * (ids.length - 1)) / Math.max(1, ids.length))
 
     function move(d) {
         if (selectedIndex < 0) selectedIndex = ids.indexOf(activeId);
