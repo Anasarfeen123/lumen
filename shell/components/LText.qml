@@ -10,10 +10,11 @@ Text {
     color: Theme.text
     font.family: Theme.fontUi
     font.pixelSize: ({ title: Theme.size.title, heading: Theme.size.heading, body: Theme.size.body,
-                       bodyStrong: Theme.size.body, caption: Theme.size.caption })[role] ?? Theme.size.body
-    font.weight: ({ title: Font.DemiBold, heading: Font.DemiBold, body: Font.Normal,
-                    bodyStrong: Font.Medium, caption: Font.Medium })[role] ?? Font.Normal
-    font.letterSpacing: role === "caption" ? 0.2 : 0
+                       bodyStrong: Theme.size.body, caption: Theme.size.caption, bar: Theme.size.bar, barCaption: Theme.size.barCaption, panelTitle: Theme.size.panelTitle, panelHeading: Theme.size.panelHeading, panelCaption: Theme.size.panelCaption })[role] ?? Theme.size.body
+    font.weight: ({ title: Theme.weight.title, heading: Theme.weight.heading, body: Theme.weight.body,
+                    bodyStrong: Theme.weight.bodyStrong, caption: Theme.weight.caption, bar: Theme.weight.bar, barCaption: Theme.weight.barCaption, panelTitle: Theme.weight.panelTitle, panelHeading: Theme.weight.panelHeading, panelCaption: Theme.weight.panelCaption })[role] ?? Font.Normal
+    font.variableAxes: ({ "ROND": Theme.fontRoundness })
+    font.letterSpacing: role === "caption" || role === "barCaption" ? 0.2 : 0
     font.features: ({ "tnum": 1, "cv11": 1 })
     renderType: Text.NativeRendering
     verticalAlignment: Text.AlignVCenter

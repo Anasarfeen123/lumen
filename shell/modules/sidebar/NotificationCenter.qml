@@ -67,7 +67,7 @@ Item {
                     LIcon { anchors.verticalCenter: parent.verticalCenter; size: 16
                             icon: Notifications.dnd ? "do_not_disturb_on" : "do_not_disturb_off"; fill: Notifications.dnd ? 1 : 0
                             color: Notifications.dnd ? Theme.accent : Theme.textSecondary }
-                    LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"
+                    LText { anchors.verticalCenter: parent.verticalCenter; role: "panelCaption"
                             color: Notifications.dnd ? Theme.accent : Theme.textSecondary; text: "Do Not Disturb" }
                 }
             }
@@ -82,7 +82,7 @@ Item {
                     anchors.centerIn: parent
                     spacing: 6
                     LIcon { anchors.verticalCenter: parent.verticalCenter; icon: "clear_all"; size: 16; color: Theme.textSecondary }
-                    LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"; color: Theme.textSecondary; text: "Clear all" }
+                    LText { anchors.verticalCenter: parent.verticalCenter; role: "panelCaption"; color: Theme.textSecondary; text: "Clear all" }
                 }
             }
         }
@@ -178,7 +178,7 @@ Item {
                                     anchors { left: appLabel.right; leftMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
                                     height: 18; width: Math.max(18, n.implicitWidth + 10); radius: 9
                                     color: Theme.surfaceHover
-                                    LText { id: n; anchors.centerIn: parent; role: "caption"; color: Theme.textSecondary; text: group.items.length }
+                                    LText { id: n; anchors.centerIn: parent; role: "panelCaption"; color: Theme.textSecondary; text: group.items.length }
                                 }
                                 Row {
                                     anchors { right: parent.right; rightMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
@@ -186,7 +186,7 @@ Item {
                                     LText {
                                         anchors.verticalCenter: parent.verticalCenter
                                         rightPadding: Theme.space.s1
-                                        role: "caption"; color: Theme.textMuted
+                                        role: "panelCaption"; color: Theme.textMuted
                                         text: Notifications.relativeTime(group.items[0].time, clock.date.getTime())
                                     }
                                     HoverTarget {
@@ -227,7 +227,7 @@ Item {
                                             height: 1; color: Theme.border }
                                 LText {
                                     anchors.centerIn: parent
-                                    role: "caption"
+                                    role: "panelCaption"
                                     color: Theme.accent
                                     text: group.open ? "Show less" : "Show " + (group.items.length - 2) + " more"
                                 }
@@ -258,7 +258,7 @@ Item {
         }
         LText { anchors.horizontalCenter: parent.horizontalCenter; role: "heading"
                 text: Notifications.dnd ? "Do Not Disturb is on" : "You're all caught up" }
-        LText { anchors.horizontalCenter: parent.horizontalCenter; role: "caption"; color: Theme.textMuted
+        LText { anchors.horizontalCenter: parent.horizontalCenter; role: "panelCaption"; color: Theme.textMuted
                 text: Notifications.dnd ? "Only urgent alerts will interrupt you" : "New notifications will appear here" }
     }
 }

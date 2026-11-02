@@ -24,7 +24,7 @@ PanelWindow {
     property string confirming: ""      // action id awaiting confirmation
     property string uptime: ""
 
-    visible: showing || scrim.opacity > 0
+    visible: panel.retained
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -70,23 +70,21 @@ PanelWindow {
         id: scrim
         anchors.fill: parent
         color: Theme.withAlpha(Theme.bg, 0.45)
-        opacity: win.showing ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: win.showing ? Theme.motion.normal : Theme.motion.normal * Theme.motion.exitRatio } }
+        opacity: panel.alpha
         MouseArea { anchors.fill: parent; onClicked: Session.menuOpen = false }
     }
 
-    GlassSurface {
+    MotionSurface {
         id: panel
+        shown: win.showing
+        motionStyle: "dialog"
+        motionOrigin: Item.Center
         level: "panel"
         radius: Theme.radius.lg
         anchors.centerIn: parent
         width: tiles.implicitWidth + Theme.space.s5 * 2
         height: col.implicitHeight + Theme.space.s5 * 2
 
-        opacity: win.showing ? 1 : 0
-        scale: win.showing ? 1 : 0.96
-        Behavior on opacity { NumberAnimation { duration: win.showing ? Theme.motion.normal : Theme.motion.normal * Theme.motion.exitRatio } }
-        Behavior on scale { NumberAnimation { duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: win.showing ? Theme.curveEmphasized : Theme.curveAccelerate } }
 
         focus: true
         Keys.onEscapePressed: {

@@ -47,7 +47,7 @@ Item {
     ParallelAnimation {
         id: arrive
         NumberAnimation { target: root; property: "opacity"; from: 0; to: 1; duration: Theme.reducedMotion ? 0 : Theme.motion.normal }
-        NumberAnimation { target: body; property: "y"; from: 8; to: 0; duration: Theme.reducedMotion ? 0 : Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
+        NumberAnimation { target: body; property: "y"; from: -Theme.space.s2; to: 0; duration: Theme.reducedMotion ? 0 : Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
     }
 
     Item {
@@ -91,22 +91,22 @@ Item {
         Column {
             id: content
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.space.s3; topMargin: root.first ? Theme.space.s1 : Theme.space.s3; leftMargin: Theme.space.s3 + (root.critical ? 6 : 0) }
-            spacing: 3
+            spacing: Theme.space.s2
 
             Item {
                 width: parent.width; height: title.implicitHeight
                 LText { id: title; anchors { left: parent.left; right: meta.left; rightMargin: Theme.space.s2 }
-                        role: "bodyStrong"; text: root.entry.summary ?? ""; elide: Text.ElideRight; textFormat: Text.PlainText }
+                        role: "panelHeading"; text: root.entry.summary ?? ""; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight; lineHeight: 1.3; textFormat: Text.PlainText }
                 Item {
                     id: meta
                     anchors.right: parent.right
-                    width: Math.max(timeLabel.implicitWidth, 20); height: parent.height
-                    LText { id: timeLabel; anchors.right: parent.right; visible: !hover.hovered; role: "caption"; color: Theme.textMuted
+                    width: Math.max(timeLabel.implicitWidth, Theme.space.s8); height: parent.height
+                    LText { id: timeLabel; anchors.right: parent.right; visible: !hover.hovered; role: "panelCaption"; color: Theme.textMuted
                             text: root.first ? "" : Notifications.relativeTime(root.entry.time ?? 0, root.now) }
                     HoverTarget {
                         visible: hover.hovered
                         anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                        width: 22; height: 22
+                        width: Theme.space.s8; height: Theme.space.s8
                         onClicked: root.dismissAnimated()
                         LIcon { anchors.centerIn: parent; icon: "close"; size: 14; color: Theme.textSecondary }
                     }
@@ -119,9 +119,9 @@ Item {
                 text: root.entry.body ?? ""
                 textFormat: Text.StyledText
                 wrapMode: Text.Wrap
-                maximumLineCount: 3
+                maximumLineCount: 4
                 elide: Text.ElideRight
-                lineHeight: 1.1
+                lineHeight: 1.45
                 linkColor: Theme.accent
                 onLinkActivated: link => Qt.openUrlExternally(link)
             }
@@ -135,10 +135,10 @@ Item {
                     model: root.actions
                     delegate: HoverTarget {
                         required property var modelData
-                        width: al.implicitWidth + Theme.space.s4 * 2; height: 28
+                        width: al.implicitWidth + Theme.space.s4 * 2; height: Theme.space.s8
                         Rectangle { anchors.fill: parent; radius: height / 2; color: Theme.withAlpha(Theme.accent, 0.14); border.width: 1; border.color: Theme.withAlpha(Theme.accent, 0.35); z: -1 }
                         onClicked: Notifications.invoke(root.nid, modelData.identifier)
-                        LText { id: al; anchors.centerIn: parent; role: "caption"; color: Theme.accent; text: modelData.text }
+                        LText { id: al; anchors.centerIn: parent; role: "panelCaption"; color: Theme.accent; text: modelData.text }
                     }
                 }
             }
@@ -156,7 +156,7 @@ Item {
                             { id: "mute", icon: "notifications_off", text: "Mute chat" }]
                     delegate: HoverTarget {
                         required property var modelData
-                        width: cr.implicitWidth + Theme.space.s4 * 2; height: 28
+                        width: cr.implicitWidth + Theme.space.s4 * 2; height: Theme.space.s8
                         Rectangle { anchors.fill: parent; radius: height / 2; z: -1
                                     color: modelData.primary ? Theme.withAlpha(Theme.accent, 0.14) : Theme.withAlpha(Theme.text, 0.05)
                                     border.width: 1; border.color: modelData.primary ? Theme.withAlpha(Theme.accent, 0.35) : Theme.border }
@@ -168,7 +168,7 @@ Item {
                         }
                         Row { id: cr; anchors.centerIn: parent; spacing: 4
                               LIcon { icon: modelData.icon; size: 13; color: modelData.primary ? Theme.accent : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
-                              LText { role: "caption"; color: modelData.primary ? Theme.accent : Theme.text; text: modelData.text; anchors.verticalCenter: parent.verticalCenter } }
+                              LText { role: "panelCaption"; color: modelData.primary ? Theme.accent : Theme.text; text: modelData.text; anchors.verticalCenter: parent.verticalCenter } }
                     }
                 }
             }

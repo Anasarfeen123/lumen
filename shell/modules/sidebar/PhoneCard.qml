@@ -29,7 +29,7 @@ Rectangle {
             spacing: Theme.space.s2
             LIcon { icon: "phonelink"; size: 18; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
             LText { role: "bodyStrong"; text: "Link your phone"; anchors.verticalCenter: parent.verticalCenter }
-            LText { role: "caption"; color: Theme.textMuted; text: "Files, clipboard, battery, notifications"; anchors.verticalCenter: parent.verticalCenter }
+            LText { role: "panelCaption"; color: Theme.textMuted; text: "Files, clipboard, battery, notifications"; anchors.verticalCenter: parent.verticalCenter }
         }
         LIcon { anchors { right: parent.right; rightMargin: Theme.space.s3; verticalCenter: parent.verticalCenter }
                 icon: "chevron_right"; size: 16; color: Theme.textMuted }
@@ -47,7 +47,7 @@ Rectangle {
                     border.width: 1; border.color: a.danger ? Theme.withAlpha(Theme.error, 0.35) : Theme.border }
         Row { anchors.centerIn: parent; spacing: 5
               LIcon { icon: a.icon; size: 15; color: a.danger ? Theme.error : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
-              LText { role: "caption"; text: a.label; anchors.verticalCenter: parent.verticalCenter } }
+              LText { role: "panelCaption"; text: a.label; anchors.verticalCenter: parent.verticalCenter } }
     }
 
     // ── linked ──
@@ -86,7 +86,7 @@ Rectangle {
                 Row {
                     spacing: 4
                     LIcon { visible: root.live; icon: Link.viaIcon(root.d?.via ?? ""); size: 12; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
-                    LText { role: "caption"; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
+                    LText { role: "panelCaption"; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
                             text: !root.live ? "Not nearby" : "Linked over " + Link.viaLabel(root.d?.via ?? "wifi") + (root.d?.charging ? " · charging" : "") }
                 }
             }
@@ -99,7 +99,7 @@ Rectangle {
                 Rectangle { anchors.fill: parent; radius: 14; z: -1; color: "transparent"; border.width: 1; border.color: Theme.border }
                 Row { id: againRow; anchors.centerIn: parent; spacing: 5
                       LIcon { icon: "refresh"; size: 14; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
-                      LText { role: "caption"; text: "Look again"; anchors.verticalCenter: parent.verticalCenter } }
+                      LText { role: "panelCaption"; text: "Look again"; anchors.verticalCenter: parent.verticalCenter } }
             }
             LText {
                 id: pct

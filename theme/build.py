@@ -250,6 +250,7 @@ def resolve(theme_name: str | None, accent_name: str | None, accent_hue: float |
         "blur": tokens["blur"],
         "shadow": tokens["shadow"],
         "island": tokens["island"],
+        "panels": tokens.get("panels", {}),
         "locale": {**tokens.get("locale", {}), **({"clock": state["clock"]} if state.get("clock") in ("12h", "24h") else {})},
         "transparency": state.get("transparency", "on") != "off",
         "terminal": term,

@@ -85,8 +85,8 @@ GlassSurface {
         border.color: Theme.withAlpha(Theme.accent, 0.7)
         y: (root.height - height) / 2
         Behavior on height { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
-        layer.enabled: true
-        layer.effect: MultiEffect { shadowEnabled: true; shadowColor: Theme.accent; shadowBlur: 0.6; shadowOpacity: 0.55; shadowHorizontalOffset: 0; shadowVerticalOffset: 0 }
+        layer.enabled: !Theme.reducedMotion
+        layer.effect: MultiEffect { shadowEnabled: true; shadowColor: Theme.accent; shadowBlur: 0.6; shadowOpacity: 0.25; shadowHorizontalOffset: 0; shadowVerticalOffset: 0 }
         visible: root.activeId >= 1 && root.activeId <= root.count
 
         Behavior on edgeL {

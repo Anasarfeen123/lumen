@@ -13,9 +13,7 @@ PanelWindow {
     id: win
     readonly property HyprlandMonitor monitor: Hyprland.monitorFor(screen)
     readonly property bool showing: SnapLayouts.open && (Quickshell.screens.length <= 1 || (Hyprland.focusedMonitor?.name ?? "") === (monitor?.name ?? ""))
-    property real shown: showing ? 1 : 0
-    Behavior on shown { NumberAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
-    visible: showing || shown > 0.01
+    visible: panel.retained
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -28,17 +26,16 @@ PanelWindow {
 
     MouseArea { anchors.fill: parent; onClicked: SnapLayouts.open = false }
 
-    GlassSurface {
+    MotionSurface {
         id: panel
+        shown: win.showing
         level: "panel"
         radius: Theme.radius.lg
         width: grid.implicitWidth + Theme.space.s4 * 2
         height: head.height + grid.implicitHeight + Theme.space.s4 * 3
         anchors.horizontalCenter: parent.horizontalCenter
-        y: Theme.edgeGap + Theme.barHeight + Theme.space.s2 - 12 * (1 - win.shown)
-        opacity: win.shown
-        scale: 0.96 + 0.04 * win.shown
-        transformOrigin: Item.Top
+        y: Theme.edgeGap + Theme.barHeight + Theme.space.s2
+        motionOrigin: Item.Top
         focus: win.showing
         MouseArea { anchors.fill: parent }
 

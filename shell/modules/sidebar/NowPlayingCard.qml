@@ -36,7 +36,7 @@ Rectangle {
         anchors { left: art.right; leftMargin: Theme.space.s3; right: controls.left; rightMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
         spacing: 2
         LText { width: parent.width; role: "bodyStrong"; text: Media.title; elide: Text.ElideRight }
-        LText { width: parent.width; role: "caption"; color: Theme.textSecondary; text: Media.artist; elide: Text.ElideRight; visible: text !== "" }
+        LText { width: parent.width; role: "panelCaption"; color: Theme.textSecondary; text: Media.artist; elide: Text.ElideRight; visible: text !== "" }
     }
 
     Row {

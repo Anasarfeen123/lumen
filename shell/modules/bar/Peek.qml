@@ -67,7 +67,7 @@ PanelWindow {
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     // Only the card takes the pointer, and only while it's shown
     mask: Region { item: pop.shown ? panel : null }
-    visible: shown || panel.opacity > 0.01
+    visible: panel.retained
     // Forget the windows once the card has faded (not before: no collapsing mid-fade)
     onVisibleChanged: if (!visible) toplevels = []
 
@@ -88,22 +88,21 @@ PanelWindow {
     }
     Timer { interval: 2000; repeat: true; running: pop.shown; onTriggered: stats.refresh() }
 
-    GlassSurface {
+    MotionSurface {
         id: panel
+        shown: pop.shown
+        motionOrigin: Item.TopLeft
         // Glides to sit under whatever the pointer is on (kept on screen)
         x: Math.max(Theme.edgeGap, Math.min(pop.width - width - Theme.edgeGap, pop.atX - width / 2))
         y: Theme.edgeGap + Theme.barHeight + Theme.space.s2
-        Behavior on x { enabled: panel.opacity > 0.5; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
-        Behavior on width { enabled: panel.opacity > 0.5; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
-        Behavior on height { enabled: panel.opacity > 0.5; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+        Behavior on x { enabled: !Theme.reducedMotion && panel.opacity > 0.5; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+        Behavior on width { enabled: !Theme.reducedMotion && panel.opacity > 0.5; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+        Behavior on height { enabled: !Theme.reducedMotion && panel.opacity > 0.5; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
         clip: true
         level: "panel"
         radius: Theme.radius.md
         width: cards.implicitWidth + Theme.space.s3 * 2
         height: col.implicitHeight + Theme.space.s3 * 2
-        opacity: pop.shown ? 1 : 0
-        transform: Translate { y: pop.shown ? 0 : -6; Behavior on y { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } } }
-        Behavior on opacity { NumberAnimation { duration: Theme.motion.normal } }
         HoverHandler { id: cardHover; onHoveredChanged: if (!hovered) pop.leave(); else pop.want = true }
 
         Column {

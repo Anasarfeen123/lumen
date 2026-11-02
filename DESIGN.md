@@ -270,8 +270,19 @@ overshoot    0.34, 1.36, 0.64, 1.00   Hyprland-only approximation of the spring 
 - Only **transform and opacity** animate. Never width/height on large surfaces. The island is the
   single exception: its size morph *is* the message.
 - Direction means something: workspaces slide horizontally in the direction you moved; panels
-  grow from the element that opened them; notifications come from and leave toward the top-right.
-- Fade distances are small: panels rise 8 px and scale from 0.96, never from 0.
+  open from their anchor; notifications come from and leave toward the top-right.
+- Surface motion uses `components/MotionSurface.qml` and `[motion.surfaces]` tokens.
+  Full-height sidebars slide 20 px from their screen edge without scaling (260 ms in,
+  170 ms out). Small popups settle 4 px from 98.5% scale (200/140 ms); centred
+  dialogs use 98% scale (220/150 ms); bottom sheets slide 16 px (260/180 ms).
+  Entry uses `surface` (0.16, 1, 0.30, 1); exit uses `accelerate`. Opacity runs
+  separately at 120/100 ms. These durations follow the evening pace adjustment.
+- A window stays mapped until `MotionSurface.retained` becomes false. Reversals
+  continue from the current values. Native xdg-popup dismissal ends its grab
+  immediately; explicit close retains the popup through its last frame.
+- Sidebar page changes use `PageTransition.qml`: fade out (60 ms), swap at zero
+  opacity, fade in (140 ms), settling over 12 px (180 ms). A new selection retargets
+  the current transition; text from two pages must never overlap.
 - Windows: open = pop-in from 92 %, close = fade + 96 %, move/resize = `emphasized` 280 ms.
   Windows feel physical without bouncing.
 - `prefers-reduced-motion` equivalent: one `motion.reduced = true` token that sets all durations

@@ -41,7 +41,7 @@ FocusScope {
                 color: Theme.textMuted
                 RotationAnimation on rotation { running: root.busy; from: 0; to: 360; duration: 1100; loops: Animation.Infinite }
             }
-            LText { visible: text !== ""; anchors.verticalCenter: parent.verticalCenter; role: "caption"; color: Theme.textMuted; text: root.status }
+            LText { visible: text !== ""; anchors.verticalCenter: parent.verticalCenter; role: "panelCaption"; color: Theme.textMuted; text: root.status }
         }
 
         // Switch

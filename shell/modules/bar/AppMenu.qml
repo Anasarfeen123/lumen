@@ -57,21 +57,25 @@ Item {
                 source: root.entry ? Apps.iconFor(root.entry) : Quickshell.iconPath("application-x-executable")
             }
             LumenLogo { visible: root.lumenApp; size: 18; anchors.verticalCenter: parent.verticalCenter }
-            Text {
+            LText {
+                id: appLabel
+                role: "bar"
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.appName
                 color: Theme.text
-                font.family: Theme.fontUi
-                font.pixelSize: 14
-                font.variableAxes: ({ "wght": 650, "ROND": 60 })
-                renderType: Text.NativeRendering
+                width: Math.min(appMetrics.advanceWidth, 144)
+                elide: Text.ElideRight
+                textFormat: Text.PlainText
             }
+            TextMetrics { id: appMetrics; font: appLabel.font; text: appLabel.text }
+            TextMetrics { id: titleMetrics; font: windowTitle.font; text: windowTitle.text }
             // the window title: tucked away, sliding out while you hover (the bar
             // stays calm; the menu shows it too)
             LText {
+                id: windowTitle
                 anchors.verticalCenter: parent.verticalCenter
                 visible: width > 1 && text !== "" && text !== root.appName
-                width: button.containsMouse || menu.shown ? Math.min(implicitWidth, 240) : 0
+                width: button.containsMouse || menu.shown ? Math.min(titleMetrics.advanceWidth, 160) : 0
                 opacity: width > 20 ? 1 : 0
                 clip: true
                 Behavior on width { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
@@ -99,6 +103,7 @@ Item {
 
     // ── The menu ──
     LumenPopup {
+        motionOrigin: Item.TopLeft
         id: menu
         anchor.window: root.barWindow
         anchor.rect.x: root.mapToItem(root.barWindow.contentItem, 0, 0).x - margin

@@ -20,6 +20,8 @@ Singleton {
 
     // Real output devices (not app streams), for the output picker
     readonly property var sinks: Pipewire.nodes.values.filter(n => n.isSink && !n.isStream && n.audio)
+    readonly property var sources: Pipewire.nodes.values.filter(n => !n.isSink && !n.isStream && n.audio)
+    function setSource(node) { Pipewire.preferredDefaultAudioSource = node; }
     // Apps playing sound right now (playback streams), for per-app volume
     // (properties only arrive once a node is tracked, so track every stream)
     readonly property var streams: Pipewire.nodes.values.filter(n => n.isStream)
@@ -28,7 +30,7 @@ Singleton {
     // late keeps binding and unbinding nodes, and Quickshell's PipeWire code
     // crashed unbinding one (2026-11-01). The log noise it would have saved
     // isn't worth that.
-    PwObjectTracker { objects: [root.sink, root.source].concat(root.sinks).concat(root.streams) }
+    PwObjectTracker { objects: [root.sink, root.source].concat(root.sinks).concat(root.sources).concat(root.streams) }
     // One entry per app (Firefox often has several streams); system noise hidden
     readonly property var appGroups: {
         const out = [];
@@ -67,4 +69,12 @@ Singleton {
     }
     function toggleMute() { if (sink?.audio) sink.audio.muted = !sink.audio.muted; }
     function toggleMicMute() { if (source?.audio) source.audio.muted = !source.audio.muted; }
+
+    // Explicit, short microphone check. The meter keeps no recording and
+    // stops when Tools closes, changes page, or its ten seconds are up.
+    property bool micTesting: false
+    readonly property real micLevel: micTesting ? Math.min(1, Math.max(0, micPeak.peak)) : 0
+    function testMic() { if (source) { micTesting = true; micTestEnd.restart(); } }
+    PwNodePeakMonitor { id: micPeak; node: root.source; enabled: root.micTesting }
+    Timer { id: micTestEnd; interval: 10000; onTriggered: root.micTesting = false }
 }

@@ -29,10 +29,9 @@ PanelWindow {
     readonly property bool isFocused: Quickshell.screens.length <= 1
                                       || (Hyprland.focusedMonitor?.name ?? "") === (monitor?.name ?? "")
     readonly property bool showing: Wallpapers.open && isFocused
-    property real shown: showing ? 1 : 0
-    Behavior on shown { NumberAnimation { duration: Theme.reducedMotion ? 0 : (win.showing ? Theme.motion.large : Theme.motion.normal); easing.type: Easing.Bezier; easing.bezierCurve: win.showing ? Theme.curveEmphasized : Theme.curveAccelerate } }
+    readonly property real shown: sheet.alpha
 
-    visible: showing || shown > 0.01
+    visible: sheet.retained
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -72,18 +71,18 @@ PanelWindow {
         MouseArea { anchors.fill: parent; onClicked: Wallpapers.hide() }
     }
 
-    GlassSurface {
+    MotionSurface {
         id: sheet
+        shown: win.showing
+        motionStyle: "sheet"
         level: "panel"
         radius: Theme.radius.lg
         width: Math.min(win.width - 2 * Theme.space.s8, 1320)
         height: Math.min(win.height * 0.62, 470)
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: Theme.space.s8 - 48 * (1 - win.shown)
-        opacity: Math.min(1, win.shown * 1.4)
-        scale: 0.96 + 0.04 * win.shown
-        transformOrigin: Item.Bottom
+        anchors.bottomMargin: Theme.space.s8
+        motionOrigin: Item.Bottom
 
         MouseArea { anchors.fill: parent; onWheel: w => { if (w.angleDelta.y > 0 || w.angleDelta.x > 0) view.decrementCurrentIndex(); else view.incrementCurrentIndex(); } }
 
@@ -240,7 +239,7 @@ PanelWindow {
                 width: view.tileW; height: view.tileH
                 z: PathView.itemZ ?? 0
                 scale: (PathView.itemScale ?? 0.6) * (hover.containsMouse && centered ? 1.02 : 1)
-                opacity: (PathView.itemFade ?? 0) * win.shown
+                opacity: (PathView.itemFade ?? 0)
                 Behavior on scale { enabled: hover.containsMouse; NumberAnimation { duration: Theme.motion.normal } }
                 transform: Rotation {
                     origin.x: cell.width / 2; origin.y: cell.height / 2

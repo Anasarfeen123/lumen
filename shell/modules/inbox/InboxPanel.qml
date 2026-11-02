@@ -28,7 +28,7 @@ PanelWindow {
     property string draftText: ""
     property int current: 0
 
-    visible: showing || panel.opacity > 0
+    visible: panel.retained
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -82,19 +82,17 @@ PanelWindow {
 
     MouseArea { id: catcher; anchors.fill: parent; onClicked: win.close() }
 
-    GlassSurface {
+    MotionSurface {
         id: panel
+        shown: win.showing
+        motionStyle: "popup"
+        motionOrigin: Item.Top
         level: "panel"
         radius: Theme.radius.lg
         width: Math.min(560, win.width - 64)
         height: content.implicitHeight + Theme.space.s4 * 2
         anchors.horizontalCenter: parent.horizontalCenter
         y: Theme.edgeGap + Theme.barHeight + Theme.space.s3
-        transformOrigin: Item.Top
-        opacity: win.showing ? 1 : 0
-        scale: win.showing ? 1 : 0.96
-        Behavior on opacity { NumberAnimation { duration: Theme.reducedMotion ? 0 : (win.showing ? Theme.motion.normal : Theme.motion.micro) } }
-        Behavior on scale { NumberAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
         Behavior on height { NumberAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard } }
         Rectangle { anchors.fill: parent; radius: parent.radius; color: Theme.withAlpha(Theme.bg, 0.55) }
         MouseArea { anchors.fill: parent }

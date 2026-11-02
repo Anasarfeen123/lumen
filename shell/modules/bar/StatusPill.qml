@@ -38,7 +38,7 @@ GlassSurface {
         HoverTarget {
             id: sys
             width: sysRow.implicitWidth + Theme.space.s3 * 2
-            height: Theme.barHeight - 8
+            height: Theme.barHeight - Theme.space.s2
             anchors.verticalCenter: parent.verticalCenter
             onClicked: Sidebar.toggle(Notifications.count > 0 && mouseX < Theme.space.s3 + 10 ? "notifications" : "controls")
             onWheel: wheel => volSteps.feed(wheel.angleDelta.y)
@@ -100,7 +100,7 @@ GlassSurface {
                         color: parent.tone
                     }
                     LText {
-                        role: "bodyStrong"
+                        role: "bar"
                         text: Math.round(Battery.percentage * 100) + "%"
                         color: parent.tone === Theme.textSecondary ? Theme.text : parent.tone
                         anchors.verticalCenter: parent.verticalCenter

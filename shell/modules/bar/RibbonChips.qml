@@ -56,7 +56,7 @@ Item {
         Chip {
             id: onAir
             want: Meeting.onAir || Meeting.live
-            onClicked: SettingsState.launch("sound")
+            onClicked: DesktopTools.show("meeting", "left")
             Rectangle {
                 width: 8; height: 8; radius: 4
                 anchors.verticalCenter: parent.verticalCenter
@@ -68,7 +68,16 @@ Item {
                 }
             }
             LIcon { anchors.verticalCenter: parent.verticalCenter; icon: Meeting.icon; size: 15; fill: 1; color: Theme.error }
-            LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"; text: Meeting.label; color: Theme.text }
+            LText { anchors.verticalCenter: parent.verticalCenter; role: "barCaption"; text: Meeting.label; color: Theme.text }
+        }
+        // A long file operation stays reachable while you work elsewhere.
+        Chip {
+            id: transfers
+            want: FileOperations.remaining > 0
+            onClicked: DesktopTools.show("operations", "left")
+            readonly property var job: FileOperations.jobs.find(j => j.id === FileOperations.activeId)
+            LIcon { anchors.verticalCenter: parent.verticalCenter; icon: "swap_horiz"; size: 15; color: Theme.accent }
+            LText { anchors.verticalCenter: parent.verticalCenter; role: "barCaption"; text: transfers.job ? "Files · " + Math.round(transfers.job.progress * 100) + "%" : "Files · " + FileOperations.remaining }
         }
         // Messages (Lumen Inbox): a call, or how many chats are waiting
         Chip {
@@ -91,7 +100,7 @@ Item {
             }
             LText {
                 anchors.verticalCenter: parent.verticalCenter
-                role: "caption"
+                role: "barCaption"
                 width: Math.min(implicitWidth, 150)
                 elide: Text.ElideRight
                 text: Inbox.call ? Inbox.call.title + " · calling"
@@ -137,7 +146,7 @@ Item {
             }
             LText {
                 anchors.verticalCenter: parent.verticalCenter
-                role: "caption"
+                role: "barCaption"
                 width: Math.min(implicitWidth, 150)
                 elide: Text.ElideRight
                 text: Media.title + (Media.artist ? "  ·  " + Media.artist : "")
@@ -157,7 +166,7 @@ Item {
             LIcon { anchors.verticalCenter: parent.verticalCenter; icon: "coffee"; size: 15; fill: 1; color: Theme.accent }
             LText {
                 anchors.verticalCenter: parent.verticalCenter
-                role: "caption"
+                role: "barCaption"
                 text: Caffeine.until > 0 ? Caffeine.remainingText : "Awake"
             }
         }
@@ -173,7 +182,7 @@ Item {
             }
             LText {
                 anchors.verticalCenter: parent.verticalCenter
-                role: "caption"
+                role: "barCaption"
                 text: Focus.current.label
             }
         }
@@ -190,13 +199,13 @@ Item {
             want: Battery.forecastText !== "" && (Battery.mock || (Battery.available && !Battery.pluggedIn && Battery.percentage < 0.3))
             onClicked: SettingsState.launch("power")
             LIcon { anchors.verticalCenter: parent.verticalCenter; icon: Battery.icon; size: 15; color: Battery.forecastMin < 20 ? Theme.warning : Theme.textSecondary }
-            LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"; text: Battery.forecastText + " left"; color: Battery.forecastMin < 20 ? Theme.warning : Theme.text }
+            LText { anchors.verticalCenter: parent.verticalCenter; role: "barCaption"; text: Battery.forecastText + " left"; color: Battery.forecastMin < 20 ? Theme.warning : Theme.text }
         }
         Chip {
             want: Weather.ready
             onClicked: Planner.toggle()
             LIcon { anchors.verticalCenter: parent.verticalCenter; icon: Weather.icon(Weather.now?.code ?? 0, Weather.now?.isDay ?? true); size: 15; color: Theme.textSecondary }
-            LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"; text: Math.round(Weather.now?.temp ?? 0) + "°" }
+            LText { anchors.verticalCenter: parent.verticalCenter; role: "barCaption"; text: Math.round(Weather.now?.temp ?? 0) + "°" }
         }
         Chip {
             want: root.nextEvent !== null
@@ -204,7 +213,7 @@ Item {
             LIcon { anchors.verticalCenter: parent.verticalCenter; icon: "event"; size: 15; color: Theme.accent }
             LText {
                 anchors.verticalCenter: parent.verticalCenter
-                role: "caption"
+                role: "barCaption"
                 width: Math.min(implicitWidth, 160)
                 elide: Text.ElideRight
                 text: root.nextEvent ? root.nextEvent.title + "  ·  " + root.inText(root.nextEvent.when) : ""
@@ -223,7 +232,7 @@ Item {
                     color: classChip.risky ? Theme.warning : Theme.accent }
             LText {
                 anchors.verticalCenter: parent.verticalCenter
-                role: "caption"
+                role: "barCaption"
                 width: Math.min(implicitWidth, 170)
                 elide: Text.ElideRight
                 text: !classChip.cls ? "" : classChip.cls.title + (classChip.cls.venue ? "  ·  " + classChip.cls.venue : "")
@@ -239,7 +248,7 @@ Item {
             LIcon { anchors.verticalCenter: parent.verticalCenter; icon: "speed"; size: 15; color: Theme.warning }
             LText {
                 anchors.verticalCenter: parent.verticalCenter
-                role: "caption"
+                role: "barCaption"
                 text: Sysinfo.cpuTemp > 88 ? Math.round(Sysinfo.cpuTemp) + "°C"
                     : Sysinfo.cpu > 0.8 ? "CPU " + Math.round(Sysinfo.cpu * 100) + "%"
                     : "Memory " + Math.round(Sysinfo.memUsed / Sysinfo.memTotal * 100) + "%"
@@ -250,7 +259,7 @@ Item {
             want: Ai.provider !== "off" && !Halo.present
             onClicked: Ai.toggle()
             HaloRing { anchors.verticalCenter: parent.verticalCenter }
-            LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"; text: "Halo"; color: Theme.textSecondary }
+            LText { anchors.verticalCenter: parent.verticalCenter; role: "barCaption"; text: "Halo"; color: Theme.textSecondary }
         }
     }
 
@@ -284,15 +293,15 @@ Item {
         property bool want: false
         property bool fits: false
         default property alias content: chipRow.data
-        readonly property real naturalWidth: chipRow.implicitWidth + 20
+        readonly property real naturalWidth: chipRow.implicitWidth + Theme.space.s3 * 2
         onWantChanged: Qt.callLater(parent.fit)
         onNaturalWidthChanged: Qt.callLater(parent.fit)
         visible: fits
         width: naturalWidth
-        height: Theme.barHeight - 12
+        height: Theme.barHeight - Theme.space.s2
         anchors.verticalCenter: parent.verticalCenter
         radius: height / 2
-        Rectangle { anchors.fill: parent; radius: parent.radius; z: -1; color: Theme.withAlpha(Theme.text, 0.05); border.width: 1; border.color: Theme.withAlpha(Theme.text, 0.06) }
+        Rectangle { anchors.fill: parent; radius: parent.radius; z: -1; color: Theme.withAlpha(Theme.text, 0.05); border.width: 0 }
         Row { id: chipRow; anchors.centerIn: parent; spacing: 6; height: parent.height }
         // Arrives gently when it becomes relevant
         opacity: fits ? 1 : 0

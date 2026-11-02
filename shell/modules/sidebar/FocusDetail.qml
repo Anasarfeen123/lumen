@@ -29,7 +29,7 @@ DetailPage {
                     required property string modelData
                     spacing: 6
                     LIcon { icon: "check"; size: 13; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
-                    LText { role: "caption"; color: Theme.textSecondary; text: modelData }
+                    LText { role: "panelCaption"; color: Theme.textSecondary; text: modelData }
                 }
             }
         }

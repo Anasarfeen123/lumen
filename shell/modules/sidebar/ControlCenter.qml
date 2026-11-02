@@ -7,6 +7,7 @@
 // tiles for a detail list (networks, devices, outputs); Esc or back returns.
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.UPower
 import Quickshell.Widgets
 import qs.theme
@@ -17,6 +18,7 @@ import qs.modules.widgets
 Item {
     id: root
 
+    property bool motionActive: Sidebar.open
     property string detail: ""          // "" | wifi | bluetooth | output
     implicitHeight: header.height + Theme.space.s4 + body.height
 
@@ -36,8 +38,7 @@ Item {
     Connections {
         target: Sidebar
         function onOpenChanged() {
-            if (!Sidebar.open) root.detail = "";
-            else { Vpn.refresh(); Warp.refresh(); }
+            if (Sidebar.open) { Vpn.refresh(); Warp.refresh(); }
         }
     }
     Connections {
@@ -66,13 +67,22 @@ Item {
     readonly property string userName: Halo.you || (Quickshell.env("USER") ?? "")
     readonly property int hour: clock.date.getHours()
     readonly property string greeting: hour < 5 ? "Up late" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
-    property int faceVersion: 0
-    onVisibleChanged: if (visible) faceVersion++      // pick up a new picture
+    // pick up a new picture: clear and set the source again (a "?v=" suffix on a
+    // local file made Qt look for a file of that name and show nothing)
+    readonly property string faceUrl: "file://" + Quickshell.env("HOME") + "/.face"
+    // only when there is one (no picture: your initial, without a warning in the log)
+    onVisibleChanged: if (visible) faceCheck.running = true
+    Process {
+        id: faceCheck
+        running: true
+        command: ["test", "-f", Quickshell.env("HOME") + "/.face"]
+        onExited: code => { face.source = ""; if (code === 0) face.source = root.faceUrl; }
+    }
 
     Item {
         id: header
         width: parent.width
-        height: 52
+        height: 60
 
         Item {
             id: avatar
@@ -91,7 +101,7 @@ Item {
                 Image {
                     id: face
                     anchors.fill: parent
-                    source: "file://" + Quickshell.env("HOME") + "/.face?v=" + root.faceVersion
+                    source: ""
                     cache: false
                     sourceSize: Qt.size(88, 88)
                     fillMode: Image.PreserveAspectCrop
@@ -103,13 +113,13 @@ Item {
 
         Column {
             anchors { left: avatar.right; leftMargin: Theme.space.s3; right: headerButtons.left; rightMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
-            spacing: 1
-            LText { width: parent.width; elide: Text.ElideRight; role: "heading"; text: root.greeting + ", " + root.userName }
+            spacing: Theme.space.s1
+            LText { width: parent.width; elide: Text.ElideRight; role: "panelHeading"; text: root.greeting + ", " + root.userName }
             LText {
                 width: parent.width
                 elide: Text.ElideRight
-                role: "caption"
-                color: Theme.textMuted
+                role: "panelCaption"
+                color: Theme.textSecondary
                 text: {
                     let t = Qt.formatDate(clock.date, "dddd, d MMMM");
                     if (!Battery.available) return t;
@@ -140,19 +150,23 @@ Item {
     Item {
         id: body
         anchors { top: header.bottom; topMargin: Theme.space.s4; left: parent.left; right: parent.right }
-        height: root.detail === "" ? main.implicitHeight : detailLoader.implicitHeight
+        height: bodyMotion.presentedKey === "" ? main.implicitHeight : detailLoader.implicitHeight
         clip: true
-        Behavior on height { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard } }
+        PageTransition {
+            id: bodyMotion
+            key: root.detail
+            active: root.motionActive
+            direction: key === "" ? -1 : 1
+        }
 
         Column {
             id: main
             width: parent.width
             spacing: Theme.space.s3
-            opacity: root.detail === "" ? 1 : 0
-            visible: opacity > 0
-            x: root.detail === "" ? 0 : -24
-            Behavior on opacity { NumberAnimation { duration: Theme.motion.micro } }
-            Behavior on x { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+            opacity: bodyMotion.reveal
+            visible: bodyMotion.presentedKey === ""
+            enabled: root.detail === ""
+            x: bodyMotion.offset
 
             // Connectivity: wide tiles (they open detail lists)
             Row {
@@ -218,7 +232,7 @@ Item {
                         id: toggles
                         width: parent.width
                         columns: 4
-                        rowSpacing: Theme.space.s2
+                        rowSpacing: Theme.space.s3
                         columnSpacing: (width - 4 * 76) / 3
 
                         // Arrow keys between toggles (RoundToggle calls this)
@@ -380,9 +394,14 @@ Item {
                         Tool { icon: "gesture"; label: "Circle"; run: [tools.ipc, "lens", "start"] }
                         Tool { icon: "draw"; label: "Draw"; run: [tools.ipc, "draw", "toggle"] }
                         Tool { icon: "picture_in_picture"; label: "PiP"; on: Pip.active; run: [tools.ipc, "pip", "toggle"] }
-                        Tool { icon: "colorize"; label: "Colour"; run: ["hyprpicker", "-a"] }
+                        Tool { icon: "colorize"; label: "Colour"; run: [tools.ipc, "tools", "colour"] }
                         Tool { icon: "wallpaper"; label: "Wallpaper"; run: [tools.ipc, "wallpapers", "toggle"] }
                         Tool { icon: "lock"; label: "Lock"; run: [tools.ipc, "lock", "lock"] }
+                        Tool { icon: "folder_open"; label: "Folders"; run: [tools.ipc, "tools", "open", "folders"] }
+                        Tool { icon: "screenshot_monitor"; label: "Captures"; run: [tools.ipc, "tools", "open", "screenshots"] }
+                        Tool { icon: "swap_horiz"; label: "File queue"; run: [tools.ipc, "tools", "open", "operations"] }
+                        Tool { icon: "hard_drive"; label: "Storage"; run: [tools.ipc, "tools", "open", "storage"] }
+                        Tool { icon: "video_call"; label: "Meeting"; run: [tools.ipc, "tools", "open", "meeting"] }
                     }
 
                 }
@@ -419,14 +438,15 @@ Item {
         Loader {
             id: detailLoader
             width: parent.width
-            active: root.detail !== ""
-            opacity: root.detail !== "" ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: Theme.motion.normal } }
-            sourceComponent: root.detail === "wifi" ? wifiDetail
-                           : root.detail === "bluetooth" ? btDetail
-                           : root.detail === "output" ? outputDetail
-                           : root.detail === "focus" ? focusDetail
-                           : root.detail === "caffeine" ? caffeineDetail : null
+            active: bodyMotion.presentedKey !== ""
+            opacity: bodyMotion.reveal
+            x: bodyMotion.offset
+            enabled: root.detail === bodyMotion.presentedKey
+            sourceComponent: bodyMotion.presentedKey === "wifi" ? wifiDetail
+                           : bodyMotion.presentedKey === "bluetooth" ? btDetail
+                           : bodyMotion.presentedKey === "output" ? outputDetail
+                           : bodyMotion.presentedKey === "focus" ? focusDetail
+                           : bodyMotion.presentedKey === "caffeine" ? caffeineDetail : null
             onLoaded: item.forceActiveFocus()
         }
     }
@@ -435,9 +455,8 @@ Item {
     component SectionLabel: LText {
         leftPadding: Theme.space.s1
         topPadding: Theme.space.s1
-        role: "caption"; color: Theme.textMuted
-        font.weight: Font.DemiBold; font.letterSpacing: 0.8
-        font.capitalization: Font.AllUppercase
+        role: "panelHeading"; color: Theme.text
+        font.letterSpacing: 0
     }
     // a tool: icon over a short label on a soft tile; it lifts on hover
     component Tool: HoverTarget {
@@ -462,14 +481,14 @@ Item {
                     color: tl.on ? Theme.accent : Theme.text
                     scale: tl.containsMouse ? 1.1 : 1
                     Behavior on scale { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.OutBack } } }
-            LText { anchors.horizontalCenter: parent.horizontalCenter; role: "caption"; font.pixelSize: 11
+            LText { anchors.horizontalCenter: parent.horizontalCenter; role: "panelCaption"
                     color: tl.on ? Theme.accent : Theme.textSecondary; text: tl.label }
         }
     }
     component Percent: LText {
         property real value: 0
         anchors { right: parent.right; rightMargin: Theme.space.s3; verticalCenter: parent.verticalCenter }
-        role: "caption"
+        role: "panelCaption"
         // Readable once the fill reaches under the label
         color: value > 0.86 ? Theme.onAccent : Theme.textSecondary
         text: value < 0 ? "Muted" : Math.round(value * 100) + "%"

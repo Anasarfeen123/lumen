@@ -33,18 +33,20 @@ Item {
     Column {
         id: col
         anchors { left: icon.right; leftMargin: Theme.space.s3; right: parent.right; top: parent.top }
-        spacing: 2
+        spacing: Theme.space.s1
         Row {
+            width: parent.width
             spacing: Theme.space.s1
-            LText { role: "caption"; color: root.info.critical ? Theme.error : Theme.textMuted; text: root.info.appName ?? "" }
+            LText { width: Math.min(implicitWidth, col.width - burst.implicitWidth - Theme.space.s1); role: "barCaption"; color: root.info.critical ? Theme.error : Theme.textSecondary; text: root.info.appName ?? ""; elide: Text.ElideRight; textFormat: Text.PlainText }
             LText {
+                id: burst
                 visible: (root.info.burst ?? 1) > 1
-                role: "caption"; color: Theme.textMuted
+                role: "barCaption"; color: Theme.textMuted
                 text: "· " + root.info.burst + " new"
             }
         }
-        LText { width: parent.width; role: "heading"; text: root.info.summary ?? ""; elide: Text.ElideRight; textFormat: Text.PlainText }
-        LText { width: parent.width; role: "body"; color: Theme.textSecondary; text: root.info.body ?? ""; elide: Text.ElideRight; maximumLineCount: 1; textFormat: Text.PlainText; visible: text !== "" }
+        LText { width: parent.width; role: "panelHeading"; text: root.info.summary ?? ""; elide: Text.ElideRight; textFormat: Text.PlainText }
+        LText { width: parent.width; role: "body"; color: Theme.textSecondary; text: root.info.body ?? ""; elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.Wrap; lineHeight: 1.45; textFormat: Text.PlainText; visible: text !== "" }
     }
 
     Row {

@@ -35,7 +35,7 @@ PanelWindow {
     property string filter: ""
     property string chosen: ""          // "" = all
 
-    visible: showing || panel.opacity > 0
+    visible: panel.retained
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -111,17 +111,16 @@ PanelWindow {
         MouseArea { anchors.fill: parent; onClicked: CheatsheetState.open = false }
     }
 
-    GlassSurface {
+    MotionSurface {
         id: panel
+        shown: win.showing
+        motionStyle: "dialog"
+        motionOrigin: Item.Center
         level: "panel"
         radius: Theme.radius.lg
         width: Math.min(win.width - 2 * Theme.space.s8, 1220)
         height: Math.min(win.height - 2 * Theme.space.s8 - 40, 780)
         anchors.centerIn: parent
-        opacity: win.showing ? 1 : 0
-        scale: win.showing ? 1 : 0.96
-        Behavior on opacity { NumberAnimation { duration: win.showing ? Theme.motion.normal : Theme.motion.normal * Theme.motion.exitRatio } }
-        Behavior on scale { NumberAnimation { duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
         MouseArea { anchors.fill: parent }
 
         // ── header ──

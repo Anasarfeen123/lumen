@@ -10,8 +10,8 @@ import qs.theme
 
 Row {
     id: root
-    property real pixelSize: 15
-    property int weight: 650
+    property real pixelSize: Theme.size.clock
+    property int weight: Theme.weight.clock
     property color color: Theme.text
     property bool showPeriod: Theme.clock12h           // small AM/PM after the digits
     // "roll": digits slide up like a counter · "flip": each digit on a small card
@@ -60,7 +60,7 @@ Row {
 
             onChChanged: {
                 if (ch === shown) return;
-                if (Date.now() - born < 600) { flipAnim.stop(); roll.stop(); shown = ch; leaving = ""; back.opacity = 0; front.opacity = isDigit ? 1 : 0.55; frontTurn.angle = 0; front.y = root.flip ? 1 : 0; return; }
+                if (Theme.reducedMotion || Date.now() - born < 600) { flipAnim.stop(); roll.stop(); shown = ch; leaving = ""; back.opacity = 0; front.opacity = isDigit ? 1 : 0.55; frontTurn.angle = 0; front.y = root.flip ? 1 : 0; return; }
                 leaving = shown;
                 shown = ch;
                 if (root.flip) flipAnim.restart(); else roll.restart();
@@ -70,7 +70,7 @@ Row {
                 color: root.color
                 font.family: Theme.fontUi
                 font.pixelSize: root.pixelSize
-                font.variableAxes: ({ "wght": root.weight, "ROND": 100, "wdth": 100 })
+                font.variableAxes: ({ "wght": root.weight, "ROND": Theme.clockRoundness, "wdth": 100 })
                 font.features: ({ "tnum": 1 })
                 width: cell.width
                 horizontalAlignment: Text.AlignHCenter
@@ -95,16 +95,16 @@ Row {
             SequentialAnimation {
                 id: flipAnim
                 ScriptAction { script: { back.opacity = 1; front.opacity = 0; backTurn.angle = 0; frontTurn.angle = -90; } }
-                NumberAnimation { target: backTurn; property: "angle"; to: 90; duration: Theme.motion.normal; easing.type: Easing.InQuad }
+                NumberAnimation { target: backTurn; property: "angle"; to: 90; duration: Theme.motion.micro; easing.type: Easing.InQuad }
                 ScriptAction { script: { back.opacity = 0; front.opacity = cell.isDigit ? 1 : 0.55; } }
-                NumberAnimation { target: frontTurn; property: "angle"; to: 0; duration: Theme.motion.normal; easing.type: Easing.OutBack }
+                NumberAnimation { target: frontTurn; property: "angle"; to: 0; duration: Theme.motion.micro; easing.type: Easing.OutCubic }
             }
 
             ParallelAnimation {
                 id: roll
-                NumberAnimation { target: back; property: "y"; from: 0; to: -cell.height; duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
-                NumberAnimation { target: back; property: "opacity"; from: 1; to: 0; duration: Theme.motion.large }
-                NumberAnimation { target: front; property: "y"; from: cell.height; to: 0; duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
+                NumberAnimation { target: back; property: "y"; from: 0; to: -cell.height; duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
+                NumberAnimation { target: back; property: "opacity"; from: 1; to: 0; duration: Theme.motion.normal }
+                NumberAnimation { target: front; property: "y"; from: cell.height; to: 0; duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
             }
         }
     }
@@ -112,12 +112,12 @@ Row {
     // AM / PM — smaller and quieter than the digits, sitting on their baseline
     Text {
         visible: root.showPeriod
-                leftPadding: root.pixelSize * 0.22
+        leftPadding: root.pixelSize * 0.22
         text: Theme.timePeriod(clock.date)
         color: Theme.withAlpha(root.color, 0.6)
         font.family: Theme.fontUi
         font.pixelSize: Math.round(root.pixelSize * 0.62)
-        font.variableAxes: ({ "wght": Math.min(800, root.weight + 50), "ROND": 100 })
+        font.variableAxes: ({ "wght": Math.min(800, root.weight + 50), "ROND": Theme.clockRoundness })
         font.letterSpacing: 0.3
         renderType: Text.NativeRendering
         height: parent.height

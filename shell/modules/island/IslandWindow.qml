@@ -39,7 +39,7 @@ PanelWindow {
     }
     // (just before the bar finishes gliding home at 380 ms: the two overlap for a moment instead of
     // leaving a frame where neither has its glass)
-    Timer { id: mergeRelease; interval: Theme.reducedMotion ? 0 : 340; onTriggered: win.mergedLook = false }
+    Timer { id: mergeRelease; interval: Theme.reducedMotion ? 0 : Math.max(0, Theme.motion.normal * Theme.motion.exitRatio - Theme.motion.micro / 4); onTriggered: win.mergedLook = false }
     // The overview's search field has taken the island's place
     readonly property bool handedOff: Overview.handoff && isFocused
 
@@ -100,10 +100,10 @@ PanelWindow {
     }
     SequentialAnimation {
         id: swap
-        NumberAnimation { target: loader; property: "opacity"; to: 0; duration: Theme.reducedMotion ? 0 : 70 }
+        NumberAnimation { target: loader; property: "opacity"; to: 0; duration: Theme.reducedMotion ? 0 : Theme.motion.micro / 2 }
         ScriptAction { script: { win.shown = win.variant; win.shownData = Island.info; } }
-        PauseAnimation { duration: Theme.reducedMotion ? 0 : 90 }
-        NumberAnimation { target: loader; property: "opacity"; to: 1; duration: Theme.motion.micro; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard }
+        PauseAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.micro }
+        NumberAnimation { target: loader; property: "opacity"; to: 1; duration: Theme.reducedMotion ? 100 : Theme.motion.micro; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard }
     }
 
     function componentFor(v) {
@@ -152,12 +152,13 @@ PanelWindow {
         flat: win.mergedLook && win.shown === "idle"
         radius: Math.min(height / 2, Theme.radius.island)
         anchors.horizontalCenter: parent.horizontalCenter
+        transformOrigin: Item.Top
         y: Theme.edgeGap
         visible: !win.handedOff
         width: targetW
         height: targetH
         opacity: win.hidden ? 0 : 1
-        scale: mouse.pressed ? 0.98 : 1
+        scale: !Theme.reducedMotion && mouse.pressed ? 0.985 : 1
 
         Behavior on width {
             enabled: !Theme.reducedMotion
@@ -228,7 +229,9 @@ PanelWindow {
         Loader {
             id: loader
             anchors.centerIn: parent
-            width: item ? (body.bodyExpanded ? body.width - 2 * body.padX : item.implicitWidth) : 0
+            // Expanded content is laid out at its final width while the glass
+            // catches up; glyphs never squeeze during the spring.
+            width: item ? (body.bodyExpanded ? Theme.island.expandedWidth - 2 * body.padX : item.implicitWidth) : 0
             height: item?.implicitHeight ?? 0
             sourceComponent: win.componentFor(win.shown)
         }
@@ -291,7 +294,7 @@ PanelWindow {
             Quickshell.execDetached([Theme.lumenRoot + "/scripts/screen-record.sh", "stop"]);
             break;
         case "screenshot":
-            if (Island.info.path) Quickshell.execDetached(["xdg-open", Island.info.path]);
+            if (Island.info.path) DesktopTools.inspectScreenshot(Island.info.path);
             Island.dismiss();
             break;
         case "system":

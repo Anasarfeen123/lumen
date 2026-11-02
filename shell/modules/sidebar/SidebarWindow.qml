@@ -17,9 +17,9 @@ PanelWindow {
     readonly property bool isFocused: Quickshell.screens.length <= 1
                                       || (Hyprland.focusedMonitor?.name ?? "") === (monitor?.name ?? "")
     readonly property bool showing: Sidebar.open && isFocused
-    readonly property int panelWidth: 380
+    readonly property int panelWidth: Math.min(Theme.panels.controlsWidth, (screen?.width ?? Theme.panels.controlsWidth) - Theme.edgeGap * 2)
 
-    visible: showing || panel.opacity > 0
+    visible: panel.retained
     anchors { top: true; bottom: true; right: true }
     margins.top: Theme.edgeGap + Theme.barHeight
     implicitWidth: panelWidth + Theme.edgeGap + Theme.space.s8
@@ -29,7 +29,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.keyboardFocus: showing ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-    mask: Region { item: panel }
+    mask: Region { item: win.showing ? panel : null }
 
 
     HyprlandFocusGrab {
@@ -38,23 +38,23 @@ PanelWindow {
         onCleared: Sidebar.hide()
     }
 
-    GlassSurface {
+    MotionSurface {
         id: panel
+        shown: win.showing
+        motionStyle: "sidebar"
+        offsetX: Theme.space.s5
+        motionOrigin: Item.TopRight
         level: "panel"
         radius: Theme.radius.lg
         width: win.panelWidth
         anchors { top: parent.top; bottom: parent.bottom; right: parent.right; topMargin: Theme.edgeGap; bottomMargin: Theme.edgeGap; rightMargin: Theme.edgeGap }
-
-        opacity: win.showing ? 1 : 0
-        transform: Translate { x: win.showing ? 0 : 24; Behavior on x { NumberAnimation { duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: win.showing ? Theme.curveEmphasized : Theme.curveAccelerate } } }
-        Behavior on opacity { NumberAnimation { duration: win.showing ? Theme.motion.normal : Theme.motion.normal * Theme.motion.exitRatio } }
 
         focus: win.showing
         Keys.onEscapePressed: Sidebar.hide()
 
         // Keyboard focus follows the visible tab (so arrows reach the toggles)
         function focusPage() { if (!win.showing) return; (Sidebar.tab === "controls" ? controls : notifPage).forceActiveFocus(); }
-        Connections { target: Sidebar; function onTabChanged() { Qt.callLater(panel.focusPage); } }
+        onSettled: opened => { if (!opened) controls.detail = ""; }
         Connections { target: win; function onShowingChanged() { Qt.callLater(panel.focusPage); } }
 
         Keys.onPressed: event => {
@@ -69,26 +69,32 @@ PanelWindow {
             anchors { top: parent.top; left: parent.left; right: parent.right; margins: Theme.space.s4 }
         }
 
-        // Both tabs live side by side; the pair slides (and cross-fades)
+        // Change content only at the transparent midpoint, keeping text crisp.
         Item {
             id: pages
             anchors { top: tabs.bottom; topMargin: Theme.space.s4; left: parent.left; right: parent.right; bottom: parent.bottom }
             clip: true
-            readonly property real shift: Sidebar.tab === "notifications" ? 1 : 0
-            property real t: shift
-            Behavior on t { NumberAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+            PageTransition {
+                id: tabsMotion
+                key: Sidebar.tab
+                active: panel.retained
+                direction: key === "notifications" ? 1 : -1
+                onSwapped: Qt.callLater(panel.focusPage)
+            }
 
             Flickable {
                 id: controlsPage
-                x: -pages.t * pages.width * 0.35
+                x: tabsMotion.offset
                 width: pages.width; height: pages.height
-                opacity: 1 - pages.t
-                visible: opacity > 0.01
+                opacity: tabsMotion.reveal
+                visible: tabsMotion.presentedKey === "controls"
+                enabled: Sidebar.tab === "controls"
                 contentHeight: controls.implicitHeight + Theme.space.s5 * 2
                 boundsBehavior: Flickable.StopAtBounds
                 clip: true
                 ControlCenter {
                     id: controls
+                    motionActive: panel.retained
                     focus: Sidebar.tab === "controls"
                     x: Theme.space.s5; y: 0
                     width: parent.width - Theme.space.s5 * 2
@@ -97,12 +103,13 @@ PanelWindow {
 
             NotificationCenter {
                 id: notifPage
-                x: (1 - pages.t) * pages.width * 0.35 + Theme.space.s4
+                x: tabsMotion.offset + Theme.space.s4
                 y: 0
                 width: pages.width - Theme.space.s4 * 2
                 height: pages.height - Theme.space.s4
-                opacity: pages.t
-                visible: opacity > 0.01
+                opacity: tabsMotion.reveal
+                visible: tabsMotion.presentedKey === "notifications"
+                enabled: Sidebar.tab === "notifications"
             }
         }
     }

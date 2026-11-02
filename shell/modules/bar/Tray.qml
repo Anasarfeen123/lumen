@@ -81,6 +81,7 @@ HoverTarget {
     }
 
     LumenPopup {
+        motionOrigin: Item.TopRight
         id: drawer
         anchor.window: root.window
         anchor.rect.x: root.mapToItem(root.window.contentItem, root.width, 0).x - contentWidth - margin
@@ -95,7 +96,6 @@ HoverTarget {
         property var menuApp: null
         function menuFor(item) { menuApp = item; stack = [{ handle: item.menu, title: root.label(item) }]; if (!shown) open(); }
         function back() { stack = stack.slice(0, -1); }
-        onShownChanged: if (!shown) { stack = []; menuApp = null; }
         onVisibleChanged: if (!visible) { stack = []; menuApp = null; }
 
         Item {

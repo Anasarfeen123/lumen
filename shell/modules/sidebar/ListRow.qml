@@ -32,7 +32,7 @@ Item {
         visible: root.section !== ""
         x: Theme.space.s3
         y: 8
-        role: "caption"
+        role: "panelCaption"
         font.weight: Font.DemiBold
         color: Theme.textMuted
         text: root.section
@@ -68,7 +68,7 @@ Item {
             Column {
                 anchors { left: lead.right; leftMargin: Theme.space.s3; right: trail.left; rightMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
                 LText { width: parent.width; role: root.current ? "bodyStrong" : "body"; text: root.title; elide: Text.ElideRight }
-                LText { width: parent.width; visible: text !== ""; role: "caption"; color: root.current ? Theme.accent : Theme.textMuted; text: root.subtitle; elide: Text.ElideRight }
+                LText { width: parent.width; visible: text !== ""; role: "panelCaption"; color: root.current ? Theme.accent : Theme.textMuted; text: root.subtitle; elide: Text.ElideRight }
             }
             Row {
                 id: trail

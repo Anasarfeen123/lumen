@@ -86,15 +86,36 @@ Singleton {
     readonly property color onMedia: "#ffffff"    // text and icons drawn on a picture
 
     // ── Type (DESIGN.md §3) ──
-    readonly property string fontUi: _type.ui ?? "Inter"
+    readonly property string fontUi: _type.ui ?? "Google Sans Flex"
     readonly property string fontMono: _type.mono ?? "JetBrainsMono Nerd Font"
     readonly property string fontIcon: "Material Symbols Rounded"
+    readonly property real fontRoundness: _type.roundness ?? 35
+    readonly property real clockRoundness: _type.clock_roundness ?? 60
+    readonly property QtObject weight: QtObject {
+        readonly property int title: root._type.title?.[1] ?? 600
+        readonly property int heading: root._type.heading?.[1] ?? 600
+        readonly property int body: root._type.body?.[1] ?? 400
+        readonly property int bodyStrong: root._type.body_strong?.[1] ?? 500
+        readonly property int caption: root._type.caption?.[1] ?? 500
+        readonly property int panelTitle: root._type.panel_title?.[1] ?? 550
+        readonly property int panelHeading: root._type.panel_heading?.[1] ?? 600
+        readonly property int panelCaption: root._type.panel_caption?.[1] ?? 500
+        readonly property int bar: root._type.bar?.[1] ?? 550
+        readonly property int clock: root._type.clock?.[1] ?? 620
+        readonly property int barCaption: root._type.bar_caption?.[1] ?? 500
+    }
     readonly property QtObject size: QtObject {
-        readonly property real display: 64
-        readonly property real title: 20
-        readonly property real heading: 15
-        readonly property real body: 13
-        readonly property real caption: 11
+        readonly property real display: root._type.display?.[0] ?? 64
+        readonly property real title: root._type.title?.[0] ?? 20
+        readonly property real heading: root._type.heading?.[0] ?? 15
+        readonly property real body: root._type.body?.[0] ?? 13
+        readonly property real caption: root._type.caption?.[0] ?? 11
+        readonly property real bar: root._type.bar?.[0] ?? 13
+        readonly property real barCaption: root._type.bar_caption?.[0] ?? 12
+        readonly property real clock: root._type.clock?.[0] ?? 16
+        readonly property real panelTitle: root._type.panel_title?.[0] ?? 28
+        readonly property real panelHeading: root._type.panel_heading?.[0] ?? 16
+        readonly property real panelCaption: root._type.panel_caption?.[0] ?? 12
         readonly property real icon: 20
         readonly property real iconSmall: 18
     }
@@ -115,6 +136,7 @@ Singleton {
         readonly property int md: root._radius.md ?? 12
         readonly property int lg: root._radius.lg ?? 20
         readonly property int island: root._radius.island ?? 28
+        readonly property int bar: root._radius.bar ?? 14
     }
     readonly property QtObject island: QtObject {
         readonly property int height: root._island.height ?? 38
@@ -125,6 +147,10 @@ Singleton {
         readonly property int maxCompactWidth: root._island.max_compact_width ?? 360
         readonly property int workspaceDebounce: root._island.workspace_debounce ?? 150
         readonly property int startupGrace: root._island.startup_grace ?? 2000
+    }
+    readonly property QtObject panels: QtObject {
+        readonly property int controlsWidth: root.tokens.panels?.controls_width ?? 408
+        readonly property int plannerWidth: root.tokens.panels?.planner_width ?? 408
     }
     readonly property int barHeight: island.height
     readonly property int edgeGap: space.s2      // shell surfaces ↔ screen edge
@@ -137,9 +163,21 @@ Singleton {
         readonly property int normal: root.reducedMotion ? 100 : Math.round((root._motion.normal ?? 220) * _pace)
         readonly property int large: root.reducedMotion ? 100 : Math.round((root._motion.large ?? 320) * _pace)
         readonly property real exitRatio: root._motion.exit_ratio ?? 0.7
+        readonly property int surfaceFadeIn: Math.round((root._motion.surfaces?.fade_in ?? 120) * _pace)
+        readonly property int surfaceFadeOut: Math.round((root._motion.surfaces?.fade_out ?? 100) * _pace)
+        readonly property real popupScale: root._motion.surfaces?.popup_scale ?? 0.985
+        readonly property real dialogScale: root._motion.surfaces?.dialog_scale ?? 0.98
+        readonly property int pageOut: Math.round((root._motion.surfaces?.page_out ?? 60) * _pace)
+        readonly property int pageIn: Math.round((root._motion.surfaces?.page_in ?? 140) * _pace)
+        readonly property int pageMove: Math.round((root._motion.surfaces?.page_move ?? 180) * _pace)
         readonly property real springStrength: root._motion.spring_strength ?? 4.2
         readonly property real springDamping: root._motion.spring_damping ?? 0.34
     }
+    function surfaceDuration(style, entering) {
+        const fallback = ({ popup: [200, 140], sidebar: [260, 170], dialog: [220, 150], sheet: [260, 180] })[style] ?? [200, 140];
+        return Math.round((_motion.surfaces?.[style + (entering ? "_enter" : "_exit")] ?? fallback[entering ? 0 : 1]) * motion._pace);
+    }
+    readonly property var curveSurface: _curve("surface", [0.16, 1, 0.3, 1])
     // Easing.Bezier wants [x1, y1, x2, y2, 1, 1]
     function _curve(name, fb) { const p = _curves[name] ?? fb; return [p[0], p[1], p[2], p[3], 1, 1]; }
     readonly property var curveStandard: _curve("standard", [0.2, 0, 0, 1])

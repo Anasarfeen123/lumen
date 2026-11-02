@@ -38,7 +38,7 @@ DetailPage {
         Item {
             height: 34
             LText { anchors { left: parent.left; leftMargin: Theme.space.s2; bottom: parent.bottom; bottomMargin: 6 }
-                    role: "caption"; color: Theme.textMuted; text: "APPS"; font.letterSpacing: 1 }
+                    role: "panelCaption"; color: Theme.textMuted; text: "APPS"; font.letterSpacing: 1 }
         }
     }
     Component {
@@ -67,7 +67,7 @@ DetailPage {
             Column {
                 anchors { left: muteBtn.right; leftMargin: Theme.space.s2; right: parent.right; rightMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
                 spacing: 3
-                LText { width: parent.width; elide: Text.ElideRight; role: "caption"; color: Theme.textSecondary
+                LText { width: parent.width; elide: Text.ElideRight; role: "panelCaption"; color: Theme.textSecondary
                         text: (row.entry?.name || row.group?.name || "App") + "  ·  " + (row.muted ? "muted" : Math.round(row.volume * 100) + "%") }
                 LSlider {
                     width: parent.width

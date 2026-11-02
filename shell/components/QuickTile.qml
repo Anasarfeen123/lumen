@@ -23,7 +23,7 @@ Item {
     signal toggled()
     signal detailRequested()
 
-    implicitHeight: 60
+    implicitHeight: 68
     activeFocusOnTab: true
     Keys.onSpacePressed: toggled()
     Keys.onReturnPressed: hasDetail ? detailRequested() : toggled()
@@ -40,8 +40,8 @@ Item {
             anchors.fill: parent
             radius: Theme.radius.md
             z: -1
-            color: root.active ? Theme.withAlpha(Theme.accent, 0.12) : Theme.surfaceElevated
-            border.width: 1
+            color: root.active ? Theme.surfaceElevated : Theme.surfaceElevated
+            border.width: root.activeFocus ? 1 : 0
             border.color: root.activeFocus ? Theme.accent
                         : root.active ? Theme.withAlpha(Theme.accent, 0.28) : Theme.border
             Behavior on color { ColorAnimation { duration: Theme.motion.micro } }
@@ -54,8 +54,8 @@ Item {
             LText {
                 width: parent.width
                 visible: text !== ""
-                role: "caption"
-                color: root.active ? Theme.textSecondary : Theme.textMuted
+                role: "panelCaption"
+                color: Theme.textSecondary
                 text: root.sublabel
                 elide: Text.ElideRight
             }
@@ -87,7 +87,7 @@ Item {
             border.color: Theme.border
             Behavior on color { ColorAnimation { duration: Theme.motion.micro } }
             SequentialAnimation on opacity {
-                running: root.busy
+                running: root.busy && !Theme.reducedMotion
                 loops: Animation.Infinite
                 alwaysRunToEnd: true
                 NumberAnimation { to: 0.55; duration: 700; easing.type: Easing.InOutSine }

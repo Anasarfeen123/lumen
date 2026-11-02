@@ -58,7 +58,7 @@ Rectangle {
                     required property int index
                     width: root.cellW; height: 18
                     horizontalAlignment: Text.AlignHCenter
-                    role: "caption"
+                    role: "panelCaption"
                     color: index >= 5 ? Theme.withAlpha(Theme.textMuted, 0.7) : Theme.textMuted
                     text: modelData
                 }

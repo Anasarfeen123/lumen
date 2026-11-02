@@ -66,8 +66,8 @@ Rectangle {
                     }
                     LText {
                         anchors.verticalCenter: parent.verticalCenter
-                        role: "bodyStrong"
-                        color: on ? Theme.text : Theme.textMuted
+                        role: "bar"
+                        color: on ? Theme.text : Theme.textSecondary
                         text: modelData.label
                         Behavior on color { ColorAnimation { duration: Theme.motion.micro } }
                     }
@@ -82,7 +82,7 @@ Rectangle {
                         LText {
                             id: countLabel
                             anchors.centerIn: parent
-                            role: "caption"
+                            role: "panelCaption"
                             color: Notifications.dnd ? Theme.textSecondary : Theme.onAccent
                             text: Notifications.count > 99 ? "99+" : Notifications.count
                         }

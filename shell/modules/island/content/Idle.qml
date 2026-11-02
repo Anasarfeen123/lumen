@@ -37,7 +37,7 @@ Item {
             height: 20
             anchors.verticalCenter: parent.verticalCenter
             visible: width > 0
-            Behavior on width { NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+            Behavior on width { NumberAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
 
             // Vinyl: the album art as a slowly turning disc
             Art {
@@ -68,19 +68,23 @@ Item {
         RollingClock {
             anchors.verticalCenter: parent.verticalCenter
             style: Persist.data.islandClock ?? "roll"
-            pixelSize: 16
-            weight: 650
+            pixelSize: Theme.size.clock
+            weight: Theme.weight.clock
         }
 
-        Text {
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: Persist.data.islandDate
+            width: 1; height: Theme.space.s3
+            color: Theme.borderStrong
+        }
+
+        LText {
+            role: "barCaption"
             anchors.verticalCenter: parent.verticalCenter
             visible: Persist.data.islandDate
             text: Qt.formatDateTime(clock.date, "ddd d")
-            color: Theme.textMuted
-            font.family: Theme.fontUi
-            font.pixelSize: 13
-            font.variableAxes: ({ "wght": 500, "ROND": 100 })
-            renderType: Text.NativeRendering
+            color: Theme.textSecondary
         }
 
         // Halo, resting beside the clock (Settings → Halo → "Show Halo").
