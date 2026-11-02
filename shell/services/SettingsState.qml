@@ -63,7 +63,12 @@ Singleton {
 
     // Main shell → the settings app (reuse this session's, or start it)
     function launch(p) {
+        // Drop every inherited file but stdin/out/err first. A shell that
+        // Quickshell's crash handler relaunched leaves its "you are the
+        // relaunch" memfd open in everything it starts — a `qs` that inherits
+        // it loads shell.qml instead of settings.qml, and a second bar appears.
         Quickshell.execDetached(["sh", "-c",
+            'for f in /proc/$$/fd/*; do fd=${f##*/}; [ "$fd" -gt 2 ] 2>/dev/null && eval "exec $fd>&-" 2>/dev/null; done; ' +
             'pid=$(cat "$3" 2>/dev/null) && tr "\\0" " " < "/proc/$pid/cmdline" 2>/dev/null | grep -q settings.qml && ' +
             '{ qs ipc --pid "$pid" call settings open "$2" >/dev/null 2>&1; hyprctl dispatch "hl.dsp.focus({ window = \\"pid:$pid\\" })" >/dev/null 2>&1; exit 0; }; ' +
             'LUMEN_SETTINGS_PAGE="$2" exec qs -p "$1/shell/settings.qml"', "sh", Theme.lumenRoot, p || "appearance", pidFile]);
