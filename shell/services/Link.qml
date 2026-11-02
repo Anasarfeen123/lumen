@@ -178,7 +178,8 @@ Singleton {
     readonly property bool announces: Persist.automates || mock
     Process {
         running: root.available && Persist.automates
-        command: [root.script, "events"]
+        // pdeathsig: dies with the shell (link.sh passes it on to dbus-monitor)
+        command: ["setpriv", "--pdeathsig", "TERM", root.script, "events"]
         stdout: SplitParser { onRead: line => { try { root.onEvent(JSON.parse(line)); } catch (e) {} } }
     }
     property var lastBattery: ({})
@@ -247,12 +248,14 @@ Singleton {
     readonly property bool panAuto: Persist.data.linkBluetoothAuto ?? true
     property int panFails: 0
     property bool panHinted: false
+    property bool panTetherOff: false        // the phone said tethering is off: stop retrying until it comes back or you ask
     property bool panBusy: false
     function refreshPan() { if (!panStat.running) panStat.running = true; }
     function panUp(manual) {
         if (panBusy || !pan?.profile || mock) return;
         panBusy = true;
         panProc.manual = manual === true;
+        if (panProc.manual) panTetherOff = false;
         panProc.running = true;
     }
     function makePanSafe() { Quickshell.execDetached(["sh", "-c", '"$0" pan safe', script]); panSafeCheck.restart(); }
@@ -274,11 +277,13 @@ Singleton {
                 root.refreshPan();
                 if (r.ok) {
                     root.panFails = 0;
+                    root.panTetherOff = false;
                     refreshSoon.restart();
                     if (r.reason === "up") Island.system("bluetooth_connected", "Linked over Bluetooth", (root.pan?.name ?? "Your phone") + " · internet stays on Wi-Fi");
                     return;
                 }
                 root.panFails++;
+                if (r.reason === "tethering") root.panTetherOff = true;
                 if (r.reason === "tethering" && (panProc.manual || !root.panHinted)) {
                     root.panHinted = true;
                     Island.system("bluetooth", "Turn on Bluetooth tethering", "On your phone: Hotspot & tethering → Bluetooth tethering");
@@ -291,15 +296,29 @@ Singleton {
         interval: root.panFails >= 3 ? 300000 : 60000
         repeat: true
         triggeredOnStart: true
-        running: Persist.automates && root.panAuto && root.available && !root.connected && !!root.pan?.profile && root.pan.safe && !root.mock
+        running: Persist.automates && root.panAuto && root.available && !root.connected && !!root.pan?.profile && root.pan.safe && !root.panTetherOff && !root.mock
         onTriggered: root.panUp(false)
     }
-    // The phone's Bluetooth just connected (it came into range): link now
+    // The phone's Bluetooth just connected (it came into range): link now.
+    // Only on the phone's own disconnected → connected edge. This signal fires
+    // for every device, and a failed NAP connect can crash bluetoothd (which
+    // takes wireplumber down with it); everything then reconnects, and
+    // retrying on each change turned that into a crash loop. A blip under
+    // 2 minutes (a bluetoothd restart) keeps the failure count and backoff.
+    property bool panPhoneOn: false
+    property real panPhoneLeft: 0
     Connections {
         target: Bluetooth
         function onConnectedDevicesChanged() {
-            if (!root.panAuto || root.connected || !root.pan?.bdaddr) return;
-            if (Bluetooth.connectedDevices.some(d => (d.address ?? "").toUpperCase() === root.pan.bdaddr.toUpperCase())) { root.panFails = 0; root.panUp(false); }
+            if (!root.pan?.bdaddr) return;
+            const on = Bluetooth.connectedDevices.some(d => (d.address ?? "").toUpperCase() === root.pan.bdaddr.toUpperCase());
+            const was = root.panPhoneOn;
+            root.panPhoneOn = on;
+            if (!on) { if (was) root.panPhoneLeft = Date.now(); return; }
+            if (was || !Persist.automates || !root.panAuto || root.connected) return;
+            if (Date.now() - root.panPhoneLeft > 120000) { root.panFails = 0; root.panTetherOff = false; }
+            else if (root.panFails >= 3 || root.panTetherOff) return;
+            root.panUp(false);
         }
     }
 

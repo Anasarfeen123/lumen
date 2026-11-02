@@ -110,6 +110,9 @@ Singleton {
             property bool haloFace: false         // the look: false = the abstract core, true = eyes on the ring
             property string haloName: "Halo"
             property string haloCall: ""          // what Halo calls you ("" = your first name)
+            property string haloSayName: ""       // how your name is said out loud: a spelling the voice gets right ("" = as written)
+            property string haloMic: "auto"       // "auto" (laptop mic while on Bluetooth headphones) | "headset" (always the default mic)
+            property string haloStt: "balanced"   // speech recognition: "fast" (base.en) | "balanced" (small.en) | "best" (large-v3-turbo, discrete GPU)
             property string haloCharacter: "friendly"   // "calm" | "friendly" | "jarvis"
             property string haloChattiness: "helpful"   // "silent" | "helpful" | "companion"
             property string haloVoice: "off"      // spoken replies: "off" | "on" | "headphones"

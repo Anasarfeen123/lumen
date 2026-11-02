@@ -46,6 +46,7 @@ PanelWindow {
     onShowingChanged: {
         if (!showing) return;
         Qt.callLater(() => prompt.forceActiveFocus());
+        if (!Voice.canListen) Voice.refresh();    // whisper.cpp may have been set up since
         // Halo wakes as the panel arrives: eyes open with a little hop
         headOrb.wake();
         greetPop.restart();
@@ -231,7 +232,7 @@ PanelWindow {
                             id: modelRow
                             anchors.centerIn: parent
                             spacing: 4
-                            LText { role: "caption"; color: Theme.textSecondary; text: (Ai.auto ? "Auto · " : "") + Ai.model.replace(/:latest$/, ""); anchors.verticalCenter: parent.verticalCenter }
+                            LText { role: "caption"; color: Theme.textSecondary; text: Ai.smart ? "Smart" + (Ai.routed ? " · " + Ai.routed.label : "") : (Ai.auto ? "Auto · " : "") + Ai.model.replace(/:latest$/, ""); anchors.verticalCenter: parent.verticalCenter }
                             LIcon { icon: "expand_more"; size: 14; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
                         }
                     }
@@ -240,9 +241,9 @@ PanelWindow {
                         visible: Ai.provider !== "off"
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 4
-                        LIcon { icon: Ai.local ? "shield_lock" : "cloud"; size: 14; fill: 1; color: Ai.local ? Theme.success : Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
+                        LIcon { icon: Ai.local ? "shield_lock" : Ai.smart ? "alt_route" : "cloud"; size: 14; fill: 1; color: Ai.local ? Theme.success : Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
                         LText { role: "caption"; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
-                                text: Ai.local ? (Ai.modelLoaded ? "On this computer" : "On this computer · loading model…") : "Claude · your key" }
+                                text: Ai.local ? (Ai.modelLoaded ? "On this computer" : "On this computer · loading model…") : Ai.smart ? "Free models and this computer" : Ai.providerLabel + " · your key" }
                     }
                 }
                 Row {
@@ -869,7 +870,7 @@ PanelWindow {
                                          onClicked: Voice.speaking ? Voice.stop() : Voice.say(msg.modelData.text, true) }
                             ActionPill { visible: msg.last; icon: "refresh"; text: "Retry"; onClicked: Ai.retry() }
                             LText { visible: msg.last; role: "caption"; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
-                                    text: "  " + Ai.model.replace(/:latest$/, "") + (Ai.speed > 0 ? " · " + Ai.speed + " tokens/s" : "") }
+                                    text: "  " + (msg.modelData.via || Ai.model.replace(/:latest$/, "")) + (Ai.speed > 0 ? " · " + Ai.speed + " tokens/s" : "") }
                         }
                     }
                 }

@@ -35,7 +35,9 @@ Singleton {
         if (it?.ask) { send("That needs your OK on the laptop — I've left it there."); Halo.handle(q, "island"); return; }
         if (!Ai.configured) { send("I can do timers, reminders, your classes and settings from here; for other questions choose a model in Settings → Halo."); return; }
         // one short answer from the model, quietly
-        reqFile.setText(JSON.stringify({ provider: Ai.provider, model: Ai.model,
+        const to = Ai.routeFor("smart", Ai.system.length + q.length);
+        AiRouter.sent(to.provider, Ai.system.length + q.length);
+        reqFile.setText(JSON.stringify({ provider: to.provider, model: to.model,
             system: Ai.system + "\nYou're answering on the user's phone: reply in 1-3 short sentences, plain text, no Markdown.",
             messages: [{ role: "user", text: q }] }));
         brain.buf = ""; brain.q = q;

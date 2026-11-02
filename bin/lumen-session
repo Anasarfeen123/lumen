@@ -77,7 +77,6 @@ if [ -n "$dgpu" ] && [ "${LUMEN_DGPU:-on}" != off ]; then
     [ -n "$igpu" ] && export AQ_MGPU_NO_EXPLICIT=1
 fi
 [ -n "$devices" ] && export AQ_DRM_DEVICES="$devices"
-
 # Not exec'd: when Hyprland exits, end the systemd graphical session too, so
 # portals don't linger bound to a display that is gone.
 start-hyprland -- -c "$LUMEN_ROOT/hypr/hyprland.lua" || status=$?

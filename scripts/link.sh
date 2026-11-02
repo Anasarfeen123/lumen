@@ -144,7 +144,8 @@ doctor)
 events)
     # The daemon's signals, as JSON lines. The match rule names the
     # well-known sender, so only KDE Connect's own signals arrive.
-    dbus-monitor --session "type='signal',sender='$DEST'" 2>/dev/null | parse_events ;;
+    # pdeathsig: dbus-monitor exits when this script dies; parse_events then sees EOF.
+    setpriv --pdeathsig TERM dbus-monitor --session "type='signal',sender='$DEST'" 2>/dev/null | parse_events ;;
 parse-events)   # (testing) parse dbus-monitor text from stdin
     parse_events ;;
 clip-sync)

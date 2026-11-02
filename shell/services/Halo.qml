@@ -178,7 +178,12 @@ Singleton {
     // ── Jarvis: things Lumen can simply do ──
     // Returns null (not mine: ask the model) or { ok, title, text, glyph, ask?, run? }
     function intent(raw) {
-        let q = raw.trim().replace(/[.!?]+$/, "");
+        let q = raw.trim().replace(/[‘’]/g, "'").replace(/[.!?]+$/, "");
+        // spoken requests come wrapped: "Hey Halo, can you tell me the time please"
+        const nm = root.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        q = q.replace(new RegExp("^(?:(?:hey|hi|ok|okay)[ ,]+)?(?:" + nm + "|halo)[,!. ]+", "i"), "")
+             .replace(/^(?:(?:please|so|um+|uh+)[ ,]+)*(?:(?:can|could|would|will) you[ ,]+)?(?:please[ ,]+)?(?:tell me[ ,]+(?=(?:the|what|when|how|which|who)\b))?/i, "")
+             .replace(/[ ,]+please$/i, "").replace(/[.!?]+$/, "").trim() || q;
         const lower = q.toLowerCase();
         // Halo's own abilities
         if (/^(what did i miss|catch me up|anything new|while i was away|what happened)\b/i.test(lower))
@@ -421,9 +426,9 @@ Singleton {
             return answer(Battery.icon, pct + (Battery.pluggedIn ? (Battery.full ? " — full" : " and charging") : ""),
                           Battery.pluggedIn ? (Battery.timeToFull > 0 ? "Full in " + Battery.formatDuration(Battery.timeToFull) : "") : (Battery.forecastText ? "About " + Battery.forecastText + " left at this rate" : ""));
         }
-        if (/^(what('?s| is) the )?time( is it)?( now)?$|^what time is it$/.test(lower))
+        if (/^(what('?s| is) )?(the )?(current )?time( is it)?( now| right now)?$|^what time (is it|it is)( now| right now)?$|^(do you (know|have) )?the (current )?time$/.test(lower))
             return answer("schedule", Qt.formatTime(new Date(), Theme.timeFormatFull), Qt.formatDate(new Date(), "dddd d MMMM"));
-        if (/^(what('?s| is) )?(the |today'?s )?date( today)?$|^what day is (it|today)$/.test(lower))
+        if (/^(what('?s| is) )?(the |today'?s )?date( today)?$|^what day is (it|today)( today)?$|^what('?s| is) (today|the day)$/.test(lower))
             return answer("calendar_today", Qt.formatDate(new Date(), "dddd d MMMM yyyy"), "");
         if (/^(what('?s| is) )?(my |the )?(wi-?fi|network)( name| called)?$|^which wi-?fi\b/.test(lower))
             return answer(Network.ssid ? "wifi" : "wifi_off", Network.ssid || "Not connected to Wi-Fi", "");

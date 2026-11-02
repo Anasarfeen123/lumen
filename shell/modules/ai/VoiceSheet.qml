@@ -34,7 +34,12 @@ PanelWindow {
     // arriving: a spring up from below; leaving: down and away
     property real rise: showing ? 1 : 0
     Behavior on rise { NumberAnimation { duration: Theme.reducedMotion ? 0 : (win.showing ? 520 : 240); easing.type: win.showing ? Easing.OutBack : Easing.InCubic; easing.overshoot: 0.9 } }
-    onShowingChanged: { typing = !Voice.canListen; if (showing) { field.text = ""; Qt.callLater(() => (typing ? field : keys).forceActiveFocus()); } }
+    onShowingChanged: { typing = !Voice.canListen; if (showing) { field.text = ""; Qt.callLater(() => (typing ? field : keys).forceActiveFocus()); if (!Voice.canListen) Voice.refresh(); } }
+    // whisper.cpp set up while the shell was running: switch to talking once the re-check says so
+    Connections {
+        target: Voice
+        function onCanListenChanged() { if (win.showing && Voice.canListen && win.typing && field.text === "") { win.typing = false; keys.forceActiveFocus(); } }
+    }
 
     // what the aurora follows: your voice, Halo's words, or a slow swirl while thinking
     readonly property real energy: Voice.listening ? 0.25 + Math.min(1, Voice.level) * 0.9
@@ -102,6 +107,41 @@ PanelWindow {
                 }
             }
 
+            // the mic, plainly: starting → on (talk now) → working out what you said
+            Rectangle {
+                id: micPill
+                readonly property bool live: Voice.listening && Voice.micReady
+                visible: Voice.listening || Voice.transcribing
+                width: micRow.implicitWidth + 24; height: 30; radius: 15
+                color: live ? Theme.withAlpha(Theme.error, 0.16) : Theme.withAlpha(Theme.text, 0.06)
+                border.width: 1; border.color: live ? Theme.withAlpha(Theme.error, 0.5) : Theme.border
+                Behavior on color { ColorAnimation { duration: Theme.motion.micro } }
+                Row {
+                    id: micRow
+                    anchors.centerIn: parent; spacing: 8
+                    // a recording dot that breathes while the mic is open
+                    Rectangle {
+                        id: recDot
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 8; height: 8; radius: 4
+                        color: micPill.live ? Theme.error : Theme.textMuted
+                        SequentialAnimation on opacity {
+                            running: micPill.live && win.visible && !Theme.reducedMotion; loops: Animation.Infinite
+                            NumberAnimation { to: 0.3; duration: 600 } NumberAnimation { to: 1; duration: 600 }
+                            onRunningChanged: if (!running) recDot.opacity = 1
+                        }
+                    }
+                    LIcon { anchors.verticalCenter: parent.verticalCenter; icon: Voice.transcribing ? "graphic_eq" : "mic"; size: 16; fill: micPill.live ? 1 : 0
+                            color: micPill.live ? Theme.error : Theme.textSecondary }
+                    LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"; textFormat: Text.PlainText
+                            color: micPill.live ? Theme.text : Theme.textSecondary
+                            text: Voice.transcribing ? "Mic off · working out what you said"
+                                : !Voice.micReady ? (Voice.micSwitched ? "Headphones' mic didn't respond · trying the laptop's…" : "Starting the mic…")
+                                : Voice.micSwitched ? (Voice.heardSpeech ? "Mic on · hearing you" : "Mic on · talk now") + " · laptop mic (headphones' didn't respond)"
+                                : (Voice.heardSpeech ? "Mic on · hearing you" : "Mic on · talk now") + (Voice.micKind === "laptop" ? " · laptop mic" : "") }
+                }
+            }
+
             // what you said — big, as it arrives
             LText {
                 id: said
@@ -109,12 +149,17 @@ PanelWindow {
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
                 font.pixelSize: 26; font.weight: Font.DemiBold
-                color: Converse.last?.you ? Theme.text : Theme.textMuted
-                text: Voice.listening ? (Voice.heardSpeech ? "Listening…" : (Converse.followUp ? "Anything else?" : "Hi" + (Halo.you ? " " + Halo.you : "") + ", what can I do?"))
-                    : Voice.transcribing ? "…"
+                color: Converse.last?.you || Voice.partial ? Theme.text : Theme.textMuted
+                text: Voice.partial && (Voice.listening || Voice.transcribing) ? Voice.partial      // your words, live
+                    : Voice.listening ? (!Voice.micReady ? "One moment…" : Voice.heardSpeech ? "Listening…" : (Converse.followUp ? "Anything else?" : "Hi" + (Halo.you ? " " + Halo.you : "") + ", what can I do?"))
+                    : Voice.transcribing ? "Got it…"
                     : Converse.last?.you ? Converse.last.you
+                    : Voice.lastMiss === "nothing" ? "I didn't hear anything"
+                    : Voice.lastMiss === "silent" ? "Your mic isn't sending any sound. Is it muted?"
+                    : Voice.lastMiss === "muted" ? "Your mic is muted"
+                    : Voice.lastMiss && Voice.lastMiss !== "no-stt" ? "The mic didn't work that time"
                     : !Voice.canListen ? "Type to " + Halo.name : "Tap the ring and talk"
-                onTextChanged: if (!Theme.reducedMotion) { saidIn.restart(); }
+                onTextChanged: if (!Theme.reducedMotion && !Voice.partial) { saidIn.restart(); }     // live words just update
                 opacity: 1
                 transform: Translate { id: saidT; y: 0 }
                 ParallelAnimation {
@@ -175,6 +220,13 @@ PanelWindow {
                 }
             }
 
+            // a muted mic: unmute it and listen, in one tap
+            Chip {
+                visible: Voice.lastMiss === "muted" && !Voice.listening
+                primary: true; icon: "mic"; text: "Unmute and talk"
+                onClicked: Voice.unmuteAndListen()
+            }
+
             // to start with
             Flow {
                 visible: Converse.turns.length === 0
@@ -209,6 +261,16 @@ PanelWindow {
                 Chip { anchors { left: parent.left; verticalCenter: parent.verticalCenter }
                        icon: win.typing ? "mic" : "keyboard"; text: win.typing ? (Voice.canListen ? "Talk instead" : "Voice needs whisper.cpp") : "Type instead"
                        onClicked: { if (win.typing && Voice.canListen) { win.typing = false; Converse.show(); keys.forceActiveFocus(); } else if (!win.typing) { win.typing = true; Voice.cancel(); field.forceActiveFocus(); } else SettingsState.launch("ai"); } }
+                // around the ring while the mic is open: grows with your voice
+                Rectangle {
+                    anchors.centerIn: orb
+                    readonly property bool live: Voice.listening && Voice.micReady
+                    width: orb.size + 14 + (live ? Math.min(1, Voice.level) * 22 : 0); height: width; radius: width / 2
+                    color: "transparent"
+                    border.width: 2; border.color: Theme.withAlpha(live ? Theme.error : Theme.text, live ? 0.7 : 0.18)
+                    visible: Voice.listening
+                    Behavior on width { NumberAnimation { duration: 90 } }
+                }
                 HaloOrb {
                     id: orb
                     anchors.centerIn: parent
@@ -223,7 +285,8 @@ PanelWindow {
                                 onClicked: Voice.listening ? Voice.stopListening() : Voice.speaking ? Voice.stop() : Converse.show() }
                 }
                 LText { anchors { left: orb.right; leftMargin: 14; verticalCenter: parent.verticalCenter } role: "caption"; color: Theme.textMuted
-                        text: Voice.listening ? "I'll stop when you pause" : Voice.speaking ? "Tap to stop" : Voice.canListen ? "Tap to talk" : "" }
+                        text: Voice.listening ? (!Voice.micReady ? "Starting the mic…" : Voice.heardSpeech ? "I'll stop when you pause" : "Go ahead, I'm listening")
+                            : Voice.speaking ? "Tap to stop" : Voice.lastMiss && Voice.canListen ? "Tap to try again" : Voice.canListen ? "Tap to talk" : "" }
                 Chip { anchors { right: parent.right; verticalCenter: parent.verticalCenter } icon: "close"; text: "Done"; onClicked: Converse.close() }
             }
         }

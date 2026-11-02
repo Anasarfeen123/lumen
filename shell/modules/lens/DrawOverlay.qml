@@ -63,13 +63,13 @@ PanelWindow {
                 width: 2 * (win.spotR + parent.b); height: width; radius: width / 2
                 color: "transparent"
                 border.width: parent.b; border.color: Theme.withAlpha("#000000", 0.62)
-                Behavior on width { NumberAnimation { duration: Theme.motion.fast } }
+                Behavior on width { NumberAnimation { duration: Theme.motion.micro } }
             }
             Rectangle {
                 x: win.pointer.x - width / 2; y: win.pointer.y - height / 2
                 width: 2 * win.spotR + 2; height: width; radius: width / 2
                 color: "transparent"; border.width: 2; border.color: Theme.withAlpha(win.colors[win.colorIndex], 0.7)
-                Behavior on width { NumberAnimation { duration: Theme.motion.fast } }
+                Behavior on width { NumberAnimation { duration: Theme.motion.micro } }
             }
         }
 

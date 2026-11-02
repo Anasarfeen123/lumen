@@ -25,19 +25,57 @@ Singleton {
     readonly property bool canListen: status.stt === true
     readonly property bool canSpeak: (status.tts ?? "") !== ""
 
+    // The warm ear: whisper-server with the model in memory, from the first
+    // listen until two quiet minutes later. Your words show while you speak,
+    // and the final text is back almost as soon as you stop.
+    readonly property bool canStream: status.server === true
+    property bool warm: false
+    Timer { id: coolDown; interval: 120000; onTriggered: if (root.listening || root.transcribing) restart(); else root.warm = false; }
+    // which model, and the words you're likely to say (as a sentence, which
+    // whisper follows better than a list) so names and college terms come out right;
+    // a change applies from the next conversation (the server starts fresh then)
+    readonly property string sttModel: Persist.data.haloStt ?? "balanced"
+    readonly property string sttPrompt: (Halo.you || "I") + " asked " + Halo.name + " on Lumen"
+        + (HaloCollege.on ? " to open AmazeCC and check the CGPA, attendance, OD and the FAT and CAT dates at VIT." : " for help.")
+    Process {
+        id: serveProc
+        running: root.canStream && root.warm
+        command: [root.script, "serve", "--model", root.sttModel, "--prompt", root.sttPrompt]
+    }
+
     // ── listening ──
     property bool listening: false
+    property bool micReady: false       // the mic is actually sending sound (a moment after listening starts)
+    property string micKind: ""         // which mic: "laptop" (instead of Bluetooth headphones') | "headset" | "default"
+    property bool micSwitched: false    // this time the headphones' mic didn't respond, so the laptop's is listening
+    // once the headphones' mic has failed in a conversation, the laptop's for the
+    // rest of it: no 4-second wait on every follow-up (Bluetooth headset links on
+    // some chips come up dead now and then)
+    property bool headsetFailed: false
+    readonly property string micPref: headsetFailed ? "auto" : (Persist.data.haloMic ?? "auto")
+    Connections { target: Converse; function onOpenChanged() { if (!Converse.open) root.headsetFailed = false; } }
     property bool transcribing: false
     property bool heardSpeech: false
     property real level: 0
+    property string lastMiss: ""        // why the last try heard nothing, until the next one
+    property string partial: ""         // your words so far, while you're still talking (needs the warm ear)
+    property string mutedSource: ""     // the mic that was muted when you tried to talk
+    function unmuteAndListen() {
+        if (mutedSource) Quickshell.execDetached(["pactl", "set-source-mute", mutedSource, "0"]);
+        mutedSource = ""; lastMiss = "";
+        Qt.callLater(listen);
+    }
+    property bool pendingListen: false  // asked while the last recording was still closing
     signal heard(string text)
     signal missed(string why)           // "nothing" | "cancelled" | "no-stt" | an error
     function listen() {
         if (listening || transcribing) return;
         if (!canListen) { refresh(); missed("no-stt"); return; }
         stop();
-        level = 0; heardSpeech = false;
+        level = 0; heardSpeech = false; micReady = false; micSwitched = false; lastMiss = ""; partial = "";
+        warm = true; coolDown.restart();
         listening = true;
+        if (ear.running) { pendingListen = true; return; }
         ear.running = true;
     }
     function stopListening() { if (ear.running && listening) ear.signal(15); }
@@ -45,18 +83,34 @@ Singleton {
     function toggle() { if (listening) stopListening(); else listen(); }
     Process {
         id: ear
-        command: [root.script, "listen", "--max", "20"]
+        command: [root.script, "listen", "--max", "20", "--mic", root.micPref, "--model", root.sttModel, "--prompt", root.sttPrompt]
         stdout: SplitParser {
             onRead: line => {
                 let d; try { d = JSON.parse(line); } catch (e) { return; }
+                if (root.pendingListen) return;          // the old recording's last words
                 if (d.level !== undefined) root.level = d.level;
+                else if (d.switched) { root.micSwitched = true; root.headsetFailed = true; }    // the headphones' mic gave nothing: the laptop's instead
+                else if (d.ready) { root.micKind = d.mic ?? ""; root.micReady = true; Sounds.play("listen"); }
                 else if (d.speech) root.heardSpeech = true;
-                else if (d.state === "transcribing") { root.listening = false; root.transcribing = true; root.level = 0; }
-                else if (d.heard !== undefined) { root.transcribing = false; root.heard(d.heard); }
-                else if (d.error) { root.listening = false; root.transcribing = false; root.missed(d.error); }
+                else if (d.partial !== undefined) root.partial = d.partial;
+                else if (d.state === "transcribing") { root.listening = false; root.micReady = false; root.transcribing = true; root.level = 0; }
+                else if (d.heard !== undefined) {
+                    root.transcribing = false; root.partial = "";
+                    coolDown.restart();
+                    if (d.heard.trim()) root.heard(d.heard); else { root.lastMiss = "nothing"; root.missed("nothing"); }
+                }
+                else if (d.error) {
+                    root.listening = false; root.micReady = false; root.transcribing = false;
+                    if (d.error !== "cancelled") root.lastMiss = d.error;
+                    if (d.error === "muted") root.mutedSource = d.source ?? "";
+                    root.missed(d.error);
+                }
             }
         }
-        onExited: { root.listening = false; root.transcribing = false; root.level = 0; }
+        onExited: {
+            if (root.pendingListen) { root.pendingListen = false; ear.running = true; return; }
+            root.listening = false; root.micReady = false; root.transcribing = false; root.level = 0;
+        }
     }
 
     // ── the wake phrase ("hey halo") — off unless you turn it on ──
@@ -70,7 +124,7 @@ Singleton {
     Process {
         id: wakeProc
         running: root.wakeActive
-        command: [root.script, "wake"]
+        command: [root.script, "wake", "--mic", Persist.data.haloMic ?? "auto"]
         stdout: SplitParser {
             onRead: line => {
                 let d; try { d = JSON.parse(line); } catch (e) { return; }
@@ -111,9 +165,15 @@ Singleton {
         for (const x of s) { if ((outText + x).length > 320 && outText) break; outText += x; }
         return outText.trim();
     }
+    // Your name, said the way you spelled it for the voice (Settings → Halo → Names)
+    function sayName(t) {
+        const as = (Persist.data.haloSayName ?? "").trim(), name = Halo.you.trim();
+        if (!as || !name || !t) return t;
+        return t.replace(new RegExp("\\b" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi"), as);
+    }
     function say(text, force) {
         if (!(wanted || force) || !canSpeak || Meeting.live || Audio.muted) return;
-        const t = spoken(speakable(text));
+        const t = sayName(spoken(speakable(text)));
         if (!t) return;
         mouthProc.running = false;
         mouth = 0;                       // closed until the words start

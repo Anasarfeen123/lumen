@@ -6,6 +6,7 @@ pragma Singleton
 //   anthropic, openai, gemini, openrouter, groq, mistral
 //              cloud models via your own API key (stored 600, outside the repo)
 //   custom     any OpenAI-compatible server (LM Studio, llama.cpp, vLLM, Jan…)
+//   smart      a model per question, free tiers and this computer (services/AiRouter.qml)
 // Conversations live in memory only. scripts/ai.sh does all model I/O;
 // scripts/halo-context.sh reads context, only for the chips you turn on.
 //
@@ -38,7 +39,7 @@ Singleton {
     // model: a sensible default until you pick one from the provider's list.
     readonly property var providers: [
         { id: "ollama",     label: "This computer", group: "local",  key: "",        model: "",                        site: "ollama.com",                   note: "Local models through Ollama. Nothing leaves this computer." },
-        { id: "anthropic",  label: "Claude",        group: "cloud",  key: "sk-ant-", model: "claude-sonnet-5",         site: "console.anthropic.com",        note: "Anthropic's Claude." },
+        { id: "anthropic",  label: "Claude",        group: "cloud",  key: "sk-ant-", model: "claude-sonnet-5-5",         site: "console.anthropic.com",        note: "Anthropic's Claude." },
         { id: "openai",     label: "OpenAI",        group: "cloud",  key: "sk-",     model: "gpt-4o-mini",             site: "platform.openai.com",          note: "ChatGPT's models (GPT)." },
         { id: "gemini",     label: "Gemini",        group: "cloud",  key: "AIza",    model: "gemini-2.5-flash",        site: "aistudio.google.com",          note: "Google's Gemini (free tier available)." },
         { id: "openrouter", label: "OpenRouter",    group: "cloud",  key: "sk-or-",  model: "openrouter/auto",         site: "openrouter.ai",                note: "One key for hundreds of models from many companies." },
@@ -46,7 +47,21 @@ Singleton {
         { id: "mistral",    label: "Mistral",       group: "cloud",  key: "",        model: "mistral-small-latest",    site: "console.mistral.ai",           note: "Mistral AI's models." },
         { id: "custom",     label: "Your server",   group: "custom", key: "",        model: "",                        site: "",                             note: "Any OpenAI-compatible server: LM Studio, llama.cpp, vLLM, LocalAI, Jan…" },
     ]
-    function providerInfo(id) { return providers.find(p => p.id === id) ?? null; }
+    function providerInfo(id) {
+        if (id === "smart") return { id: "smart", label: "Smart", group: "smart", key: "", model: "", site: "",
+                                     note: "A model for each question: this computer for quick ones, free cloud models for the rest, within their daily limits." };
+        return providers.find(p => p.id === id) ?? null;
+    }
+    // Smart: which provider and model answered (or is answering) the last question
+    readonly property bool smart: provider === "smart"
+    property var routed: null
+    // For everything that asks a model (the agent, hands, the phone): the provider
+    // and model for this kind of request, routed when Smart is on
+    function routeFor(kind, chars) {
+        if (!smart) return { provider, model: kind === "vision" ? modelFor(true) : model };
+        const c = AiRouter.pick(kind, chars ?? 0);
+        return c ? { provider: c.provider, model: c.model } : { provider: "off", model: "" };
+    }
     readonly property var defaults: {
         const d = { ollama: status.ollamaModels?.[0] ?? "gemma3:4b", mock: "demo", mocklong: "demo", custom: status.custom?.model ?? "" };
         for (const p of providers) if (p.model) d[p.id] = p.model;
@@ -55,6 +70,7 @@ Singleton {
     // Is a provider ready to answer?
     function isConfigured(id) {
         if (id === "mock" || id === "mocklong") return true;
+        if (id === "smart") return AiRouter.ready;
         if (id === "ollama") return status.ollama && (status.ollamaModels ?? []).length > 0;
         if (id === "custom") return !!status.custom?.url;
         return !!(status.keys ?? {})[id];
@@ -95,6 +111,7 @@ Singleton {
     readonly property string textModel: (localInfo.find(i => !i.vision) ?? localInfo[0])?.name ?? "gemma3:4b"
     readonly property string visionModel: localInfo.find(i => i.vision)?.name ?? ""
     readonly property string model: {
+        if (smart) return routed?.model ?? "";
         if (auto) return textModel;
         const m = Persist.data.aiModel === "auto" ? "" : Persist.data.aiModel;
         if (provider === "ollama" && m && !(status.ollamaModels ?? []).includes(m) && (status.ollamaModels ?? []).length) return textModel;
@@ -103,11 +120,12 @@ Singleton {
     function modelFor(withImage) { return withImage && auto && visionModel ? visionModel : model; }
     readonly property bool local: provider === "ollama" || provider === "mock" || provider === "mocklong"
                                   || (provider === "custom" && /^https?:\/\/(127\.|localhost|\[::1\])/.test(status.custom?.url ?? ""))
-    readonly property string providerLabel: provider === "ollama" ? "this computer" : (providerInfo(provider)?.label ?? provider)
+    readonly property string providerLabel: provider === "ollama" ? "this computer" : smart ? (routed?.label ?? "Smart") : (providerInfo(provider)?.label ?? provider)
     readonly property bool configured: isConfigured(provider)
     // Can the current model read screenshots? (Cloud: the big providers' main
     // models do; Groq and Mistral only some — guessed from the name.)
     readonly property bool vision: {
+        if (smart) return AiRouter.canSee;
         if (provider === "ollama") return auto ? visionModel !== "" : ((status.ollamaInfo ?? []).find(i => i.name === model)?.vision ?? false);
         if (provider === "groq") return /vision|llama-4|scout|maverick/i.test(model);
         if (provider === "mistral") return /pixtral|medium|large|small-(2503|2506|latest)/i.test(model);
@@ -272,11 +290,15 @@ Singleton {
         + (Halo.you ? "; the user's name is " + Halo.you + " (use it only in greetings, not in answers)" : "") + ". "
         + "Be concise and practical; answer in Markdown. Use fenced code blocks with a language for commands and code. "
         + "When given selected text, a screenshot, a system snapshot or a diff, focus on it. "
-        + "For commands, prefer Fedora (dnf) and say clearly before anything destructive. " + Halo.style
+        + "For commands, prefer Fedora (dnf) and say clearly before anything destructive. "
+        // small local models invent the user's grades, lectures and output otherwise
+        + "Only state facts you are sure of. If you don't know, or the answer depends on the user's own files, schedule, "
+        + "accounts or live data you weren't given, say so in one short sentence instead of guessing; never make up "
+        + "numbers, names, dates, links, file paths or command output. " + Halo.style
         + (Halo.memoryText ? "\n\n" + Halo.memoryText : "")
 
     function clear() { stop(); messages = []; error = ""; speed = 0; }
-    function stop() { if (ask.running) ask.running = false; ctxProc.running = false; busy = false; phase = ""; slow = false; if (Agent.running) Agent.stop(); }
+    function stop() { routeError = null; route = []; if (ask.running) ask.running = false; ctxProc.running = false; busy = false; phase = ""; slow = false; if (Agent.running) Agent.stop(); }
 
     // A card from Halo itself (an action it did, a brief, a check) as an answer
     //   { icon, title, text, tone, actions: [{ label, icon, run }] }
@@ -529,12 +551,39 @@ Singleton {
         // (Automatic: the vision model); a model that can't see never gets
         // pictures — it's told one was there instead (a 400 otherwise).
         const hasImage = history.some(m => m.image);
-        const chosen = modelFor(hasImage);
-        const sees = hasImage ? (auto ? !!visionModel : vision) : true;
-        const req = { provider, model: chosen, system,
-                      messages: history.map(m => Object.assign({ role: m.role, text: m.image && !sees ? m.text + "\n\n(A picture was attached here; this model can't see it.)" : m.text },
-                                                               m.image && sees ? { image: m.image } : {})) };
-        reqFile.setText(JSON.stringify(req));
+        askHistory = history; askHasImage = hasImage;
+        if (smart) {
+            // Smart: a model for this question, and the ones to try if it fails
+            const chars = system.length + history.reduce((n, m) => n + (m.text?.length ?? 0), 0);
+            route = AiRouter.plan(AiRouter.kindOf(pending.shown, chars, hasImage), chars);
+            if (!route.length) {
+                messages = messages.slice(0, -1);       // the empty answer bubble
+                error = "No model is free right now — add a key in Settings → Halo, or try again later.";
+                busy = false; phase = ""; slowTimer.stop(); return;
+            }
+            askVia(route[0]);
+        } else
+            askVia({ provider, model: modelFor(hasImage), vision: hasImage ? (auto ? !!visionModel : vision) : true });
+    }
+    property var route: []              // Smart: the candidates for the current question, best first
+    property var askHistory: []
+    property bool askHasImage: false
+    property var routeError: null       // a failure before any words came: try the next candidate
+    property int askOut: 0              // tokens in the answer (from the provider), for the budgets
+    function askVia(c) {
+        routed = smart ? c : null;
+        const sees = !askHasImage || !!c.vision;
+        // the time as of this question (models don't know it, and `system` is built once)
+        const now = new Date();
+        const req = { provider: c.provider, model: c.model,
+                      system: system + "\nIt is now " + Qt.formatDate(now, "dddd d MMMM yyyy") + ", " + Qt.formatTime(now, Theme.timeFormatFull)
+                              + " (" + Qt.formatDateTime(now, "t") + ", the user's local time).",
+                      messages: askHistory.map(m => Object.assign({ role: m.role, text: m.image && !sees ? m.text + "\n\n(A picture was attached here; this model can't see it.)" : m.text },
+                                                                  m.image && sees ? { image: m.image } : {})) };
+        const body = JSON.stringify(req);
+        AiRouter.sent(c.provider, body.length);
+        routeError = null; askOut = 0;
+        reqFile.setText(body);
         ask.command = [Theme.lumenRoot + "/scripts/ai.sh", "ask", reqFile.path];
         ask.running = true;
     }
@@ -580,8 +629,15 @@ Singleton {
         stdout: SplitParser {
             onRead: line => {
                 let d; try { d = JSON.parse(line); } catch (e) { return; }
-                if (d.e) { root.error = d.e; return; }
-                if (d.s) { root.speed = d.s.ms > 0 ? Math.round(d.s.n / (d.s.ms / 1000)) : 0; return; }
+                if (d.e) {
+                    // Smart: nothing said yet and another model to ask — quietly move on
+                    if (root.smart && root.streamText === "" && root._pendingTokens === "" && root.route.indexOf(root.routed) + 1 < root.route.length) {
+                        root.routeError = d; return;
+                    }
+                    if (d.limit && root.routed) AiRouter.limited(root.routed.provider, d.retry ?? 0);
+                    root.error = d.e; return;
+                }
+                if (d.s) { root.askOut = d.s.n ?? 0; root.speed = d.s.ms > 0 ? Math.round(d.s.n / (d.s.ms / 1000)) : 0; return; }
                 if (d.t) {
                     root._pendingTokens += d.t;
                     if (root.phase !== "writing") { root.phase = "writing"; root.slow = false; }
@@ -590,14 +646,22 @@ Singleton {
             }
         }
         onExited: {
+            if (root.routeError && root.busy) {
+                const e = root.routeError, c = root.routed;
+                if (e.limit) AiRouter.limited(c.provider, e.retry ?? 0);
+                else if (e.unreachable) AiRouter.unreachable(c.provider);
+                root.askVia(root.route[root.route.indexOf(c) + 1]);
+                return;
+            }
             flush.stop();
             const answer = root.streamText + root._pendingTokens;
+            AiRouter.answered(root.routed?.provider ?? root.provider, root.askOut || Math.ceil(answer.length / 4));
             root.streamText = ""; root._pendingTokens = "";
             root.slow = false; slowTimer.stop();
             // Store the finished answer once
             if (answer !== "" && root.messages.length && root.messages[root.messages.length - 1].role === "assistant") {
                 const mm = root.messages.slice();
-                mm[mm.length - 1] = Object.assign({}, mm[mm.length - 1], { text: answer });
+                mm[mm.length - 1] = Object.assign({}, mm[mm.length - 1], { text: answer }, root.routed ? { via: root.routed.label } : {});
                 root.messages = mm;
             }
             root.busy = false;

@@ -199,7 +199,7 @@ Singleton {
     property var _look: null
     function locate(what, then) {
         // small local vision models guess positions poorly: only cloud ones (Claude, GPT, Gemini…)
-        if (!(Ai.configured && Ai.vision && !Ai.local)) { then(null); return; }
+        if (!(Ai.configured && Ai.vision && !Ai.local) || (Ai.smart && Ai.routeFor("vision").provider === "ollama")) { then(null); return; }
         _look = { what, then, shot: null };
         looker.buf = "";
         shotProc.running = true;
@@ -212,7 +212,9 @@ Singleton {
                 let s = {}; try { s = JSON.parse(text); } catch (e) {}
                 if (!s.file || !root._look) { const f = root._look?.then; root._look = null; if (f) f(null); return; }
                 root._look.shot = s;
-                lookReq.setText(JSON.stringify({ provider: Ai.provider, model: Ai.modelFor(true), json: true,
+                const to = Ai.routeFor("vision");
+                AiRouter.sent(to.provider, 4000);
+                lookReq.setText(JSON.stringify({ provider: to.provider, model: to.model, json: true,
                     system: "You find things on a computer screen. Reply with JSON only.",
                     messages: [{ role: "user", image: s.file,
                                  text: "Where on this screenshot is: \"" + root._look.what + "\"? It may be an icon, button or picture. "

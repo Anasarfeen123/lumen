@@ -43,7 +43,8 @@ Singleton {
     property bool wired: false
     Process {
         running: true
-        command: ["nmcli", "monitor"]
+        // pdeathsig: dies with the shell instead of piling up across restarts
+        command: ["setpriv", "--pdeathsig", "TERM", "nmcli", "monitor"]
         stdout: SplitParser { onRead: wiredCheck.restart() }
     }
     Timer { id: wiredCheck; interval: 400; running: true; onTriggered: wiredQuery.running = true }

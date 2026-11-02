@@ -148,9 +148,13 @@ Singleton {
         if (!current || active?.state !== "running") return;
         if ((active?.steps ?? []).length >= maxSteps) { finish("I stopped after " + maxSteps + " steps — here's where I got to: " + summary()); return; }
         if (!Ai.configured) { finish("I need a model to plan with — choose one in Settings → Halo."); return; }
-        const req = { provider: Ai.provider, model: Ai.model, system: prompt(), json: true,
+        const sys = prompt();
+        const to = Ai.routeFor("agent", sys.length + history.reduce((n, m) => n + (m.text?.length ?? 0), 0));
+        const req = { provider: to.provider, model: to.model, system: sys, json: true,
                       messages: history.map(m => ({ role: m.role, text: m.text })) };
-        reqFile.setText(JSON.stringify(req));
+        const body = JSON.stringify(req);
+        AiRouter.sent(to.provider, body.length);
+        reqFile.setText(body);
         brain.buf = "";
         brain.command = [Theme.lumenRoot + "/scripts/ai.sh", "ask", reqFile.path];
         brain.running = true;

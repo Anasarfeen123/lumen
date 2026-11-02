@@ -83,11 +83,19 @@ images_json() {
 # Stream a response through a filter; on failure say what happened
 #   stream <curl args…>  (the jq filter for data lines is in $FILTER)
 stream() {
-    : > "$TMP/raw"; : > "$TMP/out"
-    { curl -sS -N --connect-timeout 6 "$@" 2>"$TMP/curlerr"; echo $? > "$TMP/rc"; } |
+    : > "$TMP/raw"; : > "$TMP/out"; : > "$TMP/hdr"
+    { curl -sS -N --connect-timeout 6 -D "$TMP/hdr" "$@" 2>"$TMP/curlerr"; echo $? > "$TMP/rc"; } |
         tee "$TMP/raw" | sed -un -e '/^data: /{s/^data: //p;d}' -e '/^{/p' |
         jq -c --unbuffered "$FILTER" 2>/dev/null | tee "$TMP/out"
     rc=$(cat "$TMP/rc" 2>/dev/null || echo 1)
+    # Too many requests (a free tier's limit): say so, with how long to wait,
+    # so Halo's router can rest this provider and ask another
+    code=$(awk 'toupper($1) ~ /^HTTP\// {c=$2} END {print c}' "$TMP/hdr")
+    if [ "$code" = 429 ] && ! grep -q '"t":' "$TMP/out"; then
+        retry=$(awk 'tolower($1) == "retry-after:" {gsub("\r", "", $2); print int($2)}' "$TMP/hdr" | tail -n 1)
+        jq -cn --arg e "$PROVIDER_LABEL's free limit is used up for now." --argjson r "${retry:-0}" '{e:$e, limit:true, retry:$r}'
+        return 0
+    fi
     grep -q '"e":' "$TMP/out" && return 0                   # the provider's own error, already said
     if grep -q '"t":' "$TMP/out"; then                       # an answer came; maybe cut short
         [ "$rc" = 28 ] && jq -cn --arg e "$PROVIDER_LABEL stopped answering (took too long)." '{e:$e}'
@@ -96,7 +104,8 @@ stream() {
     # Nothing came: say why. Error bodies are often plain (pretty-printed) JSON.
     msg=$(jq -rs '[.[] | (.error.message? // .error? // .message? // empty) | tostring][0] // empty' "$TMP/raw" 2>/dev/null | head -n 1)
     case $rc in
-        6|7) msg="Couldn't reach $PROVIDER_LABEL. Check your connection, or that the server is running." ;;
+        6|7) jq -cn --arg e "Couldn't reach $PROVIDER_LABEL. Check your connection, or that the server is running." '{e:$e, unreachable:true}'
+             return 0 ;;
         28)  msg="$PROVIDER_LABEL took too long to answer. A large model or an image can be slow on this computer — try again, or pick a smaller model." ;;
         0)   [ -n "$msg" ] || msg="$PROVIDER_LABEL sent an empty answer." ;;
         *)   [ -n "$msg" ] || msg="Something went wrong talking to $PROVIDER_LABEL ($(head -c 160 "$TMP/curlerr"))." ;;
@@ -117,7 +126,7 @@ set-key)
         openrouter) case $k in sk-or-*) ;; *) ok=0; want="sk-or-…" ;; esac ;;
         openai)     case $k in sk-*) ;; *) ok=0; want="sk-…" ;; esac ;;
         groq)       case $k in gsk_*) ;; *) ok=0; want="gsk_…" ;; esac ;;
-        gemini)     case $k in AIza*) ;; *) ok=0; want="AIza…" ;; esac ;;
+        gemini)     case $k in AIza*|AQ.*) ;; *) ok=0; want="AIza… or AQ.…" ;; esac ;;
         mistral)    [ "${#k}" -ge 20 ] || { ok=0; want="a 32-character key"; } ;;
         custom)     [ -n "$k" ] || { ok=0; want="a key"; } ;;
     esac
@@ -206,7 +215,8 @@ ask)
         images_json "$req"
         jq -c --slurpfile imgs "$TMP/imgs.json" '
           {model, stream:true, keep_alive:"15m",
-           options:{num_ctx:(if ([.messages[].text] | add | length) > 9000 then 8192 else 4096 end)},
+           options:{num_ctx:(if ([.messages[].text] | add | length) > 9000 then 8192 else 4096 end),
+                    temperature:0.3},    # Ollama defaults to ~0.8: small models make things up
            messages:([{role:"system", content:.system}] + [.messages[] | {role, content:.text} + (if .image then {images:[$imgs[0][.image]]} else {} end)])}
           + (if .json then {format:"json"} else {} end)' \
           "$req" > "$body"

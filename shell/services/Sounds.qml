@@ -30,6 +30,7 @@ Singleton {
         warning: ["ocean/stereo/battery-low.oga", "freedesktop/stereo/dialog-warning.oga"],
         alarm:   ["ocean/stereo/alarm-clock-elapsed.oga", "freedesktop/stereo/alarm-clock-elapsed.oga", "freedesktop/stereo/complete.oga"],
         done:    ["freedesktop/stereo/complete.oga", "ocean/stereo/complete-media-burn.oga"],
+        listen:  ["ocean/stereo/button-pressed.oga", "freedesktop/stereo/message.oga"],
     })
     property real lastVolumeSound: 0
 

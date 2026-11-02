@@ -329,14 +329,20 @@ Scope {
         signal event(var e)
         property var ev: ({})
         running: true
-        // SplitParser drops empty lines, and udev ends each event with one:
-        // turn them into "--" (sed -u: unbuffered, so events arrive at once)
-        command: ["sh", "-c", 'udevadm monitor --udev --subsystem-match="$1" --property | sed -u "s/^$/--/"', "sh", subsystem]
+        // Run udevadm directly (no sh/sed pipeline) and tie it to the shell's
+        // life with pdeathsig: a pipeline's inner processes used to survive
+        // shell restarts and pile up by the hundreds.
+        command: ["setpriv", "--pdeathsig", "TERM", "udevadm", "monitor", "--udev", "--subsystem-match=" + subsystem, "--property"]
+        // udev ends each event with a blank line: split on that, one event per chunk
         stdout: SplitParser {
-            onRead: line => {
-                if (line === "--") { if (w.ev.ACTION) w.event(w.ev); w.ev = {}; return; }
-                const i = line.indexOf("=");
-                if (i > 0) w.ev[line.slice(0, i)] = line.slice(i + 1);
+            splitMarker: "\n\n"
+            onRead: chunk => {
+                const e = {};
+                for (const line of chunk.split("\n")) {
+                    const i = line.indexOf("=");
+                    if (i > 0) e[line.slice(0, i)] = line.slice(i + 1);
+                }
+                if (e.ACTION) w.event(e);
             }
         }
     }
