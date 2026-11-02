@@ -19,6 +19,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import qs.theme
+import "CollegeMath.js" as CollegeMath
 
 Singleton {
     id: root
@@ -42,6 +43,15 @@ Singleton {
             property int syncMinutes: 60
             property bool islandNext: true                // next class when you hover the island
             property bool lockScreen: true                // next class on the lock screen (no attendance details)
+            property bool campusOnlineSchedules: false
+            property string campusGender: ""
+            property string campusBlock: ""
+            property string campusRoom: ""
+            property string campusMess: ""
+            property bool laundryReminders: false
+            property var laundryOverrides: ({})           // { "YYYY-MM-DD": "add" | "skip" } — your corrections to the schedule
+            property string laundryDays: ""               // your own days of the month ("3, 17"): replaces the published schedule
+            property var laundryPickedUp: ({})            // { "YYYY-MM-DD" (the laundry day): when you said you'd picked it up }
             property bool hideGrades: false               // CGPA and grades as dots until you click (the app); Halo doesn't say them aloud
             property bool haloContext: true               // Halo may read this for questions about classes, attendance, marks, exams
             property bool calendarFile: true              // ~/Notes/Calendar/VIT.ics: classes, exams, holidays for the phone's calendar
@@ -151,7 +161,7 @@ Singleton {
         }
         onExited: { root.signingIn = false; root.refreshStatus(); }
     }
-    function signOut() { Quickshell.execDetached(args().concat(["forget"])); hasLogin = false; username = ""; data = ({}); statusSoon.restart(); }
+    function signOut() { syncProc.running = false; extrasProc.running = false; campusProc.running = false; Quickshell.execDetached(args().concat(["forget"])); hasLogin = false; username = ""; data = ({}); extra = ({}); campusData = ({}); gradesRevealed = false; statusSoon.restart(); }
     Timer { id: statusSoon; interval: 1500; onTriggered: root.refreshStatus() }
 
     // ── extras: grades/CGPA, circulars, class messages, fees, library, proctor ──
@@ -166,6 +176,8 @@ Singleton {
         onLoaded: { try { root.extra = JSON.parse(text()); } catch (e) {} }
         onLoadFailed: root.extra = ({})
     }
+    readonly property bool extrasSyncing: extrasProc.running
+    property string extrasError: ""
     function syncExtras() {
         if (extrasProc.running || !cfg.enabled || !hasLogin) return;
         extrasProc.command = args().concat(["extras"]);
@@ -176,8 +188,11 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 let r = {}; try { r = JSON.parse(text); } catch (e) { return; }
-                if (!r.ok || !Persist.automates) return;
+                if (!r.ok) { root.extrasError = r.error || "Could not refresh college details"; return; }
+                root.extrasError = (r.partial ?? []).length ? "Could not refresh: " + r.partial.join(", ") + ". Saved data is retained." : "";
                 extraFile.reload();
+                if (Persist.automates) campusSoon.restart();
+                if (!Persist.automates) return;
                 for (const c of r.new?.circulars ?? [])
                     Halo.say({ key: "circular:" + c.id, icon: "campaign", title: "New circular", text: c.title + (c.office ? "\n" + c.office : ""), level: "important", duration: 14000 });
                 for (const m of r.new?.messages ?? []) {
@@ -185,6 +200,109 @@ Singleton {
                     Halo.say({ key: "classmsg:" + vals.join("|").slice(0, 60), icon: "forum", title: "Message from your faculty", text: vals.join(" · ").slice(0, 300), level: "important", duration: 20000 });
                 }
             }
+        }
+    }
+
+    // Public schedules contain no credentials; profile overrides can also be
+    // used without VTOP. The helper never sends a room or account to the host.
+    property var campusData: ({})
+    readonly property var campusProfile: campusData.profile ?? ({})
+    readonly property var laundryRows: campusData.laundry?.rows ?? []
+    readonly property var laundrySlots: { clock.date; return CollegeMath.laundrySlots(laundryRows, campusProfile.room, clock.date, cfg.laundryOverrides, cfg.laundryDays); }
+    // ── picking it up: the laundry you gave in on a laundry day waits to be
+    // collected from the next day. Until you say you have, it's "waiting". ──
+    readonly property var laundryWaiting: {
+        clock.date;
+        const today = new Date(clock.date.getFullYear(), clock.date.getMonth(), clock.date.getDate());
+        // the most recent laundry day in the last 5 days (not today: it's ready from tomorrow)
+        for (let i = 1; i <= 5; i++) {
+            const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+            if (!CollegeMath.isLaundryDay(laundryRows, campusProfile.room, d, cfg.laundryOverrides, cfg.laundryDays)) continue;
+            const key = CollegeMath.dateKey(d);
+            return (cfg.laundryPickedUp ?? {})[key] ? null : { date: key, when: d.getTime(), days: i };
+        }
+        return null;
+    }
+    function pickedUp(key) {
+        const p = {}, cut = CollegeMath.dateKey(new Date(Date.now() - 31 * 86400000));
+        for (const k in cfg.laundryPickedUp ?? {}) if (k >= cut) p[k] = cfg.laundryPickedUp[k];
+        p[key ?? laundryWaiting?.date] = Date.now();
+        cfg.laundryPickedUp = p;
+    }
+    // a correction for one day: "add" (it is my laundry day), "skip" (it isn't), "" (as scheduled)
+    function setLaundryOverride(key, how) {
+        const o = Object.assign({}, cfg.laundryOverrides ?? {});
+        if (how) o[key] = how; else delete o[key];
+        // forget corrections for days long past
+        const cut = CollegeMath.dateKey(new Date(Date.now() - 31 * 86400000));
+        for (const k of Object.keys(o)) if (k < cut) delete o[k];
+        cfg.laundryOverrides = o;
+    }
+    readonly property var nextLaundry: laundrySlots[0] ?? null
+    readonly property bool campusSyncing: campusProc.running
+    property string campusError: ""
+    FileView {
+        id: campusFile
+        path: Persist.dir + "/amazecc-campus.json"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: { try { root.campusData = JSON.parse(text()); } catch (e) {} }
+        onLoadFailed: root.campusData = ({})
+    }
+    function refreshCampus() {
+        if (campusProc.running || !cfg.enabled) return;
+        campusError = "";
+        campusProc.running = true;
+    }
+    Process {
+        id: campusProc
+        command: ["python3", Theme.lumenRoot + "/scripts/amazecc_campus.py", "--gender", root.cfg.campusGender,
+                  "--block", root.cfg.campusBlock, "--room", root.cfg.campusRoom, "--mess", root.cfg.campusMess].concat(root.cfg.campusOnlineSchedules ? ["--online"] : [])
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { const r = JSON.parse(text); if (!r.ok) root.campusError = r.error || "Could not refresh schedules"; }
+                catch (e) { root.campusError = "Could not refresh schedules. Saved data is retained."; }
+                campusFile.reload();
+            }
+        }
+    }
+    Timer {
+        id: campusSoon; interval: 6000
+        running: Persist.automates && root.cfg.enabled && (!!root.cfg.campusGender || !!root.extra.hostel)
+        onTriggered: root.refreshCampus()
+    }
+    Timer {
+        interval: 6 * 3600000; repeat: true
+        running: Persist.automates && root.cfg.enabled && (!!root.cfg.campusGender || !!root.extra.hostel)
+        onTriggered: root.refreshCampus()
+    }
+    Timer {
+        interval: 60000; repeat: true; triggeredOnStart: true
+        running: Persist.automates && root.cfg.enabled && root.cfg.laundryReminders
+        onTriggered: {
+            const slot = root.nextLaundry, now = new Date();
+            if (!slot || slot.date !== root.dateKey(now) || now.getHours() < 8 || now.getHours() >= 17 || Focus.mode === "sleep") return;
+            if (!root.remindFlag("laundry:" + slot.date + ":" + root.campusProfile.block + ":" + root.campusProfile.room)) return;
+            root.notify("local_laundry_service", "Laundry day", "Block " + root.campusProfile.block + " · room " + root.campusProfile.room + ". Check the collection time at your counter.");
+        }
+    }
+    // The day after: "your laundry is ready" — then every 3 hours (9:00–21:00)
+    // until you say you've picked it up. A Halo card with the answer on it.
+    Timer {
+        interval: 60000; repeat: true; triggeredOnStart: true
+        running: Persist.automates && root.cfg.enabled && root.cfg.laundryReminders
+        onTriggered: {
+            const w = root.laundryWaiting, now = new Date();
+            if (!w || now.getHours() < 9 || now.getHours() >= 21 || Focus.mode === "sleep" || Lock.locked) return;
+            if (!root.remindFlag("pickup:" + w.date + ":" + Math.floor(now.getHours() / 3))) return;
+            const from = w.days === 1 ? "yesterday" : Qt.formatDate(new Date(w.when), "dddd");
+            Halo.say({ key: "laundry-pickup", icon: "local_laundry_service", title: w.days === 1 ? "Your laundry is ready" : "Laundry still waiting",
+                       text: "From " + from + (root.campusProfile.block ? " · Block " + root.campusProfile.block : "") + ". Picked it up already?",
+                       level: "important", duration: 30000, speak: false,
+                       actions: [{ label: "Picked it up", icon: "check", run: () => root.pickedUp(w.date) },
+                                 { label: "Later", icon: "snooze", run: () => {} }] });
+            root.toPhone("Your laundry from " + from + " is ready to pick up.");
         }
     }
 
@@ -238,7 +356,7 @@ Singleton {
         }
         error = "";
         dataFile.reload();
-        if (Date.now() - (extra.updated ?? 0) > 6 * 3600000) syncExtras();
+        if (manual || Date.now() - (extra.updated ?? 0) > 6 * 3600000 || !extra.gradeHistory) syncExtras();
         if (manual) Island.system("cloud_done", "AmazeCC is up to date",
                                   r.partial?.length ? "Couldn't get " + r.partial.join(" or ") + " this time" : "Timetable, attendance, marks and exams");
         if (Persist.automates) for (const c of r.changes ?? []) announce(c);

@@ -8,7 +8,8 @@ import qs.services
 AppPage {
     id: page
     title: "Grades"
-    subtitle: "From VTOP's grade history — read with the other extras"
+    subtitle: "Published results, assessment details and scenarios for what comes next"
+    headerRight: CollegeButton { text: Amazecc.extrasSyncing ? "Refreshing…" : "Refresh grades"; icon: "sync"; enabled: Amazecc.hasLogin && !Amazecc.extrasSyncing; onActivated: Amazecc.syncExtras() }
     readonly property var ex: Amazecc.extra ?? {}
     readonly property var dist: ex.cgpa?.grades ?? {}
     readonly property var letters: ["S", "A", "B", "C", "D", "E", "F"]
@@ -16,11 +17,15 @@ AppPage {
     property real target: 8.0
     property int semCredits: 22
 
-    LText { visible: !page.ex.cgpa; color: Theme.textMuted; text: "Grades appear after AmazeCC reads your grade history (Sync)." }
+    LText { visible: !page.ex.cgpa && !Amazecc.gradesHidden; color: Theme.textMuted; text: "Grades appear after AmazeCC reads your grade history (Sync)." }
+
+    LText { visible: (page.ex.partial ?? []).some(r=>["grades","all-grades"].includes(r)); width: parent.width; wrapMode: Text.Wrap; role: "caption"; color: Theme.warning; text: "Some grade details could not refresh. Showing the last saved results." }
+
+    LText { visible: Amazecc.extrasError !== ""; width: parent.width; wrapMode: Text.Wrap; role: "caption"; color: Theme.warning; text: Amazecc.extrasError }
 
     // hidden (Settings → AmazeCC): one tap shows them until the app closes
     Column {
-        visible: !!page.ex.cgpa && Amazecc.gradesHidden
+        visible: Amazecc.gradesHidden
         width: parent.width
         spacing: Theme.space.s3
         topPadding: Theme.space.s6
@@ -71,7 +76,7 @@ AppPage {
                             height: Math.max(3, (parent.height - 40) * parent.n / page.most)
                             color: parent.modelData === "F" || parent.modelData === "E" ? Theme.withAlpha(Theme.warning, 0.7) : Theme.accent
                             opacity: parent.n ? 1 : 0.25
-                            Behavior on height { NumberAnimation { duration: 700; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
+                            Behavior on height { NumberAnimation { duration: Theme.reducedMotion ? 0 : Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
                         }
                         LText { id: lbl; anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom } role: "bodyStrong"; text: parent.modelData }
                     }
@@ -135,6 +140,26 @@ AppPage {
                     LText { anchors { left: gb.right; leftMargin: Theme.space.s3; right: cr.left; verticalCenter: parent.verticalCenter } elide: Text.ElideRight; text: modelData.title }
                     LText { id: cr; anchors { right: parent.right; verticalCenter: parent.verticalCenter } role: "caption"; color: Theme.textMuted
                             text: Amazecc.fmt(modelData.credits) + " cr" + (modelData.type ? " · " + modelData.type : "") }
+                }
+            }
+        }
+    }
+
+    SemesterGrades { width: parent.width; visible: !Amazecc.gradesHidden }
+    GpaSimulator { width: parent.width; visible: !Amazecc.gradesHidden }
+    Card {
+        visible: !Amazecc.gradesHidden && (page.ex.curriculum ?? []).length > 0
+        width: parent.width; title: "Credit progress"; icon: "checklist"
+        Column {
+            width: parent.width; spacing: Theme.space.s3
+            Repeater {
+                model: page.ex.curriculum ?? []
+                Column {
+                    required property var modelData
+                    width: parent.width; spacing: Theme.space.s1
+                    LText { width: parent.width; wrapMode: Text.Wrap; text: modelData.title; role: "bodyStrong" }
+                    LText { role: "caption"; color: Theme.textSecondary; text: Amazecc.fmt(modelData.earned) + " / " + Amazecc.fmt(modelData.required) + " credits" }
+                    Rectangle { width: parent.width; height: 4; radius: 2; color: Theme.border; Rectangle { width: parent.width * (modelData.required > 0 ? Math.min(1,Math.max(0,(modelData.earned || 0)/modelData.required)) : 0); height: parent.height; radius: 2; color: Theme.accent } }
                 }
             }
         }

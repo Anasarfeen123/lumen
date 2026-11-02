@@ -514,7 +514,7 @@ def cmd_set_login(a):
 
 def cmd_forget(a):
     secret_clear()
-    for p in (SESSION, DATA):
+    for p in (SESSION, DATA, EXTRA, HISTORY, os.path.join(STATE, "amazecc-campus.json")):
         try:
             os.remove(p)
         except OSError:
@@ -595,7 +595,7 @@ def cmd_sync(a):
 
 # Read-only extras (grades, class messages, circulars, dues…): one VTOP page each,
 # through the same session. Only routes that read are allowed here.
-EXTRA_ROUTES = {"grades", "all-grades", "class-messages", "circulars", "fees-intimation", "library-due", "proctor",
+EXTRA_ROUTES = {"hostel", "grades", "all-grades", "class-messages", "circulars", "fees-intimation", "library-due", "proctor",
                 "proctor-messages", "faculty-info", "marks/stats", "course-page", "curriculum", "biometric", "hostel-leave",
                 "od", "transcript", "profile-images", "student", "me", "registration-status", "wallet", "capstone",
                 "mess-selection", "credentials", "outcome-set", "late-hour", "university-day", "transport", "transport/track", "dayboarder"}
@@ -646,6 +646,39 @@ def flatten_circulars(nodes, path=()):
     return out
 
 
+def build_grade_history(payload, previous=None):
+    """Keep failed semesters, replace successful ones, and retain VTOP's GPA.
+
+    Grand totals are not credit weights. Missing credits stay unknown.
+    """
+    result = dict(previous or {})
+    semesters_data = payload.get("grades")
+    if not isinstance(semesters_data, dict):
+        return result
+    for semester, data in semesters_data.items():
+        if not isinstance(data, dict) or not isinstance(data.get("grades"), list):
+            continue
+        rows = []
+        for i, row in enumerate(data["grades"]):
+            if not isinstance(row, dict) or not row.get("courseTitle"):
+                continue
+            assessments = []
+            for part in row.get("details") or []:
+                if not isinstance(part, dict):
+                    continue
+                assessments.append({"title": part.get("component", ""), "segment": part.get("type", ""),
+                                    "max": num(part.get("maxMark")), "scored": num(part.get("scoredMark")),
+                                    "weight": num(part.get("weightagePercent")), "weighted": num(part.get("weightageMark")),
+                                    "status": part.get("status", "")})
+            rows.append({"id": str(row.get("courseId") or row.get("courseCode") or i) + ":" + str(i),
+                         "code": row.get("courseCode", ""), "title": row["courseTitle"],
+                         "type": row.get("courseType", ""), "grade": row.get("grade", ""),
+                         "total": num(row.get("grandTotal")), "assessments": assessments,
+                         "range": row.get("range") if isinstance(row.get("range"), dict) else {}})
+        result[str(semester)] = {"gpa": num(data.get("gpa")), "courses": rows, "updated": int(time.time() * 1000)}
+    return result
+
+
 def cmd_extras(a):
     """Grades/CGPA, circulars, class messages, fees, library dues and your proctor —
     one snapshot (600) the shell reads; prints what's new since the last one."""
@@ -654,7 +687,8 @@ def cmd_extras(a):
         out({"ok": False, "error": "nologin"})
         return
     prev = read_json(EXTRA) or {}
-    snap = {"updated": int(time.time() * 1000)}
+    snap = dict(prev, updated=int(time.time() * 1000))
+    partial = []
     try:
         s = session(a.api, creds)
     except ApiError as e:
@@ -664,8 +698,13 @@ def cmd_extras(a):
 
     def get(route, keep=None):
         try:
-            return post(a.api, route, base, timeout=180) or {}
+            value = post(a.api, route, base, timeout=180) or {}
+            if not isinstance(value, dict) or value.get("error") or value.get("success") is False:
+                partial.append(route)
+                return keep if keep is not None else {}
+            return value
         except ApiError:
+            partial.append(route)
             return keep if keep is not None else {}
     g = get("grades")
     if g.get("cgpa"):
@@ -676,6 +715,17 @@ def cmd_extras(a):
         for k in ("cgpa", "grades"):
             if k in prev:
                 snap[k] = prev[k]
+    if isinstance(g.get("curriculum"), list):
+        snap["curriculum"] = [{"title": x.get("basketTitle", ""), "required": num(x.get("creditsRequired")),
+                               "earned": num(x.get("creditsEarned"))} for x in g["curriculum"] if isinstance(x, dict)]
+    history = get("all-grades")
+    snap["gradeHistory"] = build_grade_history(history, prev.get("gradeHistory"))
+    hostel = get("hostel")
+    if isinstance(hostel.get("hostelInfo"), dict):
+        snap["hostel"] = hostel["hostelInfo"]
+        snap["leaveHistory"] = hostel.get("leaveHistory") or []
+        snap["hostelUpdated"] = int(time.time() * 1000)
+    snap["partial"] = partial
     c = get("circulars")
     snap["circulars"] = sorted(flatten_circulars(c.get("circulars")), key=lambda x: -x["date"])[:40] if c.get("circulars") is not None else prev.get("circulars", [])
     m = get("class-messages")
@@ -695,7 +745,7 @@ def cmd_extras(a):
     old_c = {x["id"] for x in prev.get("circulars", [])}
     old_m = {json.dumps(x, sort_keys=True) for x in prev.get("messages", [])}
     out({"ok": True, "updated": snap["updated"],
-         "new": {"circulars": [x for x in snap["circulars"] if prev and x["id"] not in old_c][:5],
+         "partial": partial, "new": {"circulars": [x for x in snap["circulars"] if prev and x["id"] not in old_c][:5],
                  "messages": [x for x in snap["messages"] if prev and json.dumps(x, sort_keys=True) not in old_m][:5]}})
 
 

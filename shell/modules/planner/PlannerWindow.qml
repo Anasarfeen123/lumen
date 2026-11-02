@@ -22,9 +22,9 @@ PanelWindow {
     readonly property bool isFocused: Quickshell.screens.length <= 1
                                       || (Hyprland.focusedMonitor?.name ?? "") === (monitor?.name ?? "")
     readonly property bool showing: Planner.open && isFocused
-    readonly property int panelWidth: 380
+    readonly property int panelWidth: Math.min(Theme.panels.plannerWidth, (screen?.width ?? Theme.panels.plannerWidth) - Theme.edgeGap * 2)
 
-    visible: showing || panel.opacity > 0
+    visible: panel.retained
     anchors { top: true; bottom: true; left: true }
     margins.top: Theme.edgeGap + Theme.barHeight
     implicitWidth: panelWidth + Theme.edgeGap + Theme.space.s8
@@ -33,7 +33,7 @@ PanelWindow {
     WlrLayershell.namespace: "lumen-planner"
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.keyboardFocus: showing ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-    mask: Region { item: panel }
+    mask: Region { item: win.showing ? panel : null }
 
     HyprlandFocusGrab { active: win.showing; windows: [win]; onCleared: Planner.open = false }
     SystemClock { id: clock; precision: SystemClock.Minutes }
@@ -72,8 +72,8 @@ PanelWindow {
         width: parent.width
         implicitHeight: head.height + inner.childrenRect.height + Theme.space.s3 * 2 + Theme.space.s2
         radius: Theme.radius.md
-        color: Theme.withAlpha(Theme.surfaceElevated, 0.85)
-        border.width: 1; border.color: Theme.border
+        color: Theme.surfaceElevated
+        border.width: 0
         Item {
             id: head
             x: Theme.space.s3; y: Theme.space.s3
@@ -82,7 +82,7 @@ PanelWindow {
                 spacing: Theme.space.s2
                 anchors.verticalCenter: parent.verticalCenter
                 LIcon { icon: card.icon; size: 16; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
-                LText { role: "bodyStrong"; text: card.title; anchors.verticalCenter: parent.verticalCenter }
+                LText { role: "panelHeading"; text: card.title; anchors.verticalCenter: parent.verticalCenter }
             }
             Row { id: right; anchors { right: parent.right; verticalCenter: parent.verticalCenter } spacing: Theme.space.s1 }
         }
@@ -95,15 +95,16 @@ PanelWindow {
         }
     }
 
-    GlassSurface {
+    MotionSurface {
         id: panel
+        shown: win.showing
+        motionStyle: "sidebar"
+        offsetX: -Theme.space.s5
+        motionOrigin: Item.TopLeft
         level: "panel"
         radius: Theme.radius.lg
         width: win.panelWidth
         anchors { top: parent.top; bottom: parent.bottom; left: parent.left; topMargin: Theme.edgeGap; bottomMargin: Theme.edgeGap; leftMargin: Theme.edgeGap }
-        opacity: win.showing ? 1 : 0
-        transform: Translate { x: win.showing ? 0 : -24; Behavior on x { NumberAnimation { duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: win.showing ? Theme.curveEmphasized : Theme.curveAccelerate } } }
-        Behavior on opacity { NumberAnimation { duration: win.showing ? Theme.motion.normal : Theme.motion.normal * Theme.motion.exitRatio } }
         focus: win.showing
         Keys.onEscapePressed: Planner.open = false
         // Scroll with the keyboard too (a text field keeps its own keys)
@@ -116,32 +117,34 @@ PanelWindow {
             else return;
             e.accepted = true;
         }
-        // Opening starts at the top: your day at a glance
-        Connections { target: win; function onShowingChanged() { if (win.showing) { win.tab = Planner.wantTab || "today"; Planner.wantTab = ""; flick.cancelFlick(); flick.contentY = 0; classes.dayOffset = 0; classes.whatIf = false; } } }
+        // Reset a fresh opening; a quick reversal keeps the current page and scroll.
+        onOpening: fresh => {
+            if (!fresh) return;
+            win.tab = Planner.wantTab || "today"; Planner.wantTab = "";
+            tabMotion.snap(); flick.cancelFlick(); flick.animating = false; flick.contentY = 0;
+            classes.dayOffset = 0; classes.whatIf = false;
+        }
         Connections { target: Planner; function onWantTabChanged() { if (Planner.wantTab) win.tab = Planner.wantTab; } }
-        Connections { target: win; function onTabChanged() { flick.cancelFlick(); flick.contentY = 0; tabSwap.restart(); } }
-        SequentialAnimation {
-            id: tabSwap
-            PropertyAction { target: col; property: "opacity"; value: 0.3 }
-            PropertyAction { target: colShift; property: "y"; value: 12 }
-            ParallelAnimation {
-                NumberAnimation { target: col; property: "opacity"; to: 1; duration: Theme.reducedMotion ? 0 : Theme.motion.normal }
-                NumberAnimation { target: colShift; property: "y"; to: 0; duration: Theme.reducedMotion ? 0 : Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
-            }
+        PageTransition {
+            id: tabMotion
+            key: win.tab
+            active: panel.retained
+            distance: Theme.space.s2
+            onSwapped: { flick.cancelFlick(); flick.animating = false; flick.contentY = 0; }
         }
 
         // ── The hero (stays put while the rest scrolls): the date, the weather,
         //    what's next, and the tabs ──
         Column {
             id: header
-            anchors { top: parent.top; left: parent.left; right: parent.right; margins: Theme.space.s4 }
-            spacing: Theme.space.s3
+            anchors { top: parent.top; left: parent.left; right: parent.right; margins: Theme.space.s5 }
+            spacing: Theme.space.s4
             Item {
                 width: parent.width; height: dateCol.height
                 Column {
                     id: dateCol
-                    LText { role: "caption"; color: Theme.accent; text: Qt.formatDate(clock.date, "dddd").toUpperCase(); font.letterSpacing: 1.4; font.weight: Font.DemiBold }
-                    LText { role: "title"; font.pixelSize: 30; text: Qt.formatDate(clock.date, "d MMMM") }
+                    LText { role: "panelCaption"; color: Theme.accent; text: Qt.formatDate(clock.date, "dddd").toUpperCase(); font.letterSpacing: 0.8; font.weight: Font.DemiBold }
+                    LText { role: "panelTitle"; text: Qt.formatDate(clock.date, "d MMMM") }
                 }
                 // the weather at a glance (tap: Today)
                 HoverTarget {
@@ -158,13 +161,13 @@ PanelWindow {
             // what's next, with a countdown
             Rectangle {
                 visible: !!win.nextUp
-                width: parent.width; height: 52; radius: Theme.radius.md
-                color: Theme.withAlpha(Theme.accent, win.nextUp?.now ? 0.16 : 0.09)
-                border.width: 1; border.color: Theme.withAlpha(Theme.accent, 0.3)
+                width: parent.width; height: 60; radius: Theme.radius.md
+                color: Theme.surfaceElevated
+                border.width: 0; border.color: Theme.border
                 Rectangle { width: 4; radius: 2; height: parent.height - 18; x: 9; anchors.verticalCenter: parent.verticalCenter; color: Theme.accent }
                 Column {
                     anchors { left: parent.left; leftMargin: 22; right: nextWhen.left; rightMargin: Theme.space.s2; verticalCenter: parent.verticalCenter }
-                    LText { role: "caption"; color: Theme.accent; text: win.nextUp?.label ?? (win.nextUp?.now ? "NOW" : "NEXT UP"); font.letterSpacing: 1; font.weight: Font.DemiBold }
+                    LText { role: "panelCaption"; color: Theme.accent; text: win.nextUp?.label ?? (win.nextUp?.now ? "NOW" : "NEXT UP"); font.letterSpacing: 1; font.weight: Font.DemiBold }
                     LText { width: parent.width; elide: Text.ElideRight; role: "bodyStrong"; text: (win.nextUp?.title ?? "") + (win.nextUp?.where ? "  ·  " + win.nextUp.where : "") }
                 }
                 LText {
@@ -187,7 +190,7 @@ PanelWindow {
                     LIcon { icon: "check_box_outline_blank"; size: 16; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
                     LText { width: Math.min(implicitWidth, 280); elide: Text.ElideRight; anchors.verticalCenter: parent.verticalCenter
                             text: (parent.parent.open.find(t => Planner.stageOf(t) === "doing") ?? parent.parent.open[0])?.text ?? "" }
-                    LText { visible: parent.parent.open.length > 1; role: "caption"; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
+                    LText { visible: parent.parent.open.length > 1; role: "panelCaption"; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
                             text: "+" + (parent.parent.open.length - 1) }
                 }
             }
@@ -218,7 +221,7 @@ PanelWindow {
                             onClicked: win.tab = modelData.id
                             Row { anchors.centerIn: parent; spacing: 5
                                   LIcon { icon: modelData.icon; size: 15; fill: parent.parent.on ? 1 : 0; color: parent.parent.on ? Theme.accent : Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
-                                  LText { role: parent.parent.on ? "bodyStrong" : "body"; font.pixelSize: 12; text: modelData.label
+                                  LText { role: "barCaption"; text: modelData.label
                                           color: parent.parent.on ? Theme.text : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter } }
                         }
                     }
@@ -279,10 +282,39 @@ PanelWindow {
             x: Theme.space.s4
             width: flick.width - Theme.space.s4 * 2
             spacing: Theme.space.s3
-            transform: Translate { id: colShift }
+            opacity: tabMotion.reveal
+            enabled: win.tab === tabMotion.presentedKey
+            transform: Translate { y: tabMotion.offset }
+
+            Card {
+                visible: tabMotion.presentedKey === "today" && Amazecc.cfg.enabled
+                title: "College & hostel"; icon: "school"
+                Column {
+                    width: parent.width; spacing: Theme.space.s2
+                    // laundry waiting to be picked up (from the last laundry day)
+                    Row {
+                        visible: !!Amazecc.laundryWaiting
+                        width: parent.width; spacing: Theme.space.s2
+                        LIcon { icon: "checkroom"; size: 16; color: Theme.warning; anchors.verticalCenter: parent.verticalCenter }
+                        LText { anchors.verticalCenter: parent.verticalCenter; width: parent.width - 16 - pickT.width - 2 * Theme.space.s2; elide: Text.ElideRight
+                                role: "bodyStrong"; text: "Pick up your laundry" + (Amazecc.laundryWaiting?.days > 1 ? " (since " + Qt.formatDate(new Date(Amazecc.laundryWaiting.when), "ddd") + ")" : "") }
+                        HoverTarget { id: pickT; width: pickL.implicitWidth + 20; height: 26; radius: 13; anchors.verticalCenter: parent.verticalCenter
+                                      onClicked: Amazecc.pickedUp()
+                                      Rectangle { anchors.fill: parent; radius: 13; z: -1; color: "transparent"; border.width: 1; border.color: Theme.border }
+                                      LText { id: pickL; anchors.centerIn: parent; role: "caption"; text: "Picked it up" } }
+                    }
+                    LText { visible: !!Amazecc.nextLaundry; width: parent.width; wrapMode: Text.Wrap; role: "bodyStrong"; color: Theme.accent; text: Amazecc.nextLaundry ? "Laundry · " + Qt.formatDate(new Date(Amazecc.nextLaundry.when), "ddd, d MMM") + " · Block " + (Amazecc.campusProfile.block || "") : "" }
+                    Flow {
+                        width: parent.width; spacing: Theme.space.s2
+                        HoverTarget { width: 94; height: 36; activeFocusOnTab: true; onClicked: { Planner.open = false; Amazecc.launch("laundry"); } Keys.onReturnPressed: { Planner.open = false; Amazecc.launch("laundry"); } LText { anchors.centerIn: parent; role: "bodyStrong"; text: "Laundry" } }
+                        HoverTarget { width: 94; height: 36; activeFocusOnTab: true; onClicked: { Planner.open = false; Amazecc.launch("mess"); } Keys.onReturnPressed: { Planner.open = false; Amazecc.launch("mess"); } LText { anchors.centerIn: parent; role: "bodyStrong"; text: "Mess menu" } }
+                        HoverTarget { width: 94; height: 36; activeFocusOnTab: true; onClicked: { Planner.open = false; Amazecc.launch("grades"); } Keys.onReturnPressed: { Planner.open = false; Amazecc.launch("grades"); } LText { anchors.centerIn: parent; role: "bodyStrong"; text: "Grades" } }
+                    }
+                }
+            }
 
             // ── Calendar: the month ──
-            MonthCard { visible: win.tab === "calendar"; width: parent.width; today: clock.date }
+            MonthCard { visible: tabMotion.presentedKey === "calendar"; width: parent.width; today: clock.date }
 
             // ── Exam mode: the week before an exam, a countdown and today's revision ──
             Card {
@@ -291,10 +323,10 @@ PanelWindow {
                 readonly property int days: next ? Amazecc.daysTo(next.when) : 99
                 readonly property var plan: visible ? (HaloCollege.plan(14) ?? []) : []
                 readonly property var todayPlan: plan.find(p => Amazecc.dateKey(p.day) === Amazecc.dateKey(clock.date)) ?? null
-                visible: win.tab === "today" && !!next && days <= 7
+                visible: tabMotion.presentedKey === "today" && !!next && days <= 7
                 title: "Exam mode"
                 icon: "local_fire_department"
-                headerRight: LText { role: "caption"; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
+                headerRight: LText { role: "panelCaption"; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
                                      text: Amazecc.exams.filter(e => e.when > Date.now() && Amazecc.daysTo(e.when) <= 7).length + " this week" }
                 Column {
                     width: parent.width
@@ -305,13 +337,13 @@ PanelWindow {
                             anchors.verticalCenter: parent.verticalCenter
                             LText { text: examMode.days === 0 ? "Today" : examMode.days === 1 ? "Tomorrow" : examMode.days + " days"
                                     font.pixelSize: 26; font.weight: Font.DemiBold; color: examMode.days <= 2 ? Theme.warning : Theme.accent }
-                            LText { role: "caption"; color: Theme.textMuted; text: "until " + (examMode.next?.kind ?? "") }
+                            LText { role: "panelCaption"; color: Theme.textMuted; text: "until " + (examMode.next?.kind ?? "") }
                         }
                         Column {
                             anchors.verticalCenter: parent.verticalCenter
                             width: col.width - 140
                             LText { width: parent.width; elide: Text.ElideRight; role: "bodyStrong"; text: examMode.next?.title ?? "" }
-                            LText { width: parent.width; elide: Text.ElideRight; role: "caption"; color: Theme.textMuted
+                            LText { width: parent.width; elide: Text.ElideRight; role: "panelCaption"; color: Theme.textMuted
                                     text: examMode.next ? [Planner.whenLabel(examMode.next.when, !examMode.next.timed), examMode.next.venue, examMode.next.seat ? "seat " + examMode.next.seat : ""].filter(x => x).join(" · ") : "" }
                         }
                     }
@@ -325,7 +357,7 @@ PanelWindow {
                             id: todayCol
                             x: Theme.space.s3; y: Theme.space.s2
                             width: parent.width - Theme.space.s3 * 2
-                            LText { role: "caption"; color: Theme.accent; text: examMode.todayPlan?.eve ? "TONIGHT — THE EVE OF THE EXAM" : "REVISE TODAY" }
+                            LText { role: "panelCaption"; color: Theme.accent; text: examMode.todayPlan?.eve ? "TONIGHT — THE EVE OF THE EXAM" : "REVISE TODAY" }
                             LText { width: parent.width; wrapMode: Text.Wrap; role: "body"; text: (examMode.todayPlan?.items ?? []).join(" · ") }
                         }
                     }
@@ -335,8 +367,8 @@ PanelWindow {
                         Row {
                             required property var modelData
                             width: parent.width; spacing: Theme.space.s2
-                            LText { width: 64; role: "caption"; color: Theme.textMuted; text: Qt.formatDate(new Date(modelData.when), "ddd d MMM") }
-                            LText { width: parent.width - 72; elide: Text.ElideRight; role: "caption"; text: modelData.kind + " · " + modelData.title }
+                            LText { width: 64; role: "panelCaption"; color: Theme.textMuted; text: Qt.formatDate(new Date(modelData.when), "ddd d MMM") }
+                            LText { width: parent.width - 72; elide: Text.ElideRight; role: "panelCaption"; text: modelData.kind + " · " + modelData.title }
                         }
                     }
                     Row {
@@ -347,7 +379,7 @@ PanelWindow {
                             Rectangle { anchors.fill: parent; radius: 14; z: -1; color: "transparent"; border.width: 1; border.color: Theme.border }
                             Row { id: rn; anchors.centerIn: parent; spacing: 5
                                   LIcon { icon: "checklist"; size: 14; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
-                                  LText { role: "caption"; text: "Revision note"; anchors.verticalCenter: parent.verticalCenter } }
+                                  LText { role: "panelCaption"; text: "Revision note"; anchors.verticalCenter: parent.verticalCenter } }
                         }
                         HoverTarget {
                             width: pl.implicitWidth + 20; height: 28; radius: 14
@@ -355,7 +387,7 @@ PanelWindow {
                             Rectangle { anchors.fill: parent; radius: 14; z: -1; color: "transparent"; border.width: 1; border.color: Theme.border }
                             Row { id: pl; anchors.centerIn: parent; spacing: 5
                                   LIcon { icon: "event_note"; size: 14; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
-                                  LText { role: "caption"; text: "Full plan"; anchors.verticalCenter: parent.verticalCenter } }
+                                  LText { role: "panelCaption"; text: "Full plan"; anchors.verticalCenter: parent.verticalCenter } }
                         }
                     }
                 }
@@ -364,7 +396,7 @@ PanelWindow {
             // ── Classes (AmazeCC: today's timetable, attendance that needs care) ──
             Card {
                 id: classes
-                visible: Amazecc.cfg.enabled && win.tab === "today"
+                visible: Amazecc.cfg.enabled && tabMotion.presentedKey === "today"
                 property int dayOffset: 0                  // 0 today, 1 tomorrow…
                 property bool whatIf: false
                 readonly property var day: { clock.date; return new Date(clock.date.getFullYear(), clock.date.getMonth(), clock.date.getDate() + dayOffset); }
@@ -377,7 +409,7 @@ PanelWindow {
                     return !Amazecc.updated ? "" : m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago";
                 }
                 headerRight: [
-                    LText { visible: Amazecc.ready; role: "caption"; color: Amazecc.stale ? Theme.warning : Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
+                    LText { visible: Amazecc.ready; role: "panelCaption"; color: Amazecc.stale ? Theme.warning : Theme.textMuted; anchors.verticalCenter: parent.verticalCenter
                             text: Amazecc.syncing ? "Syncing…" : Amazecc.stale ? "Out of date · " + classes.ago : classes.ago },
                     HoverTarget { visible: Amazecc.hasLogin; width: 26; height: 26; onClicked: Amazecc.sync(true)
                                   LIcon { id: syncIcon; anchors.centerIn: parent; icon: "sync"; size: 16; color: Theme.textMuted
@@ -397,12 +429,12 @@ PanelWindow {
                             spacing: Theme.space.s2
                             LIcon { icon: "link"; size: 16; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
                             LText { role: "bodyStrong"; text: "Connect VTOP"; anchors.verticalCenter: parent.verticalCenter }
-                            LText { role: "caption"; color: Theme.textMuted; text: "timetable, attendance, marks"; anchors.verticalCenter: parent.verticalCenter }
+                            LText { role: "panelCaption"; color: Theme.textMuted; text: "timetable, attendance, marks"; anchors.verticalCenter: parent.verticalCenter }
                         }
                         LIcon { anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                                 icon: "chevron_right"; size: 16; color: Theme.textMuted }
                     }
-                    LText { visible: Amazecc.hasLogin && !Amazecc.ready && Amazecc.error === ""; role: "caption"; color: Theme.textMuted
+                    LText { visible: Amazecc.hasLogin && !Amazecc.ready && Amazecc.error === ""; role: "panelCaption"; color: Theme.textMuted
                             text: Amazecc.syncing ? "Fetching your timetable from VTOP… (about half a minute)" : "Not synced yet" }
 
                     // Which day: today and the next days that have classes (or a holiday to say)
@@ -427,14 +459,14 @@ PanelWindow {
                                 Rectangle { anchors.fill: parent; radius: 13; z: -1
                                             color: parent.on ? Theme.withAlpha(Theme.accent, 0.18) : Theme.withAlpha(Theme.text, 0.05)
                                             border.width: 1; border.color: parent.on ? Theme.withAlpha(Theme.accent, 0.45) : Theme.border }
-                                LText { id: chipText; anchors.centerIn: parent; role: "caption"; color: parent.on ? Theme.accent : Theme.textSecondary; text: modelData.label }
+                                LText { id: chipText; anchors.centerIn: parent; role: "panelCaption"; color: parent.on ? Theme.accent : Theme.textSecondary; text: modelData.label }
                             }
                         }
                     }
 
                     // A holiday
                     LText { visible: Amazecc.ready && classes.info?.kind === "holiday"; width: parent.width; wrapMode: Text.Wrap
-                            role: "caption"; color: Theme.textSecondary
+                            role: "panelCaption"; color: Theme.textSecondary
                             text: "No classes" + (classes.dayOffset === 0 ? " today" : "") + (classes.info?.text ? " — " + classes.info.text : "") }
 
                     // The day's classes
@@ -451,13 +483,13 @@ PanelWindow {
                             Rectangle { width: 3; height: 24; radius: 1.5; anchors.verticalCenter: parent.verticalCenter
                                         color: row.now ? Theme.accent : Theme.withAlpha(Theme.textMuted, 0.5) }
                             LText { id: at; x: Theme.space.s3; width: 58; anchors.verticalCenter: parent.verticalCenter
-                                    role: "caption"; color: row.now ? Theme.accent : Theme.textSecondary
+                                    role: "panelCaption"; color: row.now ? Theme.accent : Theme.textSecondary
                                     font.features: { "tnum": 1 }
                                     text: Amazecc.clockLabel(modelData.start) }
                             Column {
                                 anchors { left: at.right; leftMargin: Theme.space.s1; right: parent.right; verticalCenter: parent.verticalCenter }
                                 LText { width: parent.width; elide: Text.ElideRight; role: "bodyStrong"; text: modelData.title }
-                                LText { width: parent.width; elide: Text.ElideRight; role: "caption"; color: Theme.textMuted
+                                LText { width: parent.width; elide: Text.ElideRight; role: "panelCaption"; color: Theme.textMuted
                                         text: [modelData.venue, modelData.kind === "lab" ? "Lab" : "", row.now ? "till " + Amazecc.clockLabel(modelData.end) : ""].filter(x => x).join(" · ") }
                             }
                         }
@@ -465,7 +497,7 @@ PanelWindow {
                     // Done for the day
                     LText {
                         visible: classes.dayOffset === 0 && Amazecc.ready && !Amazecc.next && !Amazecc.current && Amazecc.todayInfo?.kind !== "holiday"
-                        width: parent.width; elide: Text.ElideRight; role: "caption"; color: Theme.textMuted
+                        width: parent.width; elide: Text.ElideRight; role: "panelCaption"; color: Theme.textMuted
                         text: (Amazecc.today.length ? "Done for today." : "No classes today.")
                               + (Amazecc.nextDay ? " " + Planner.whenLabel(Amazecc.nextDay.date.getTime() + Amazecc.nextDay.first.start * 60000, false) + " · " + Amazecc.nextDay.first.title : "")
                     }
@@ -480,7 +512,7 @@ PanelWindow {
                                     border.width: 1; border.color: classes.whatIf ? Theme.withAlpha(Theme.warning, 0.45) : Theme.border }
                         Row { id: wiRow; anchors.centerIn: parent; spacing: 5
                               LIcon { icon: "event_busy"; size: 14; color: classes.whatIf ? Theme.warning : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
-                              LText { role: "caption"; color: classes.whatIf ? Theme.warning : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter
+                              LText { role: "panelCaption"; color: classes.whatIf ? Theme.warning : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter
                                       text: classes.whatIf ? "If you skip " + (classes.dayOffset === 0 ? "today" : classes.dayOffset === 1 ? "tomorrow" : Qt.formatDate(classes.day, "dddd")) : "What if I skip it?" } }
                     }
                     Repeater {
@@ -491,7 +523,7 @@ PanelWindow {
                             LIcon { anchors.verticalCenter: parent.verticalCenter; size: 14
                                     icon: modelData.below ? "error" : modelData.after < Amazecc.cfg.threshold + 5 ? "warning" : "check_circle"
                                     color: modelData.below ? Theme.error : modelData.after < Amazecc.cfg.threshold + 5 ? Theme.warning : Theme.success }
-                            LText { anchors.verticalCenter: parent.verticalCenter; width: parent.width - 22; elide: Text.ElideRight; role: "caption"
+                            LText { anchors.verticalCenter: parent.verticalCenter; width: parent.width - 22; elide: Text.ElideRight; role: "panelCaption"
                                     text: Amazecc.courseName(modelData.course) + " · " + modelData.before + "% → " + modelData.after.toFixed(1) + "%"
                                           + (modelData.below ? " · under " + Amazecc.cfg.threshold + "%" : "") }
                         }
@@ -506,20 +538,20 @@ PanelWindow {
                             width: parent.width; height: 22; spacing: Theme.space.s2
                             LIcon { anchors.verticalCenter: parent.verticalCenter; icon: parent.tone === "error" ? "error" : "warning"; size: 14
                                     color: parent.tone === "error" ? Theme.error : Theme.warning }
-                            LText { anchors.verticalCenter: parent.verticalCenter; width: parent.width - 22; elide: Text.ElideRight; role: "caption"
+                            LText { anchors.verticalCenter: parent.verticalCenter; width: parent.width - 22; elide: Text.ElideRight; role: "panelCaption"
                                     text: Amazecc.courseName(modelData) + " · " + modelData.pct + "% · "
                                           + (modelData.pct < Amazecc.cfg.threshold ? "attend the next " + Amazecc.needed(modelData)
                                              : Amazecc.skippable(modelData) === 0 ? "don't miss the next one" : "can miss " + Amazecc.skippable(modelData))
                                           + Amazecc.trendText(modelData) }
                         }
                     }
-                    LText { visible: Amazecc.error !== ""; width: parent.width; wrapMode: Text.Wrap; role: "caption"; color: Theme.error; text: Amazecc.error }
+                    LText { visible: Amazecc.error !== ""; width: parent.width; wrapMode: Text.Wrap; role: "panelCaption"; color: Theme.error; text: Amazecc.error }
                 }
             }
 
             // ── Weather ──
             Card {
-                visible: win.tab === "today"
+                visible: tabMotion.presentedKey === "today"
                 title: Weather.place ? Weather.place.name : "Weather"
                 icon: "location_on"
                 headerRight: [
@@ -547,9 +579,9 @@ PanelWindow {
                         Rectangle { anchors.fill: parent; radius: 15; z: -1; color: Theme.withAlpha(Theme.accent, 0.12); border.width: 1; border.color: Theme.withAlpha(Theme.accent, 0.4) }
                         Row { id: guessRow; anchors.centerIn: parent; spacing: 6
                               LIcon { icon: "school"; size: 15; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
-                              LText { role: "caption"; color: Theme.accent; text: "Use Chennai — your campus"; anchors.verticalCenter: parent.verticalCenter } }
+                              LText { role: "panelCaption"; color: Theme.accent; text: "Use Chennai — your campus"; anchors.verticalCenter: parent.verticalCenter } }
                     }
-                    LText { visible: Weather.error !== ""; role: "caption"; color: Theme.error; text: Weather.error }
+                    LText { visible: Weather.error !== ""; role: "panelCaption"; color: Theme.error; text: Weather.error }
                     // Now
                     Row {
                         visible: Weather.ready
@@ -558,7 +590,7 @@ PanelWindow {
                         Column {
                             anchors.verticalCenter: parent.verticalCenter
                             LText { role: "title"; font.pixelSize: 28; text: Math.round(Weather.now?.temp ?? 0) + "°" }
-                            LText { role: "caption"; color: Theme.textSecondary
+                            LText { role: "panelCaption"; color: Theme.textSecondary
                                     text: Weather.describe(Weather.now?.code ?? 0) + " · feels " + Math.round(Weather.now?.feels ?? 0) + "° · wind " + Math.round(Weather.now?.wind ?? 0) + " km/h" }
                         }
                     }
@@ -572,10 +604,10 @@ PanelWindow {
                                 required property var modelData
                                 width: parent.width / 4
                                 spacing: 2
-                                LText { anchors.horizontalCenter: parent.horizontalCenter; role: "caption"; color: Theme.textMuted
+                                LText { anchors.horizontalCenter: parent.horizontalCenter; role: "panelCaption"; color: Theme.textMuted
                                         text: Qt.formatDate(new Date(modelData.date + "T12:00"), "ddd") }
                                 LIcon { anchors.horizontalCenter: parent.horizontalCenter; icon: Weather.icon(modelData.code, true); size: 20; color: Theme.textSecondary }
-                                LText { anchors.horizontalCenter: parent.horizontalCenter; role: "caption"
+                                LText { anchors.horizontalCenter: parent.horizontalCenter; role: "panelCaption"
                                         text: Math.round(modelData.max) + "° / " + Math.round(modelData.min) + "°" }
                             }
                         }
@@ -585,7 +617,7 @@ PanelWindow {
 
             // ── Agenda ──
             Card {
-                visible: win.tab === "calendar"
+                visible: tabMotion.presentedKey === "calendar"
                 title: "Agenda"
                 icon: "event"
                 Column {
@@ -602,7 +634,7 @@ PanelWindow {
                             Column {
                                 anchors { left: parent.left; leftMargin: Theme.space.s3; right: del.left; verticalCenter: parent.verticalCenter }
                                 LText { width: parent.width; elide: Text.ElideRight; role: "bodyStrong"; text: modelData.title }
-                                LText { width: parent.width; elide: Text.ElideRight; role: "caption"; color: parent.parent.soon ? Theme.accent : Theme.textMuted
+                                LText { width: parent.width; elide: Text.ElideRight; role: "panelCaption"; color: parent.parent.soon ? Theme.accent : Theme.textMuted
                                         text: Planner.whenLabel(modelData.when, modelData.allDay) + (modelData.detail ? " · " + modelData.detail : "") }
                             }
                             // From AmazeCC (VTOP): read-only here
@@ -613,7 +645,7 @@ PanelWindow {
                                           LIcon { anchors.centerIn: parent; icon: "close"; size: 14; color: Theme.textMuted } }
                         }
                     }
-                    LText { visible: Planner.upcoming.length === 0; role: "caption"; color: Theme.textMuted; text: "Nothing coming up." }
+                    LText { visible: Planner.upcoming.length === 0; role: "panelCaption"; color: Theme.textMuted; text: "Nothing coming up." }
                     LField {
                         id: eventField
                         width: parent.width
@@ -628,7 +660,7 @@ PanelWindow {
                         readonly property var parsed: Planner.parse(eventField.text)
                         visible: eventField.text !== ""
                         onParsedChanged: bad = false
-                        role: "caption"
+                        role: "panelCaption"
                         color: bad ? Theme.error : Theme.textMuted
                         text: parsed ? "→ " + parsed.title + " · " + Planner.whenLabel(parsed.when, parsed.allDay) : "Type a title (and optionally a day and time)"
                     }
@@ -637,7 +669,7 @@ PanelWindow {
 
             // ── To-do ──
             Card {
-                visible: win.tab === "todo"
+                visible: tabMotion.presentedKey === "todo"
                 id: todoCard
                 title: "To-do"
                 icon: "checklist"
@@ -646,7 +678,7 @@ PanelWindow {
                     HoverTarget { width: 26; height: 24; onClicked: Persist.data.todoBoard = !todoCard.board
                                   LIcon { anchors.centerIn: parent; icon: todoCard.board ? "list" : "view_kanban"; size: 16; color: Theme.textMuted } },
                     HoverTarget { visible: Planner.todos.some(t => t.done); width: clearLbl.implicitWidth + 16; height: 24; onClicked: Planner.clearDone()
-                                  LText { id: clearLbl; anchors.centerIn: parent; role: "caption"; color: Theme.textMuted; text: "Clear done" } }
+                                  LText { id: clearLbl; anchors.centerIn: parent; role: "panelCaption"; color: Theme.textMuted; text: "Clear done" } }
                 ]
                 Column {
                     width: parent.width
@@ -663,7 +695,7 @@ PanelWindow {
                                 required property var modelData
                                 width: (parent.width - 2 * Theme.space.s2) / 3
                                 spacing: 4
-                                LText { role: "caption"; font.weight: Font.DemiBold; color: colm.modelData.id === "doing" ? Theme.accent : Theme.textMuted
+                                LText { role: "panelCaption"; font.weight: Font.DemiBold; color: colm.modelData.id === "doing" ? Theme.accent : Theme.textMuted
                                         text: colm.modelData.label.toUpperCase() + " · " + Planner.todos.filter(t => Planner.stageOf(t) === colm.modelData.id).length }
                                 Repeater {
                                     model: Planner.todos.map((t, i) => ({ t, i })).filter(x => Planner.stageOf(x.t) === colm.modelData.id)
@@ -678,7 +710,7 @@ PanelWindow {
                                                     color: colm.modelData.id === "doing" ? Theme.withAlpha(Theme.accent, parent.containsMouse ? 0.22 : 0.14) : Theme.withAlpha(Theme.text, parent.containsMouse ? 0.1 : 0.06)
                                                     border.width: 1; border.color: Theme.border }
                                         LText { id: cardText; x: 6; y: 6; width: parent.width - 12; wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight
-                                                role: "caption"; text: modelData.t.text; color: colm.modelData.id === "done" ? Theme.textMuted : Theme.text
+                                                role: "panelCaption"; text: modelData.t.text; color: colm.modelData.id === "done" ? Theme.textMuted : Theme.text
                                                 font.strikeout: colm.modelData.id === "done" }
                                     }
                                 }
@@ -719,7 +751,7 @@ PanelWindow {
             // ── Your week: screen time & focus (services/ScreenTime, this machine only) ──
             Card {
                 id: weekCard
-                visible: win.tab === "week"
+                visible: tabMotion.presentedKey === "week"
                 title: "Your week"
                 icon: "insights"
                 property bool menu: false
@@ -727,7 +759,7 @@ PanelWindow {
                 readonly property var w: ScreenTime.week
                 readonly property var todayData: ScreenTime.days.length ? ScreenTime.days[ScreenTime.days.length - 1] : null
                 headerRight: [
-                    LText { visible: ScreenTime.enabled && weekCard.todayData !== null; role: "caption"; color: Theme.textMuted
+                    LText { visible: ScreenTime.enabled && weekCard.todayData !== null; role: "panelCaption"; color: Theme.textMuted
                             text: ScreenTime.fmt(weekCard.todayData?.total ?? 0) + " today" + (weekCard.w.avg > 0 ? " · avg " + ScreenTime.fmt(weekCard.w.avg) : "")
                             anchors.verticalCenter: parent.verticalCenter },
                     HoverTarget { width: 24; height: 24; onClicked: { weekCard.menu = !weekCard.menu; weekCard.confirmClear = false; }
@@ -747,7 +779,7 @@ PanelWindow {
                             Rectangle { anchors.fill: parent; radius: 13; z: -1; color: "transparent"; border.width: 1; border.color: Theme.border }
                             Row { id: recRow; anchors.centerIn: parent; spacing: 5
                                   LIcon { icon: ScreenTime.enabled ? "pause_circle" : "play_circle"; size: 14; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
-                                  LText { role: "caption"; text: ScreenTime.enabled ? "Stop recording" : "Record screen time"; anchors.verticalCenter: parent.verticalCenter } }
+                                  LText { role: "panelCaption"; text: ScreenTime.enabled ? "Stop recording" : "Record screen time"; anchors.verticalCenter: parent.verticalCenter } }
                         }
                         HoverTarget {
                             width: clrRow.implicitWidth + 18; height: 26; radius: 13
@@ -755,19 +787,19 @@ PanelWindow {
                             Rectangle { anchors.fill: parent; radius: 13; z: -1; color: weekCard.confirmClear ? Theme.withAlpha(Theme.error, 0.14) : "transparent"; border.width: 1; border.color: weekCard.confirmClear ? Theme.withAlpha(Theme.error, 0.4) : Theme.border }
                             Row { id: clrRow; anchors.centerIn: parent; spacing: 5
                                   LIcon { icon: "delete"; size: 14; color: weekCard.confirmClear ? Theme.error : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
-                                  LText { role: "caption"; color: weekCard.confirmClear ? Theme.error : Theme.text; text: weekCard.confirmClear ? "Press again to clear" : "Clear history"; anchors.verticalCenter: parent.verticalCenter } }
+                                  LText { role: "panelCaption"; color: weekCard.confirmClear ? Theme.error : Theme.text; text: weekCard.confirmClear ? "Press again to clear" : "Clear history"; anchors.verticalCenter: parent.verticalCenter } }
                         }
                     }
                     LText {
                         visible: weekCard.menu
                         width: parent.width; wrapMode: Text.Wrap
-                        role: "caption"; color: Theme.textMuted
+                        role: "panelCaption"; color: Theme.textMuted
                         text: "Which app is in front, counted while you're active. Stored only on this computer (~/.local/state/lumen/screentime), kept 60 days."
                     }
 
                     LText {
                         visible: !ScreenTime.enabled && !weekCard.menu
-                        role: "caption"; color: Theme.textMuted
+                        role: "panelCaption"; color: Theme.textMuted
                         text: "Screen time is off. ⋯ to turn it on."
                     }
 
@@ -802,7 +834,7 @@ PanelWindow {
                                 LText {
                                     id: dayLbl
                                     anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom }
-                                    role: "caption"; font.pixelSize: 10
+                                    role: "panelCaption"; font.pixelSize: 10
                                     color: parent.isToday ? Theme.accent : Theme.textMuted
                                     text: Qt.formatDate(new Date(modelData.date + "T12:00"), "ddd").charAt(0)
                                 }
@@ -828,8 +860,8 @@ PanelWindow {
                                     asynchronous: true
                                 }
                                 LText { anchors.horizontalCenter: parent.horizontalCenter; width: Math.min(implicitWidth, parent.width - 4); elide: Text.ElideRight
-                                        role: "caption"; font.pixelSize: 10; color: Theme.textSecondary; text: ScreenTime.nameOf(modelData.id) }
-                                LText { anchors.horizontalCenter: parent.horizontalCenter; role: "caption"; font.pixelSize: 10; color: Theme.textMuted; text: ScreenTime.fmt(modelData.secs) }
+                                        role: "panelCaption"; font.pixelSize: 10; color: Theme.textSecondary; text: ScreenTime.nameOf(modelData.id) }
+                                LText { anchors.horizontalCenter: parent.horizontalCenter; role: "panelCaption"; font.pixelSize: 10; color: Theme.textMuted; text: ScreenTime.fmt(modelData.secs) }
                             }
                         }
                     }
@@ -841,15 +873,15 @@ PanelWindow {
                         spacing: Theme.space.s3
                         Row { spacing: 4
                               LIcon { icon: "self_improvement"; size: 14; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
-                              LText { role: "caption"; color: Theme.textSecondary; text: ScreenTime.fmt(weekCard.w.focus) + " focused"; anchors.verticalCenter: parent.verticalCenter } }
+                              LText { role: "panelCaption"; color: Theme.textSecondary; text: ScreenTime.fmt(weekCard.w.focus) + " focused"; anchors.verticalCenter: parent.verticalCenter } }
                         Row { spacing: 4
                               LIcon { icon: "timer"; size: 14; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
-                              LText { role: "caption"; color: Theme.textSecondary; text: weekCard.w.rounds + (weekCard.w.rounds === 1 ? " Pomodoro round" : " Pomodoro rounds"); anchors.verticalCenter: parent.verticalCenter } }
-                        LText { role: "caption"; color: Theme.textMuted; text: ScreenTime.fmt(weekCard.w.total) + " this week" }
+                              LText { role: "panelCaption"; color: Theme.textSecondary; text: weekCard.w.rounds + (weekCard.w.rounds === 1 ? " Pomodoro round" : " Pomodoro rounds"); anchors.verticalCenter: parent.verticalCenter } }
+                        LText { role: "panelCaption"; color: Theme.textMuted; text: ScreenTime.fmt(weekCard.w.total) + " this week" }
                     }
                     LText {
                         visible: ScreenTime.enabled && weekCard.w.total === 0 && ScreenTime.days.length > 0
-                        role: "caption"; color: Theme.textMuted
+                        role: "panelCaption"; color: Theme.textMuted
                         text: "Nothing recorded yet — it fills in as you work."
                     }
                 }
@@ -859,14 +891,14 @@ PanelWindow {
             //    there's room, and as long as what you've written ──
             Rectangle {
                 id: notesCard
-                visible: win.tab === "todo"
+                visible: tabMotion.presentedKey === "todo"
                 width: parent.width
                 readonly property real minH: 180
                 // `y` doesn't depend on this height, so no binding loop
                 height: Math.max(minH, flick.height - y - Theme.space.s4,
                                  notesHead.height + notesArea.implicitHeight + Theme.space.s3 * 2 + Theme.space.s2)
                 radius: Theme.radius.md
-                color: Theme.withAlpha(Theme.surfaceElevated, 0.85)
+                color: Theme.surfaceElevated
                 border.width: 1; border.color: notesArea.activeFocus ? Theme.withAlpha(Theme.accent, 0.5) : Theme.border
                 Behavior on border.color { ColorAnimation { duration: Theme.motion.micro } }
                 Row {
@@ -883,7 +915,7 @@ PanelWindow {
                     LText {
                         anchors.verticalCenter: parent.verticalCenter
                         visible: Planner.notes.length > 0
-                        role: "caption"; color: Theme.textMuted
+                        role: "panelCaption"; color: Theme.textMuted
                         text: { const w = Planner.notes.trim().split(/\s+/).filter(x => x).length; return w + (w === 1 ? " word" : " words"); }
                     }
                     // All your notes (Lumen Notes; this one is Scratchpad.md there)

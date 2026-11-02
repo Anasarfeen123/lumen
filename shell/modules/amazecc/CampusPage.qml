@@ -199,6 +199,26 @@ AppPage {
         }
     }
 
+    Card {
+        width: parent.width; title: "Hostel leave history"; icon: "luggage"
+        Column {
+            width: parent.width; spacing: Theme.space.s3
+            LText { width: parent.width; wrapMode: Text.Wrap; role: "caption"; color: Theme.textSecondary; text: "Read from VTOP. Applications and changes stay in the official portal." }
+            LText { visible: !(page.ex.leaveHistory ?? []).length; width: parent.width; wrapMode: Text.Wrap; color: Theme.textMuted; text: page.ex.hostel ? "No leave records returned." : "Sync to read your hostel details." }
+            Repeater {
+                model: page.ex.leaveHistory ?? []
+                Column {
+                    required property var modelData
+                    width: parent.width; spacing: Theme.space.s1
+                    LText { width: parent.width; wrapMode: Text.Wrap; role: "bodyStrong"; text: [modelData.visitPlace,modelData.leaveType,modelData.status].filter(x=>x).join(" · ") }
+                    LText { width: parent.width; wrapMode: Text.Wrap; role: "caption"; color: Theme.textSecondary; text: [modelData.from,modelData.to].filter(x=>x).join(" → ") }
+                    LText { visible: !!modelData.reason; width: parent.width; wrapMode: Text.Wrap; role: "caption"; color: Theme.textMuted; text: modelData.reason || "" }
+                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+                }
+            }
+        }
+    }
+
     component Pill: HoverTarget {
         id: pl
         property string icon

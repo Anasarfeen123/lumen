@@ -3,7 +3,7 @@
 // (services/Amazecc.qml — VTOP through your own amazecc-api).
 //   sidebar   Overview · Timetable · Attendance · Marks · Exams · Grades · Campus
 //             your account and semester, when it last synced, Sync
-//   ↑/↓ change page (sidebar) · Ctrl+R sync · Esc or Ctrl+W closes
+//   Ctrl+Tab changes page · Ctrl+R sync · Esc or Ctrl+W closes
 import QtQuick
 import Quickshell
 import qs.theme
@@ -28,6 +28,8 @@ FloatingWindow {
         { id: "marks",      icon: "grading",         label: "Marks" },
         { id: "exams",      icon: "edit_note",       label: "Exams" },
         { id: "grades",     icon: "school",          label: "Grades" },
+        { id: "laundry", icon: "local_laundry_service", label: "Laundry" },
+        { id: "mess", icon: "restaurant", label: "Mess menu" },
         { id: "campus",     icon: "account_balance", label: "Campus" }
     ]
     SystemClock { id: clock; precision: SystemClock.Minutes }
@@ -48,8 +50,7 @@ FloatingWindow {
             const i = win.pages.findIndex(p => p.id === win.page);
             const ctrl = e.modifiers & Qt.ControlModifier;
             if (e.key === Qt.Key_Escape || (e.key === Qt.Key_W && ctrl)) Qt.quit();
-            else if (e.key === Qt.Key_Down && i < win.pages.length - 1) win.page = win.pages[i + 1].id;
-            else if (e.key === Qt.Key_Up && i > 0) win.page = win.pages[i - 1].id;
+            else if ((e.key === Qt.Key_Tab || e.key === Qt.Key_Backtab) && ctrl) { const delta = (e.modifiers & Qt.ShiftModifier) || e.key === Qt.Key_Backtab ? -1 : 1; win.page = win.pages[(i + delta + win.pages.length) % win.pages.length].id; }
             else if (e.key === Qt.Key_R && ctrl) win.syncNow();
             else return;
             e.accepted = true;
@@ -89,6 +90,11 @@ FloatingWindow {
                         width: parent.width; height: 40
                         radius: Theme.radius.sm
                         highlighted: on
+                        activeFocusOnTab: true
+                        Accessible.role: Accessible.Button
+                        Accessible.name: modelData.label
+                        Keys.onReturnPressed: win.page = modelData.id
+                        Keys.onSpacePressed: win.page = modelData.id
                         onClicked: win.page = modelData.id
                         Rectangle { visible: parent.on; anchors { left: parent.left; verticalCenter: parent.verticalCenter } width: 3; height: 18; radius: 2; color: Theme.accent }
                         Row {
@@ -114,7 +120,7 @@ FloatingWindow {
                         anchors.verticalCenter: parent.verticalCenter
                         LText { role: "bodyStrong"; text: Amazecc.username || "Not signed in" }
                         LText { role: "caption"; color: Amazecc.error ? Theme.error : Amazecc.stale ? Theme.warning : Theme.textMuted
-                                text: Amazecc.syncing || win.syncAsked ? "Syncing…" : Amazecc.error ? "Couldn't sync" : (Amazecc.stale ? "Out of date · " : "Updated ") + win.ago }
+                                text: Amazecc.syncing || Amazecc.extrasSyncing || win.syncAsked ? "Syncing…" : Amazecc.error ? "Couldn't sync" : (Amazecc.stale ? "Out of date · " : "Updated ") + win.ago }
                     }
                 }
                 HoverTarget {
@@ -138,9 +144,11 @@ FloatingWindow {
             anchors { top: parent.top; bottom: parent.bottom; left: sidebar.right; right: parent.right }
             clip: true
 
+            readonly property bool publicPage: ["laundry", "mess"].includes(win.page)
+            readonly property bool available: publicPage || Amazecc.ready || (["grades", "campus"].includes(win.page) && !!Amazecc.extra.updated)
             // Not connected: one clear way in
             Column {
-                visible: !Amazecc.ready
+                visible: !content.available
                 anchors.centerIn: parent
                 spacing: Theme.space.s3
                 width: 420
@@ -160,24 +168,16 @@ FloatingWindow {
                 }
             }
 
+            PageTransition { id: pageMotion; key: win.page; active: win.visible }
             Loader {
                 id: pageLoader
                 anchors.fill: parent
-                visible: Amazecc.ready
-                property string shown: win.page
+                visible: content.available
+                opacity: pageMotion.reveal
+                enabled: win.page === pageMotion.presentedKey
                 sourceComponent: ({ overview: overviewC, timetable: timetableC, attendance: attendanceC, marks: marksC,
-                                    exams: examsC, grades: gradesC, campus: campusC })[shown] ?? overviewC
-                transform: Translate { id: shift }
-                Connections { target: win; function onPageChanged() { swap.restart(); } }
-                SequentialAnimation {
-                    id: swap
-                    NumberAnimation { target: pageLoader; property: "opacity"; to: 0; duration: Theme.reducedMotion ? 0 : 90 }
-                    ScriptAction { script: { pageLoader.shown = win.page; shift.y = 14; } }
-                    ParallelAnimation {
-                        NumberAnimation { target: pageLoader; property: "opacity"; to: 1; duration: Theme.motion.normal }
-                        NumberAnimation { target: shift; property: "y"; to: 0; duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
-                    }
-                }
+                                    exams: examsC, grades: gradesC, campus: campusC, laundry: laundryC, mess: messC })[pageMotion.presentedKey] ?? overviewC
+                transform: Translate { y: pageMotion.offset }
             }
         }
     }
@@ -188,5 +188,7 @@ FloatingWindow {
     Component { id: marksC; MarksPage {} }
     Component { id: examsC; ExamsPage {} }
     Component { id: gradesC; GradesPage {} }
+    Component { id: laundryC; LaundryPage {} }
+    Component { id: messC; MessPage {} }
     Component { id: campusC; CampusPage {} }
 }

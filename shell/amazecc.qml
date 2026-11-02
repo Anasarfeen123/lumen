@@ -8,7 +8,7 @@
 // own process, like Settings and Notes. Started by the main shell (Ctrl+Super+A,
 // search, Halo "open AmazeCC") via Amazecc.launch(); quits when its window
 // closes. LUMEN_AMAZECC_PAGE: overview | timetable | attendance | marks |
-// exams | grades | campus.
+// exams | grades | campus | laundry | mess.
 import QtQuick
 import Quickshell
 import Quickshell.Io
