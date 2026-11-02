@@ -2,8 +2,9 @@
 """pointer-gestures.py — gestures made with the pointer itself (mouse or touchpad).
 
   wiggle   shake the pointer quickly — side to side, up and down or in small circles
-           (4 turns within 0.7 s, on either axis) → {"gesture": "wiggle"}
-           Never while a button is held (dragging, selecting, drawing).
+           (5 quick turns within 0.9 s, each a real swing, on either axis) → {"gesture": "wiggle"}
+           Never while a button is held (dragging, selecting, drawing) or with two
+           or more fingers on the touchpad (scrolling, gestures).
            (the shell makes the pointer big for a moment and rings close in on it)
 
 Reads pointer devices only (their Handlers have "mouse" and not "kbd" — never a
@@ -20,7 +21,12 @@ REL_X, REL_Y, ABS_X, ABS_Y, BTN_TOUCH = 0x00, 0x01, 0x00, 0x01, 0x14a
 BUTTONS = range(0x110, 0x118)           # BTN_LEFT … BTN_TASK: held = a drag, never a shake
 FMT = "llHHi"
 SIZE = struct.calcsize(FMT)
-TURNS, WINDOW, COOLDOWN = 4, 0.7, 1.5
+# A shake is deliberate: 5 turns within 0.9 s, each a real swing (about a
+# centimetre on a ~1000 DPI mouse) and each turn within 0.25 s of the last.
+# (At first 4 turns of 45 counts — under a millimetre — so ordinary small
+# corrections set it off.)
+TURNS, WINDOW, GAP, COOLDOWN = 5, 0.9, 0.25, 2.0
+BTN_TOOL_DOUBLETAP, BTN_TOOL_TRIPLETAP, BTN_TOOL_QUADTAP, BTN_TOOL_QUINTTAP = 0x14d, 0x14e, 0x14f, 0x148
 # Settings → Appearance → Shake to find: how hard you have to shake (travel ×)
 SENS = {"gentle": 0.6, "normal": 1.0, "firm": 1.6}
 
@@ -61,9 +67,12 @@ class Shake:
         if d == self.dir:
             self.run += abs(dx)
             return False
-        # a turn — it counts only after a proper swing the other way
-        if self.run >= self.travel:
+        # a turn — it counts only after a proper swing, soon after the last turn;
+        # a small or slow one starts the count over
+        if self.run >= self.travel and (not self.turns or now - self.turns[-1] <= GAP):
             self.turns = [t for t in self.turns if now - t < WINDOW] + [now]
+        else:
+            self.turns = [now] if self.run >= self.travel else []
         self.dir, self.run = d, abs(dx)
         if len(self.turns) >= TURNS and now - self.last > COOLDOWN:
             self.turns, self.last = [], now
@@ -85,8 +94,8 @@ def run(sens=1.0):
             except OSError:
                 continue
             # mice: counts (DPI-dependent, ~ 40 per short swing); touchpads: 6 % of the pad
-            travel = (abs_width(fd) * 0.06 if tp else 45) * sens
-            fds[fd] = (path, (Shake(travel), Shake(travel)), tp, {"x": None, "y": None, "touch": False, "held": 0})
+            travel = (abs_width(fd) * 0.12 if tp else 350) * sens
+            fds[fd] = (path, (Shake(travel), Shake(travel)), tp, {"x": None, "y": None, "touch": False, "held": 0, "multi": 0})
 
     rescan()
     if not fds:
@@ -105,7 +114,9 @@ def run(sens=1.0):
             dx = dy = 0
             for i in range(0, len(data) - SIZE + 1, SIZE):
                 _, _, typ, code, val = struct.unpack(FMT, data[i:i + SIZE])
-                if typ == EV_KEY and code in BUTTONS:
+                if tp and typ == EV_KEY and code in (BTN_TOOL_DOUBLETAP, BTN_TOOL_TRIPLETAP, BTN_TOOL_QUADTAP, BTN_TOOL_QUINTTAP):
+                    st["multi"] = max(0, st["multi"] + (1 if val else -1))     # two fingers or more: scrolling, a gesture
+                elif typ == EV_KEY and code in BUTTONS:
                     st["held"] = max(0, st["held"] + (1 if val else -1))
                 elif not tp and typ == EV_REL and code == REL_X:
                     dx += val
@@ -119,7 +130,7 @@ def run(sens=1.0):
                         if k == "x": dx += val - st[k]
                         else: dy += val - st[k]
                     st[k] = val
-            if st["held"]:
+            if st["held"] or st["multi"]:
                 shake[0].turns = []; shake[1].turns = []      # a drag: start over after it
                 continue
             now = time.monotonic()
