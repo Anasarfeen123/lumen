@@ -21,6 +21,12 @@ Singleton {
     readonly property string webSearchUrl: "https://duckduckgo.com/?q=%s"
 
     readonly property var actions: [
+        { title: "Screenshot workbench", glyph: "screenshot_monitor", keys: "screenshots workbench history annotate crop blur captures", fn: () => DesktopTools.show("screenshots") },
+        { title: "Folder portals", glyph: "folder_open", keys: "folders portals pinned files shelf browse", fn: () => DesktopTools.show("folders") },
+        { title: "File operation queue", glyph: "swap_horiz", keys: "files operations queue copy move compress progress cancel jobs", fn: () => DesktopTools.show("operations") },
+        { title: "Storage explorer", glyph: "hard_drive", keys: "storage disk space large folders usage size explorer", fn: () => DesktopTools.show("storage") },
+        { title: "Colour clipboard", glyph: "palette", keys: "colour color clipboard palette hex rgb hsl swatches", fn: () => DesktopTools.show("colours") },
+        { title: "Meeting tray", glyph: "video_call", keys: "meeting tray call microphone camera devices notes", fn: () => DesktopTools.show("meeting") },
         { title: "Lock", glyph: "lock", keys: "lock screen", cmd: ["loginctl", "lock-session"] },
         { title: "Suspend", glyph: "bedtime", keys: "sleep suspend", cmd: ["systemctl", "suspend"] },
         { title: "Log out", glyph: "logout", keys: "logout log out exit sign out", cmd: ["hyprctl", "dispatch", "hl.dsp.exit()"], destructive: true },
@@ -43,9 +49,12 @@ Singleton {
         { title: "Turn the screen off", glyph: "desktop_access_disabled", keys: "screen off display off dpms blank monitor off keep awake music", cmd: ["sh", "-c", 'sleep 0.6; hyprctl dispatch "hl.dsp.dpms({ action = [[off]] })"'], delay: true },
         { title: "Bring back lost windows", glyph: "move_selection_left", keys: "lost windows off screen offscreen missing window gone recover rescue", cmd: [Theme.lumenRoot + "/scripts/lost-windows.sh"] },
         { title: "AmazeCC", glyph: "school", keys: "amazecc college vtop vit app attendance timetable marks grades exams cgpa circulars library proctor", fn: () => Amazecc.launch("") },
+        { title: "Laundry schedule", glyph: "local_laundry_service", keys: "laundry wash clothes hostel room collection amazecc", fn: () => Amazecc.launch("laundry") },
+        { title: "Mess menu", glyph: "restaurant", keys: "mess menu breakfast lunch snacks dinner hostel food amazecc", fn: () => Amazecc.launch("mess") },
+        { title: "Grades & GPA simulator", glyph: "school", keys: "grades cgpa sgpa semester history predictor simulator credits amazecc", fn: () => Amazecc.launch("grades") },
         { title: "Scrolling screenshot", glyph: "swipe_down", keys: "scrolling screenshot long screenshot full page capture scroll", cmd: [Theme.lumenRoot + "/scripts/screenshot.sh", "scroll"], delay: true },
         { title: "Record screen", glyph: "screen_record", keys: "record screen recording video", cmd: [Theme.lumenRoot + "/scripts/screen-record.sh", "toggle", "screen"], delay: true },
-        { title: "Colour picker", glyph: "colorize", keys: "color colour picker eyedropper hex", cmd: ["hyprpicker", "-a"], delay: true },
+        { title: "Colour picker", glyph: "colorize", keys: "color colour picker eyedropper hex", fn: () => DesktopTools.pickColour(), delay: true },
         { title: "Dark theme", glyph: "dark_mode", keys: "theme dark", cmd: [Theme.lumenRoot + "/bin/lumen", "theme", "dark"] },
         { title: "Midnight theme", glyph: "nights_stay", keys: "theme midnight blue", cmd: [Theme.lumenRoot + "/bin/lumen", "theme", "midnight"] },
         { title: "OLED theme", glyph: "contrast", keys: "theme oled black amoled", cmd: [Theme.lumenRoot + "/bin/lumen", "theme", "oled"] },

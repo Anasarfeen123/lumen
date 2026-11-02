@@ -125,7 +125,7 @@
 | <kbd>Alt</kbd> + <kbd>PrtSc</kbd> | Screenshot (window) |
 | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>E</kbd> | Screenshot and annotate |
 | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>T</kbd> | Copy text from the screen (OCR) |
-| <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd> | Colour picker |
+| <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd> | Colour picker (saved to colour clipboard) |
 | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd> | Record a region (again: stop) |
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>R</kbd> | Record the screen |
 | <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd> | Record the screen with sound |
@@ -158,6 +158,8 @@
 |---|---|
 | <kbd>Super</kbd> + <kbd>R</kbd> | Run a command (the overview, ready) |
 | <kbd>Super</kbd> + <kbd>X</kbd> | Drop Zone shelf |
+| <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>F</kbd> | Folder portals and file shelf |
+| <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>PrtSc</kbd> | Screenshot workbench |
 | <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>C</kbd> | Caffeine: keep awake (right-click its toggle for a timer) |
 | <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>Space</kbd> | Ask Halo about the screen |
 | <kbd>Super</kbd> + <kbd>B</kbd> | Your day (planner) |

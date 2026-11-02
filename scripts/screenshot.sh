@@ -75,5 +75,5 @@ wl-copy --type image/png < "$file"
 (
     action=$(notify-send -a Screenshot -i "$file" -h string:x-lumen-kind:screenshot \
         -A open=Open "Screenshot copied" "${file##*/}" 2>/dev/null) || exit 0
-    [ "$action" = open ] && xdg-open "$file"
+    [ "$action" = open ] && "${LUMEN_ROOT:-$HOME/.config/lumen}/bin/lumen-shell-ipc" tools screenshot "$file"
 ) >/dev/null 2>&1 &

@@ -49,6 +49,7 @@ PanelWindow {
         Region { item: chips }
         Region { item: strip }
         Region { item: vitals }
+        Region { item: folders.visible ? folders : null }
     }
 
     // The merged bar is the island stretching out.
@@ -61,6 +62,7 @@ PanelWindow {
     //           it passes), and only then does it fade.
     GlassSurface {
         id: merged
+        radius: Theme.radius.bar
         readonly property real fullWidth: bar.width - 2 * Theme.edgeGap
         readonly property real homeSpan: Math.min(fullWidth, Island.shapeWidth)
         property real span: homeSpan
@@ -105,15 +107,15 @@ PanelWindow {
         }
         ParallelAnimation {
             id: openAnim
-            NumberAnimation { target: merged; property: "opacity"; to: 1; duration: 80 }
-            NumberAnimation { id: openSpan; target: merged; property: "span"; duration: 500; easing.type: Easing.InOutCubic }
+            NumberAnimation { target: merged; property: "opacity"; to: 1; duration: Theme.motion.micro }
+            NumberAnimation { id: openSpan; target: merged; property: "span"; duration: Theme.reducedMotion ? 0 : 500; easing.type: Easing.InOutCubic }   // measured: an emphasized 320 ms leapt 262 → 1558 px in one frame
             // fully open: follow the screen's width from now on
             onFinished: merged.span = Qt.binding(() => merged.fullWidth)
         }
         SequentialAnimation {
             id: closeAnim
-            NumberAnimation { id: closeSpan; target: merged; property: "span"; duration: 380; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard }
-            NumberAnimation { target: merged; property: "opacity"; to: 0; duration: 120 }
+            NumberAnimation { id: closeSpan; target: merged; property: "span"; duration: Theme.reducedMotion ? 0 : 380; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveStandard }
+            NumberAnimation { target: merged; property: "opacity"; to: 0; duration: Theme.motion.micro }
             onFinished: merged.span = Qt.binding(() => merged.homeSpan)
         }
         Connections { target: bar; function onMergedChanged() { merged.go(bar.merged); } }
@@ -136,11 +138,11 @@ PanelWindow {
 
             ParallelAnimation {
                 id: sweep
-                NumberAnimation { id: sweepT; target: sheen; property: "t"; duration: 420; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
+                NumberAnimation { id: sweepT; target: sheen; property: "t"; duration: Theme.motion.large; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized }
                 SequentialAnimation {
-                    NumberAnimation { target: sheen; property: "opacity"; to: 1; duration: 90 }
-                    PauseAnimation { duration: 200 }
-                    NumberAnimation { target: sheen; property: "opacity"; to: 0; duration: 180 }
+                    NumberAnimation { target: sheen; property: "opacity"; to: 1; duration: Theme.motion.micro }
+                    PauseAnimation { duration: Theme.motion.micro / 2 }
+                    NumberAnimation { target: sheen; property: "opacity"; to: 0; duration: Theme.motion.micro }
                 }
             }
 
@@ -151,7 +153,7 @@ PanelWindow {
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
                     GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0) }
-                    GradientStop { position: 0.5; color: Theme.withAlpha(Theme.accent, 0.22) }
+                    GradientStop { position: 0.5; color: Theme.withAlpha(Theme.accent, 0.10) }
                     GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0) }
                 }
             }
@@ -171,14 +173,22 @@ PanelWindow {
         y: Theme.edgeGap
     }
 
-    // Focused app + its menu, right after the workspaces (merged bar only)
+    FolderPortals {
+        id: folders
+        barWindow: bar
+        shown: bar.ribbonOpen
+        x: workspaces.x + workspaces.width + Theme.space.s1
+        y: Theme.edgeGap
+    }
+
+    // Focused app + its menu, after the workspace and folder controls
     AppMenu {
         id: appMenu
         barWindow: bar
         monitor: bar.monitor
         // appears as the bar's edge reaches it, leaves as the edge passes back
         shown: bar.merged && merged.visible && merged.x <= x + width / 2
-        x: workspaces.x + workspaces.width + Theme.space.s1
+        x: folders.x + folders.width + Theme.space.s1
         y: Theme.edgeGap
     }
 

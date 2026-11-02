@@ -80,9 +80,8 @@ Singleton {
             Island.system("content_copy", "Copied " + noun, "Paste into a folder or a chat");
             break;
         case "compress":
-            Island.progress("dropzone-zip", "folder_zip", "Compressing " + noun, -1, "");
-            job.start(["compress"].concat(paths), out => Island.push({ kind: "system", key: "progress:dropzone-zip", priority: Island.priority.system, duration: 3500, queueable: true, force: true,
-                data: { icon: out ? "folder_zip" : "error", title: out ? "Compressed " + noun : "Couldn't compress " + noun, detail: out ? out.replace(/.*\//, "") : "", tone: out ? "success" : "error" } }));
+            FileOperations.enqueue("compress", paths, paths[0].replace(/\/[^/]+$/, "") || "/");
+            Island.system("folder_zip", "Compression queued", "View progress in File queue");
             break;
         case "send":
             if (!phone) return;
@@ -91,19 +90,14 @@ Singleton {
                 data: { icon: out ? "mobile_check" : "error", title: out ? "Sent " + noun : "Couldn't send " + noun, detail: phone?.name ?? "", tone: out ? "success" : "error" } }));
             break;
         case "move":
-            job.start(["move", arg].concat(paths), out => {
-                const [moved, skipped] = (out || "0 0").split(" ").map(Number);
-                const place = arg.charAt(0).toUpperCase() + arg.slice(1);
-                Island.system(moved ? "drive_file_move" : "error", moved ? "Moved " + (moved === 1 && n === 1 ? what : moved + " items") + " to " + place : "Nothing moved",
-                              skipped ? skipped + " already there, left alone" : "", moved ? "normal" : "warning");
-                if (moved) shelf = shelf.filter(p => !paths.includes(p));
-            });
+            FileOperations.enqueue("move", paths, "xdg:" + arg);
+            Island.system("drive_file_move", "Move queued", "View progress in File queue");
             break;
         case "open":
             Quickshell.execDetached([script, "open", arg].concat(paths));
             break;
         case "shelve":
-            shelf = shelf.concat(paths.filter(p => !shelf.includes(p)));
+            shelf = shelf.concat(paths.filter(p => !shelf.includes(p))).slice(0, 500);
             Island.system("inventory_2", "On the shelf", noun + " · drag it out when you need it");
             break;
         }

@@ -28,6 +28,9 @@ jobs:
       - name: Python scripts
         run: python3 -m py_compile scripts/*.py
 
+      - name: File operation safety tests
+        run: python3 -m unittest discover -s tests -v
+
       - name: Hyprland config (Lua)
         run: for f in hypr/*.lua; do luac5.4 -p "$f" || exit 1; done
 

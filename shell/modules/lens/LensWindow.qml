@@ -21,7 +21,7 @@ import "../ai/markdown.js" as Md
 PanelWindow {
     id: win
     readonly property HyprlandMonitor monitor: Hyprland.monitorFor(screen)
-    readonly property bool showing: Lens.open && (monitor?.name ?? "") === Lens.screen
+    readonly property bool showing: Lens.open && (monitor?.name ?? screen?.name ?? "") === Lens.screen
 
     // Leaving: the frozen screen fades into the live one and the sheet drops away
     property real fade: showing ? 1 : 0
@@ -37,6 +37,7 @@ PanelWindow {
 
     // frozen-image pixels per window point (HiDPI / scaled monitors)
     readonly property real px: shot.sourceSize.width > 0 ? shot.sourceSize.width / width : 1
+    readonly property real py: shot.sourceSize.height > 0 ? shot.sourceSize.height / height : 1
     property var points: []
     // the stroke, smoothed (two rounds of Chaikin's corner cutting) so it flows
     readonly property var smooth: {
@@ -52,6 +53,20 @@ PanelWindow {
         }
         return p;
     }
+    // Selection actions belong to the window: all drawing and sheet handlers
+    // call win.pickBox(), win.redo() and win.windowAt().
+    function windowAt(x, y) {
+        const ox = win.screen?.x ?? 0, oy = win.screen?.y ?? 0, ws = monitor?.activeWorkspace?.id;
+        const hit = Hyprland.toplevels.values.map(t => t.lastIpcObject ?? {})
+            .filter(o => o.workspace?.id === ws && o.at && o.size)
+            .sort((a, b) => (b.floating === true) - (a.floating === true))
+            .find(o => x >= o.at[0] - ox && x < o.at[0] - ox + o.size[0] && y >= o.at[1] - oy && y < o.at[1] - oy + o.size[1]);
+        return hit ? Qt.rect(hit.at[0] - ox, hit.at[1] - oy, hit.size[0], hit.size[1]) : Qt.rect(0, 0, win.width, win.height);
+    }
+    function pickBox() { const r = win.box; Lens.pick(Qt.rect(r.x * win.px, r.y * win.py, r.width * win.px, r.height * win.py)); }
+    property bool adjusting: false        // dragging a corner or the selection itself
+    function redo() { points = []; box = Qt.rect(0, 0, 0, 0); question.text = ""; Lens.reset(); keys.forceActiveFocus(); }
+
     property bool drawing: false
     property rect box: Qt.rect(0, 0, 0, 0)      // the selection, in window points
     readonly property bool hasBox: box.width > 0
@@ -68,7 +83,7 @@ PanelWindow {
     // circle (like a phone's circle to search), and springs back when done.
     // Everything that works in screen points lives inside it, unscaled.
     property real lift: showing ? 1 : 0
-    Behavior on lift { NumberAnimation { duration: Theme.reducedMotion ? 0 : (win.showing ? 520 : 260); easing.type: Easing.Bezier; easing.bezierCurve: win.showing ? Theme.curveEmphasized : Theme.curveAccelerate } }
+    Behavior on lift { NumberAnimation { duration: Theme.reducedMotion ? 0 : (win.showing ? Theme.motion.large : Theme.motion.normal); easing.type: Easing.Bezier; easing.bezierCurve: win.showing ? Theme.curveEmphasized : Theme.curveAccelerate } }
     // the card's rounded corners (a mask: a clipping rectangle won't stay see-through)
     Item {
         id: stageMask
@@ -170,7 +185,7 @@ PanelWindow {
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         cursorShape: Qt.CrossCursor
-        enabled: !sheetArea.containsMouse
+        enabled: !sheetHover.hovered && !Lens.busy
         property point start
         onPressed: m => {
             if (m.button === Qt.RightButton) { win.redo(); return; }
@@ -205,18 +220,10 @@ PanelWindow {
             Qt.callLater(() => question.forceActiveFocus());
         }
     }
-    function windowAt(x, y) {
-        const ox = win.screen?.x ?? 0, oy = win.screen?.y ?? 0, ws = monitor?.activeWorkspace?.id;
-        const hit = Hyprland.toplevels.values.map(t => t.lastIpcObject ?? {})
-            .filter(o => o.workspace?.id === ws && o.at && o.size)
-            .sort((a, b) => (b.floating === true) - (a.floating === true))
-            .find(o => x >= o.at[0] - ox && x < o.at[0] - ox + o.size[0] && y >= o.at[1] - oy && y < o.at[1] - oy + o.size[1]);
-        return hit ? Qt.rect(hit.at[0] - ox, hit.at[1] - oy, hit.size[0], hit.size[1]) : Qt.rect(0, 0, win.width, win.height);
-    }
     // A piece picked from outside (lens IPC) shows the same way
     Connections {
         target: Lens
-        function onSelChanged() { if (win.showing && !win.hasBox && Lens.picked) win.box = Qt.rect(Lens.sel.x / win.px, Lens.sel.y / win.px, Lens.sel.width / win.px, Lens.sel.height / win.px); }
+        function onSelChanged() { if (win.showing && !win.hasBox && Lens.picked) win.box = Qt.rect(Lens.sel.x / win.px, Lens.sel.y / win.py, Lens.sel.width / win.px, Lens.sel.height / win.py); }
     }
     // dev sessions only (LUMEN_DEV): trace a circle, as if drawn, to check the stroke
     IpcHandler {
@@ -229,10 +236,6 @@ PanelWindow {
             win.drawing = true; win.points = pts;
         }
     }
-    function pickBox() { const r = win.box; Lens.pick(Qt.rect(r.x * win.px, r.y * win.px, r.width * win.px, r.height * win.px)); }
-    property bool adjusting: false        // dragging a corner or the selection itself
-    function redo() { points = []; box = Qt.rect(0, 0, 0, 0); question.text = ""; Lens.reset(); keys.forceActiveFocus(); }
-
     // The stroke: a glowing line that follows the pointer, fading once you let go
     Shape {
         id: stroke
@@ -299,7 +302,7 @@ PanelWindow {
         // the circled piece, lifted a little off the screen with a soft shadow
         property real pop: 0
         onVisibleChanged: if (visible) { pop = 0; popIn.restart(); }
-        NumberAnimation { id: popIn; target: frame; property: "pop"; from: 0; to: 1; duration: Theme.reducedMotion ? 0 : 480; easing.type: Easing.OutBack; easing.overshoot: 1.6 }
+        NumberAnimation { id: popIn; target: frame; property: "pop"; from: 0; to: 1; duration: Theme.reducedMotion ? 0 : Theme.motion.large; easing.type: Easing.OutCubic }
         Item {
             anchors.fill: parent
             scale: 1 + 0.018 * frame.pop
@@ -322,7 +325,7 @@ PanelWindow {
         MouseArea {
             anchors.fill: parent
             cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-            enabled: !win.drawing
+            enabled: !win.drawing && !Lens.busy
             property point from
             property rect start
             onPressed: m => { from = mapToItem(stage, m.x, m.y); start = win.box; win.adjusting = true; }
@@ -345,6 +348,7 @@ PanelWindow {
                 y: atBottom ? frame.height - 17 : -17
                 z: 5
                 cursorShape: (atRight !== atBottom) ? Qt.SizeBDiagCursor : Qt.SizeFDiagCursor
+                enabled: !Lens.busy
                 preventStealing: true
                 property rect start
                 onPressed: { start = win.box; win.adjusting = true; }
@@ -394,9 +398,12 @@ PanelWindow {
     }   // stage
 
     // ── the sheet ──
-    MouseArea { id: sheetArea; anchors.fill: sheet; hoverEnabled: true; acceptedButtons: Qt.NoButton }
     GlassSurface {
         id: sheet
+        // The sheet owns its whole input area; blank space must not start a
+        // new selection on the frozen screen underneath it.
+        MouseArea { anchors.fill: parent }
+        HoverHandler { id: sheetHover }
         level: "panel"
         readonly property bool up: win.hasBox && !win.drawing && win.showing
         opacity: up ? 1 : 0
@@ -438,7 +445,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
                     LText { role: "caption"; color: Theme.textMuted
-                            text: Lens.reading ? "Reading the text…" : Lens.text ? (n => n + (n === 1 ? " word" : " words") + " found")(Lens.text.split(/\s+/).filter(w => w).length) : "No text in it — Halo can still look at the picture" }
+                            text: Lens.cropping ? "Preparing the selection…" : Lens.reading ? "Reading the text…" : Lens.text ? (n => n + (n === 1 ? " word" : " words") + " found")(Lens.text.split(/\s+/).filter(w => w).length) : "No text in it — Halo can still look at the picture" }
                     TextEdit {
                         visible: Lens.text !== ""
                         width: parent.width
@@ -451,6 +458,14 @@ PanelWindow {
                         height: Math.min(contentHeight, 54); clip: true
                     }
                 }
+            }
+
+            LText {
+                width: parent.width
+                visible: Lens.message !== "" || Lens.busy
+                text: Lens.busy ? "Working…" : Lens.message
+                color: Lens.busy ? Theme.textSecondary : Theme.warning
+                wrapMode: Text.Wrap; lineHeight: 1.45; textFormat: Text.PlainText
             }
 
             // Ask Halo
@@ -468,14 +483,16 @@ PanelWindow {
                     placeholderTextColor: Theme.textMuted
                     font.family: Theme.fontUi; font.pixelSize: 14
                     selectionColor: Theme.withAlpha(Theme.accent, 0.4)
-                    onAccepted: if (Lens.crop) Lens.ask(text)
+                    onAccepted: if (Lens.ready && !Lens.busy) Lens.ask(text)
                     Keys.onEscapePressed: Lens.close()
                 }
                 HoverTarget {
                     id: askBtn
+                    enabled: Lens.ready && !Lens.busy
+                    opacity: enabled ? 1 : 0.4
                     anchors { right: parent.right; rightMargin: 6; verticalCenter: parent.verticalCenter }
                     width: 32; height: 32
-                    onClicked: if (Lens.crop) Lens.ask(question.text)
+                    onClicked: if (Lens.ready && !Lens.busy) Lens.ask(question.text)
                     Rectangle { anchors.fill: parent; radius: 16; color: Theme.accent; z: -1 }
                     LIcon { anchors.centerIn: parent; icon: "arrow_upward"; size: 18; fill: 1; color: Theme.onAccent }
                 }
@@ -515,14 +532,14 @@ PanelWindow {
                 width: parent.width
                 spacing: 6
                 Chip { visible: Lens.asked && !Ai.busy && Ai.messages.length > 0; primary: true; icon: "open_in_full"; text: "Continue in " + Halo.name; onClicked: { Lens.close(); Ai.show(); } }
-                Chip { visible: Lens.text !== ""; primary: !Lens.asked; icon: "content_copy"; text: "Copy text"; onClicked: Lens.copyText() }
-                Chip { visible: Lens.text !== "" && Ai.configured; icon: "translate"; text: "Translate"; onClicked: Lens.translate() }
-                Chip { visible: Lens.text !== ""; icon: "travel_explore"; text: "Search the web"; onClicked: Lens.webSearch() }
-                Chip { icon: "image_search"; text: "Google Lens"; onClicked: Lens.google() }
-                Chip { icon: "image"; text: "Copy picture"; onClicked: Lens.copyImage() }
-                Chip { icon: "save"; text: "Save"; onClicked: Lens.save() }
-                Chip { visible: !!Link.phone; icon: "smartphone"; text: "Send to phone"; onClicked: Lens.toPhone() }
-                Chip { icon: "gesture"; text: "Redo"; onClicked: win.redo() }
+                Chip { visible: Lens.text !== ""; enabled: Lens.ready && !Lens.busy; primary: !Lens.asked; icon: "content_copy"; text: "Copy text"; onClicked: Lens.copyText() }
+                Chip { visible: Lens.text !== "" && Ai.configured; enabled: Lens.ready && !Lens.busy; icon: "translate"; text: "Translate"; onClicked: Lens.translate() }
+                Chip { visible: Lens.text !== ""; enabled: !Lens.busy; icon: "travel_explore"; text: "Search the web"; onClicked: Lens.webSearch() }
+                Chip { enabled: Lens.ready && !Lens.busy; icon: "image_search"; text: "Google Lens"; onClicked: Lens.google() }
+                Chip { enabled: Lens.ready && !Lens.busy; icon: "image"; text: "Copy picture"; onClicked: Lens.copyImage() }
+                Chip { enabled: Lens.ready && !Lens.busy; icon: "save"; text: "Save"; onClicked: Lens.save() }
+                Chip { visible: Link.connected; enabled: Lens.ready && !Lens.busy; icon: "smartphone"; text: "Send to phone"; onClicked: Lens.toPhone() }
+                Chip { enabled: !Lens.busy; icon: "gesture"; text: "Redo"; onClicked: win.redo() }
             }
         }
     }
@@ -532,7 +549,13 @@ PanelWindow {
         property string icon
         property string text
         property bool primary: false
-        width: chipRow.implicitWidth + 22; height: 30
+        width: chipRow.implicitWidth + Theme.space.s3 * 2; height: Theme.space.s8
+        opacity: enabled ? 1 : 0.45
+        activeFocusOnTab: enabled
+        Accessible.role: Accessible.Button
+        Accessible.name: chip.text
+        Keys.onReturnPressed: clicked(null)
+        Keys.onSpacePressed: clicked(null)
         Rectangle {
             anchors.fill: parent; radius: height / 2; z: -1
             color: chip.primary ? Theme.withAlpha(Theme.accent, 0.2) : Theme.withAlpha(Theme.text, chip.containsMouse ? 0.1 : 0.06)
@@ -540,7 +563,7 @@ PanelWindow {
         }
         Row { id: chipRow; anchors.centerIn: parent; spacing: 6
               LIcon { icon: chip.icon; size: 15; color: chip.primary ? Theme.accent : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
-              LText { role: "caption"; text: chip.text; color: chip.primary ? Theme.accent : Theme.text; anchors.verticalCenter: parent.verticalCenter } }
+              LText { role: "barCaption"; text: chip.text; color: chip.primary ? Theme.accent : Theme.text; anchors.verticalCenter: parent.verticalCenter } }
     }
 
     // Keyboard: Esc closes (or steps back from a selection), Enter asks
@@ -549,8 +572,8 @@ PanelWindow {
         focus: true
         Keys.onPressed: e => {
             if (e.key === Qt.Key_Escape) { if (win.hasBox && !Lens.asked) win.redo(); else Lens.close(); e.accepted = true; }
-            else if ((e.key === Qt.Key_Return || e.key === Qt.Key_Enter) && Lens.crop) { Lens.ask(""); e.accepted = true; }
-            else if (e.key === Qt.Key_C && (e.modifiers & Qt.ControlModifier)) { Lens.copyText(); e.accepted = true; }
+            else if ((e.key === Qt.Key_Return || e.key === Qt.Key_Enter) && Lens.ready && !Lens.busy) { Lens.ask(""); e.accepted = true; }
+            else if (e.key === Qt.Key_C && (e.modifiers & Qt.ControlModifier)) { if ((e.modifiers & Qt.ShiftModifier) || !Lens.text) Lens.copyImage(); else Lens.copyText(); e.accepted = true; }
         }
     }
 }

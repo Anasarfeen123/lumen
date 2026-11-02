@@ -17,7 +17,11 @@ Item {
                                   : /^(zip|tar|gz|zst|xz|7z|rar)$/.test(ext) ? "folder_zip"
                                   : /^(pdf)$/.test(ext) ? "picture_as_pdf"
                                   : ext === "" ? "folder" : "description"
-    implicitHeight: 38
+    implicitHeight: Theme.space.s8 + Theme.space.s3
+    activeFocusOnTab: true
+    Keys.onDeletePressed: DropZone.unshelve(path)
+    Keys.onReturnPressed: DesktopTools.openPath(path)
+    Accessible.name: name
 
     Rectangle {
         id: face
@@ -31,7 +35,7 @@ Item {
         Drag.dragType: Drag.Automatic
         Drag.supportedActions: Qt.CopyAction | Qt.MoveAction | Qt.LinkAction
         Drag.proposedAction: Qt.CopyAction
-        Drag.mimeData: ({ "text/uri-list": "file://" + encodeURI(root.path) + "\r\n", "text/plain": root.path })
+        Drag.mimeData: ({ "text/uri-list": "file://" + root.path.split("/").map(encodeURIComponent).join("/") + "\r\n", "text/plain": root.path })
         Drag.hotSpot.x: 18; Drag.hotSpot.y: 19
         // Moved away by the app it was dropped on: nothing left to hold
         Drag.onDragFinished: action => { if (action === Qt.MoveAction) DropZone.unshelve(root.path); }
@@ -44,8 +48,8 @@ Item {
         HoverTarget {
             id: rm
             anchors { right: parent.right; rightMargin: 4; verticalCenter: parent.verticalCenter }
-            width: 24; height: 24
-            visible: hover.hovered
+            width: Theme.space.s8; height: Theme.space.s8
+            visible: hover.hovered || root.activeFocus
             onClicked: DropZone.unshelve(root.path)
             LIcon { anchors.centerIn: parent; icon: "close"; size: 14; color: Theme.textMuted }
         }

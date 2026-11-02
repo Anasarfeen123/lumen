@@ -79,6 +79,7 @@ Focus modes (Work, Game, Sleep) on a schedule. Night light that follows the suns
 </table>
 
 ### And lately
+- **Desktop tools:** a screenshot workbench, folder portals in the bar, a temporary file shelf, a cancellable file queue, a storage explorer, named colour swatches and a meeting tray. [How to use them](docs/TOOLS.md).
 - **The Ribbon:** with windows open the island stretches into one bar: your windows, now playing, weather, your next event, a call on air, battery time left, and **Peek** (hover for live previews with CPU and memory).
 - **WhatsApp**, through your own WhatsApp Web session: messages in the island and Ribbon, quick reply (<kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd>), "Send to WhatsApp", and Halo drafts ("tell Arya I'll send the build tonight"). Lumen never sends; you press Enter.
 - **Drop Zone:** drag files to the right edge to send, compress, open with, move or ask Halo.

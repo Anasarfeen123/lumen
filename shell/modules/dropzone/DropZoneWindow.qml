@@ -218,6 +218,13 @@ PanelWindow {
                     onContainsDragChanged: win.track(containsDrag)
                 }
 
+                DropTarget {
+                    width: parent.width
+                    icon: "folder_open"; label: "Folders & file queue"; sub: "Browse folders, collect files, track jobs"
+                    onActivated: p => { if (p && p.length) DropZone.run("shelve", p); DropZone.hide(); DesktopTools.show("folders", "right"); }
+                    onContainsDragChanged: win.track(containsDrag)
+                }
+
                 // Open with…
                 LText { visible: DropZone.apps.length > 0; topPadding: Theme.space.s2; role: "caption"; color: Theme.textMuted; text: "Open with" }
                 Flow {
@@ -272,6 +279,7 @@ PanelWindow {
                         LText { id: clearLbl; anchors.centerIn: parent; role: "caption"; color: Theme.textSecondary; text: "Clear" }
                     }
                 }
+                ShelfBundle { visible: DropZone.shelf.length > 1; width: col.width }
                 Repeater {
                     model: DropZone.shelf
                     delegate: ShelfItem { required property string modelData; width: col.width; path: modelData }

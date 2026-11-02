@@ -35,6 +35,7 @@ import qs.modules.captions
 import qs.modules.expose
 import qs.modules.widgets
 import qs.modules.pointer
+import qs.modules.tools
 
 ShellRoot {
     id: root
@@ -189,6 +190,14 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: WelcomeWindow {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    // Desktop tools: captures, folder portals, jobs, storage, colours and meetings
+    Variants {
+        model: Quickshell.screens
+        delegate: ToolsWindow {
             required property var modelData
             screen: modelData
         }
