@@ -21,7 +21,7 @@ Item {
     }
     ToolButton {
         anchors { fill: parent; topMargin: Theme.space.s1; bottomMargin: Theme.space.s1 }
-        glyph: "folder_open"; label: ""; primary: portal.shown
+        glyph: "folder_open"; label: ""; primary: portal.shown; flat: true
         Accessible.name: "Folder portals"
         onClicked: root.toggle()
     }

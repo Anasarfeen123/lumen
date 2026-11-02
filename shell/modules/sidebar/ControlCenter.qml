@@ -299,7 +299,7 @@ Item {
                         RoundToggle {
                             visible: KbdLight.available
                             icon: "keyboard"
-                            label: KbdLight.level === 0 ? "Keys off" : "Keys " + KbdLight.level + "/" + KbdLight.max
+                            label: KbdLight.level === 0 ? "Backlight off" : "Backlight " + KbdLight.level + "/" + KbdLight.max     // "Keys 3/3" didn't say what it was
                             active: KbdLight.level > 0
                             onToggled: KbdLight.cycle()
                         }

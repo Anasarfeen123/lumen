@@ -32,10 +32,11 @@ Item {
         id: disc
         width: 52; height: 52; radius: Theme.radius.md
         anchors.horizontalCenter: parent.horizontalCenter
-        color: root.active && !root.action ? Theme.withAlpha(Theme.accent, .16)
+        // on: a clear accent tint and edge (it read as "slightly lighter grey"); off: quiet
+        color: root.active && !root.action ? Theme.withAlpha(Theme.accent, area.containsMouse ? .32 : .26)
              : area.containsMouse ? Theme.surfaceHover : Theme.surfaceElevated
         border.width: 1
-        border.color: root.active && !root.action ? Theme.withAlpha(Theme.accent, .3) : Theme.border
+        border.color: root.active && !root.action ? Theme.withAlpha(Theme.accent, .6) : Theme.border
         scale: !Theme.reducedMotion && area.pressed ? 0.96 : 1
         Behavior on color { ColorAnimation { duration: Theme.motion.micro } }
         Behavior on scale { NumberAnimation { duration: Theme.motion.micro; easing.type: Easing.OutCubic } }
@@ -72,7 +73,7 @@ Item {
         width: root.width
         horizontalAlignment: Text.AlignHCenter
         role: "panelCaption"
-        color: root.active && !root.action ? Theme.text : Theme.textSecondary
+        color: root.active && !root.action ? Theme.accent : Theme.textSecondary
         text: root.label
         wrapMode: Text.WordWrap
         maximumLineCount: 2
