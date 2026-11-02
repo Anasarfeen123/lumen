@@ -108,7 +108,10 @@ def main():
     settings = read_json(str(STATE/'amazecc.json')) or {}
     for field in ('gender', 'block', 'room', 'mess'):
         value = getattr(args, field)
-        if value is not None:
+        # an empty value never overrides the saved choice: the app can ask for a
+        # refresh before its settings have loaded, and "--block ''" then fell back
+        # to VTOP's block instead of the one you picked
+        if value:
             settings['campus'+field.capitalize()] = value
     extra = read_json(str(STATE/'amazecc-extra.json')) or {}
     p = profile(settings, extra.get('hostel') or {})

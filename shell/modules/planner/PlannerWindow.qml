@@ -306,9 +306,23 @@ PanelWindow {
                     LText { visible: !!Amazecc.nextLaundry; width: parent.width; wrapMode: Text.Wrap; role: "bodyStrong"; color: Theme.accent; text: Amazecc.nextLaundry ? "Laundry · " + Qt.formatDate(new Date(Amazecc.nextLaundry.when), "ddd, d MMM") + " · Block " + (Amazecc.campusProfile.block || "") : "" }
                     Flow {
                         width: parent.width; spacing: Theme.space.s2
-                        HoverTarget { width: 94; height: 36; activeFocusOnTab: true; onClicked: { Planner.open = false; Amazecc.launch("laundry"); } Keys.onReturnPressed: { Planner.open = false; Amazecc.launch("laundry"); } LText { anchors.centerIn: parent; role: "bodyStrong"; text: "Laundry" } }
-                        HoverTarget { width: 94; height: 36; activeFocusOnTab: true; onClicked: { Planner.open = false; Amazecc.launch("mess"); } Keys.onReturnPressed: { Planner.open = false; Amazecc.launch("mess"); } LText { anchors.centerIn: parent; role: "bodyStrong"; text: "Mess menu" } }
-                        HoverTarget { width: 94; height: 36; activeFocusOnTab: true; onClicked: { Planner.open = false; Amazecc.launch("grades"); } Keys.onReturnPressed: { Planner.open = false; Amazecc.launch("grades"); } LText { anchors.centerIn: parent; role: "bodyStrong"; text: "Grades" } }
+                        // outlined pills with an icon, so they read as buttons (they were bare words)
+                        Repeater {
+                            model: [{ id: "laundry", icon: "local_laundry_service", label: "Laundry" }, { id: "mess", icon: "restaurant", label: "Mess menu" }, { id: "grades", icon: "school", label: "Grades" }]
+                            HoverTarget {
+                                id: cbtn
+                                required property var modelData
+                                width: cbRow.implicitWidth + 24; height: 32; radius: 16
+                                activeFocusOnTab: true
+                                function go() { Planner.open = false; Amazecc.launch(modelData.id); }
+                                onClicked: go()
+                                Keys.onReturnPressed: go()
+                                Rectangle { anchors.fill: parent; radius: 16; z: -1; color: Theme.withAlpha(Theme.text, cbtn.activeFocus ? 0.1 : 0.05); border.width: 1; border.color: cbtn.activeFocus ? Theme.accent : Theme.border }
+                                Row { id: cbRow; anchors.centerIn: parent; spacing: 6
+                                      LIcon { icon: cbtn.modelData.icon; size: 15; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                                      LText { role: "caption"; text: cbtn.modelData.label; anchors.verticalCenter: parent.verticalCenter } }
+                            }
+                        }
                     }
                 }
             }
