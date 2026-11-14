@@ -575,7 +575,7 @@ Singleton {
     // ── the day ──
     SystemClock { id: clock; precision: SystemClock.Minutes }
     readonly property var dayNames: ({ MON: "Monday", TUE: "Tuesday", WED: "Wednesday", THU: "Thursday", FRI: "Friday", SAT: "Saturday", SUN: "Sunday" })
-    function dateKey(d) { return Qt.formatDate(d, "yyyy-MM-dd"); }
+    function dateKey(d) { return Qt.formatDate(typeof d === "number" ? new Date(d) : d, "yyyy-MM-dd"); }   // a Date or ms
     function dayInfo(d) { const k = dateKey(d); return (data.days ?? []).find(x => x.date === k) ?? null; }
     function classesOn(d) {
         const info = dayInfo(d);
