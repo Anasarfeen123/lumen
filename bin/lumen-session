@@ -68,7 +68,23 @@ fi
 igpu=$(card_for_vendor 0x1002 || true)   # AMD
 dgpu=$(card_for_vendor 0x10de || true)   # NVIDIA
 devices=$igpu
-if [ -n "$dgpu" ] && [ "${LUMEN_DGPU:-on}" != off ]; then
+# The NVIDIA GPU only drives the HDMI port here. Giving it to Hyprland when no
+# screen is on it keeps Hyprland in two-GPU mode for nothing — and that's where
+# its fence crash lives (it still happened, rarely, with the workaround below).
+# LUMEN_DGPU: auto (default) = only when one of its outputs is connected at
+# login · on = always · off = never. Apps can use it either way (PRIME offload).
+dgpu_has_screen() {
+    for c in /sys/class/drm/"${dgpu##*/}"-*/status; do
+        [ "$(cat "$c" 2>/dev/null)" = connected ] && return 0
+    done
+    return 1
+}
+case ${LUMEN_DGPU:-auto} in
+    on) ;;
+    off) dgpu="" ;;
+    *) [ -n "$igpu" ] && ! dgpu_has_screen && dgpu="" ;;
+esac
+if [ -n "$dgpu" ]; then
     devices=${devices:+$devices:}$dgpu
     # Two GPUs: no explicit sync between them. Copying a frame from the NVIDIA
     # GPU to the AMD one, eglDupNativeFenceFDANDROID fails (EGL_BAD_PARAMETER)

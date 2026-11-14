@@ -347,6 +347,18 @@ Scope {
         }
     }
     UdevWatch { subsystem: "usb/usb_device"; onEvent: e => root.onUsb(e) }
+    // A screen plugged into a GPU Hyprland isn't using (the HDMI port on the
+    // NVIDIA card, left out at login when nothing was on it — bin/lumen-session):
+    // it can't light up until you log in again, so say so.
+    UdevWatch { subsystem: "drm"; onEvent: e => { if (e.HOTPLUG === "1" && e.DEVNAME) { unusedScreen.card = e.DEVNAME; unusedScreen.running = true; } } }
+    Process {
+        id: unusedScreen
+        property string card: ""
+        command: ["sh", "-c", 'case ":$AQ_DRM_DEVICES:" in *":$1:"*) exit 1 ;; esac; for c in /sys/class/drm/"${1##*/}"-*/status; do [ "$(cat "$c")" = connected ] && exit 0; done; exit 1', "sh", card]
+        onExited: code => { if (code === 0) Halo.say({ key: "screen-unused", icon: "connected_tv", title: "Screen connected",
+                              text: "That port is on the NVIDIA GPU, which Lumen left asleep because nothing was plugged into it at login. Log out and back in to use this screen.",
+                              level: "important", duration: 20000, speak: false }); }
+    }
 
     // Devices already plugged in when the shell starts: remember their names
     // (so unplugging them is announced too) and mark them as seen, silently.
