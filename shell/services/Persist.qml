@@ -57,6 +57,8 @@ Singleton {
             property var sidebarOrder: ["quick", "sound", "tools", "computer"]   // the Controls sidebar's sections, top to bottom
             property var sidebarHidden: []            // …and the ones turned off
             property string pointerShakeSens: "normal"  // gentle | normal | firm (how hard a shake must be)
+            property bool aiLimitReminders: true       // Claude / Codex limit resets (services/AiLimits.qml)
+            property var aiLimitsSaid: []              // …which reminders were already given
             property bool pointerShake: true           // shake the pointer to find it (services/PointerGestures.qml)
             property bool touchGestures: false        // rest 3 fingers: circle to search · 4: talk (services/TouchGestures.qml)
             property var widgetsEnabled: []           // your widgets that are turned on (services/Widgets.qml)

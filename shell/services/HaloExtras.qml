@@ -97,6 +97,9 @@ Singleton {
     function intent(q) {
         const l = q.toLowerCase().replace(/[?.!]+$/, "").trim();
         let m;
+        // "when does claude reset", "codex limits", "ai limits"
+        if (/^(when (does|do|will) (claude|codex|my (ai|limits?))( limits?)? reset|(claude|codex|ai) (limits?|usage|reset))$/.test(l))
+            return { glyph: "hourglass_top", title: "AI limits", own: () => AiLimits.show() };
         if ((m = /^(?:summari[sz]e|read|explain|what does|tldr|tl;dr)\s+(?:this\s+)?(?:page\s+)?(https?:\/\/\S+)(?:\s+say)?$/i.exec(q)))
             return { glyph: "travel_explore", title: "Reading the page", own: () => root.readWeb(m[1]) };
         if (/^(continue|play|watch|resume|send)( this| it| what'?s playing| the (video|song|music))? on (my )?phone$/.test(l))
