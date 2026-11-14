@@ -335,7 +335,7 @@ PanelWindow {
                 id: examMode
                 readonly property var next: Amazecc.cfg.enabled ? Amazecc.nextExam : null
                 readonly property int days: next ? Amazecc.daysTo(next.when) : 99
-                readonly property var plan: visible ? (HaloCollege.plan(14) ?? []) : []
+                readonly property var plan: visible ? (HaloCollege.plan(14)?.days ?? []) : []      // (plan() gives { exams, days })
                 readonly property var todayPlan: plan.find(p => Amazecc.dateKey(p.day) === Amazecc.dateKey(clock.date)) ?? null
                 visible: tabMotion.presentedKey === "today" && !!next && days <= 7
                 title: "Exam mode"
