@@ -198,12 +198,16 @@ Singleton {
     // ── a session: focus, a timer, the course folder; logged at the end ──
     property string sessionCode: ""
     property real sessionStart: 0
+    property bool sessionMusic: false        // this session started the music, so its end pauses it
     function startSession(code, minutes) {
         const c = courses.find(x => x.code === code);
         sessionCode = code;
         sessionStart = Date.now();
         if (Focus.mode !== "study") Focus.set("study");
         Countdown.startTimer(minutes * 60000, "Study · " + (c?.title ?? code));
+        // your music, if a player is open and paused (Settings → Sound)
+        sessionMusic = (Persist.data.studyMusic ?? true) && Media.present && !Media.playing && (Media.active?.canPlay ?? false);
+        if (sessionMusic) Media.active.play();
         if (c?.folder) Quickshell.execDetached(["xdg-open", c.folder]);
     }
     Connections {
@@ -214,6 +218,8 @@ Singleton {
         const mins = Math.round((Date.now() - sessionStart) / 60000);
         if (mins >= 5) run(["log", sessionCode, String(mins)], () => run(["overview"], r => { if (r.ok) root.overview = r; }));
         sessionCode = "";
+        if (sessionMusic && Media.playing && (Media.active?.canPause ?? false)) Media.active.pause();
+        sessionMusic = false;
     }
 
     // ── a course file lands in Downloads: offer to file it ──

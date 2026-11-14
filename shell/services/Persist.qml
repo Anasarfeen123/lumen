@@ -97,6 +97,8 @@ Singleton {
             property bool wallpaperByTime: false
             property bool adaptiveUi: true       // evening: warmer accent, calmer motion (after local sunset)
             property string musicApp: "auto"      // music scratchpad: "auto" | "ytmrs" | "ytmusic" | "spotify"
+            property bool ytmTheme: true          // ytm-rs's colours follow Lumen's (services/MusicApp.qml)
+            property bool studyMusic: true        // a study session resumes your music; its end pauses it
             property var wallpaperSlots: ({ dawn: "", day: "", dusk: "", night: "" })
             // Lock screen widgets (Lumen Settings → Lock screen)
             property bool lockMedia: true

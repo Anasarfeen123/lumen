@@ -68,13 +68,26 @@ Page {
         SetRow {
             icon: "queue_music"
             title: "Music app"
-            description: "Opens in the music scratchpad (Super+Shift+M). ytm-rs is the native YouTube Music app; YouTube Music (web) runs in your browser, signed in."
+            description: "Opens in the music scratchpad (Super+Shift+M). ytm-rs is the native YouTube Music app; Web is YouTube Music in your browser, signed in."
             Segmented {
-                width: 420
-                options: [{ id: "auto", label: "Auto" }, { id: "ytmrs", label: "ytm-rs" }, { id: "ytmusic", label: "YT Music (web)" }, { id: "spotify", label: "Spotify" }]
+                width: 340
+                options: [{ id: "auto", label: "Auto" }, { id: "ytmrs", label: "ytm-rs" }, { id: "ytmusic", label: "Web" }, { id: "spotify", label: "Spotify" }]
                 current: Persist.data.musicApp ?? "auto"
                 onPicked: id => Persist.data.musicApp = id
             }
+        }
+        SetRow {
+            icon: "palette"
+            title: "Match Lumen's colours in ytm-rs"
+            description: MusicApp.ownFile ? "Writes ytm-rs's theme.conf from your theme and wallpaper. In ytm-rs: Settings › Appearance › Accent colour › From file."
+                                          : "You have a theme.conf of your own in ~/.local/share/ytm-rs — Lumen leaves it alone."
+            LSwitch { checked: Persist.data.ytmTheme ?? true; onToggled: Persist.data.ytmTheme = !checked }
+        }
+        SetRow {
+            icon: "headphones"
+            title: "Music while studying"
+            description: "Starting a study session plays your paused music; when the session ends, it pauses again."
+            LSwitch { checked: Persist.data.studyMusic ?? true; onToggled: Persist.data.studyMusic = !checked }
         }
         SetRow {
             icon: "lyrics"
