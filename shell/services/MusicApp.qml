@@ -10,9 +10,16 @@ pragma Singleton
 //   wrote yourself — only one that starts with Lumen's marker line.
 //   (In ytm-rs, Settings › Appearance › Accent colour › From file turns it on.)
 // - Settings → Sound: "Match Lumen's colours" (Persist.ytmTheme).
+// - the music PiP (modules/pip/MusicPip.qml): a small player on top, in a
+//   corner, across workspaces. ytm-rs's own mini player can't do that here
+//   (its window is tiled in the music scratchpad, and Wayland apps can't keep
+//   themselves on top). It opens when you hide the music scratchpad while
+//   music plays (Persist.musicPip), with Ctrl+Super+P on the music app, or
+//   Halo "mini player"; opening the scratchpad puts it away.
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import qs.theme
 
 Singleton {
@@ -53,6 +60,43 @@ Singleton {
             "sh", dataDir, marker, conf];
         writer.running = true;
     }
+    // ── the music PiP ──
+    property bool pipShown: false
+    readonly property bool pipVisible: pipShown && Media.present && !Pip.videoShown && !scratchVisible
+    property string pipCorner: Persist.data.musicPipCorner ?? "br"
+    onPipCornerChanged: if (Persist.data.musicPipCorner !== pipCorner) Persist.data.musicPipCorner = pipCorner
+    readonly property bool autoPip: Persist.data.musicPip ?? true
+    property bool scratchVisible: false
+    function showPip() {
+        if (!Media.present) { Island.system("music_off", "Nothing playing", "Start something in your music app first"); return; }
+        if (scratchVisible) hideScratch();
+        pipShown = true;
+    }
+    function closePip() { pipShown = false; }
+    function hideScratch() { Quickshell.execDetached(["hyprctl", "dispatch", "hl.dsp.workspace.toggle_special([[music]])"]); }
+    function openApp() { pipShown = false; if (!scratchVisible) hideScratch(); }      // (the same toggle opens it)
+    // the music scratchpad shown or hidden on any monitor
+    Connections {
+        target: Hyprland
+        function onRawEvent(ev) {
+            if (ev.name !== "activespecial") return;              // "special:music,DP-1" shown · ",DP-1" hidden
+            const shown = ev.data.split(",")[0] === "special:music";
+            if (shown === root.scratchVisible) return;
+            if (!shown && root.scratchVisible && root.autoPip && Media.playing) root.pipShown = true;
+            if (shown) root.pipShown = false;
+            root.scratchVisible = shown;
+        }
+    }
+    // the player went away
+    Connections { target: Media; function onPresentChanged() { if (!Media.present) root.pipShown = false; } }
+
+    IpcHandler {
+        target: "musicpip"
+        function open(): void { root.showPip(); }
+        function close(): void { root.closePip(); }
+        function state(): string { return JSON.stringify({ shown: root.pipShown, visible: root.pipVisible, scratch: root.scratchVisible, corner: root.pipCorner, auto: root.autoPip }); }
+    }
+
     property bool ownFile: true             // false: a theme.conf of your own is there, left alone
     Process { id: writer; onExited: code => root.ownFile = code !== 3 }
 }

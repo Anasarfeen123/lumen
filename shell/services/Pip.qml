@@ -199,6 +199,9 @@ Singleton {
     function back() { if (video) closeVideo(); else if (nativeOpen) endNative(); else run(["back"], "Back in its place"); }
     // Ctrl+Super+P: the video if you're looking at the one playing, else the focused window
     function toggle() {
+        // the music PiP: on, or the music app focused (its window lives in the music scratchpad)
+        if (MusicApp.pipShown) { MusicApp.closePip(); return; }
+        if (MusicApp.scratchVisible || /^(ytm-rs|ytm_rs|spotify)$/i.test(Hyprland.activeToplevel?.lastIpcObject?.class ?? "")) { MusicApp.showPip(); return; }
         if (video) { closeVideo(); return; }
         if (nativeOpen) { endNative(); return; }
         if (windowActive && !state.browser) { back(); return; }

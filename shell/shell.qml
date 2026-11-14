@@ -266,6 +266,13 @@ ShellRoot {
     }
     Variants {
         model: Quickshell.screens
+        delegate: MusicPip {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    Variants {
+        model: Quickshell.screens
         delegate: SnapWindow {
             required property var modelData
             screen: modelData

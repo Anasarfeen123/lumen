@@ -99,6 +99,8 @@ Singleton {
             property string musicApp: "auto"      // music scratchpad: "auto" | "ytmrs" | "ytmusic" | "spotify"
             property bool ytmTheme: true          // ytm-rs's colours follow Lumen's (services/MusicApp.qml)
             property bool studyMusic: true        // a study session resumes your music; its end pauses it
+            property bool musicPip: true          // hiding the music scratchpad while music plays opens the music PiP
+            property string musicPipCorner: "br"
             property var wallpaperSlots: ({ dawn: "", day: "", dusk: "", night: "" })
             // Lock screen widgets (Lumen Settings → Lock screen)
             property bool lockMedia: true

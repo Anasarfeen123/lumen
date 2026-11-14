@@ -84,6 +84,12 @@ Page {
             LSwitch { checked: Persist.data.ytmTheme ?? true; onToggled: Persist.data.ytmTheme = !checked }
         }
         SetRow {
+            icon: "picture_in_picture_alt"
+            title: "Mini player when you hide the music app"
+            description: "Hiding the music scratchpad while music plays keeps a small player on top in a corner. Also Ctrl+Super+P on the music app, or ask Halo for the mini player."
+            LSwitch { checked: Persist.data.musicPip ?? true; onToggled: Persist.data.musicPip = !checked }
+        }
+        SetRow {
             icon: "headphones"
             title: "Music while studying"
             description: "Starting a study session plays your paused music; when the session ends, it pauses again."

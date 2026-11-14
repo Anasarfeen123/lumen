@@ -399,6 +399,8 @@ Singleton {
             return { glyph: "brightness_high", title: "Screen brighter", plain: true, run: () => Brightness.set(Math.min(1, (Brightness.value ?? 0.5) + 0.25)) };
 
         // ── picture in picture ──
+        if (/^(?:show |open )?(?:the )?(?:music )?(?:mini ?player|music pip|music picture in picture)$|^pop (?:the )?music out$/.test(lower))
+            return { glyph: "picture_in_picture_alt", title: "Mini player", plain: true, run: () => MusicApp.showPip() };
         if (/^(picture[- ]in[- ]picture|pip|pop (it|this|the (video|player|window)) out|float (the )?video|mini ?player)( (on|mode))?$/.test(lower))
             return { glyph: "picture_in_picture", title: "Picture in picture", plain: true, run: () => (Media.playing && Pip.playerWindow() ? Pip.popPlayer() : Pip.pop("")) };
         if ((m = /^(?:move|put) (?:the )?(?:pip|video|mini ?player|picture in picture) (?:to )?(?:the )?(top|bottom) (left|right)$/.exec(lower)))
