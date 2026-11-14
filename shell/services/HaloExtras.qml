@@ -82,6 +82,24 @@ Singleton {
         }
     }
 
+    // ── study cards ──
+    function missedCard(c) {
+        const list = Study.missed.filter(x => !c || x.code === c.code);
+        if (!list.length) { root.say("event_available", c ? "Nothing missed in " + c.title : "No missed classes", "Since the attendance history began."); return; }
+        const lines = list.slice(-8).reverse().map(x => Qt.formatDate(new Date(x.to), "d MMM") + " · " + (c ? "" : x.course + " — ") + (x.topics.length ? x.topics.join("; ") : "topic not on VTOP"));
+        root.say("event_busy", (c ? c.title + ": " : "") + list.length + " class" + (list.length === 1 ? "" : "es") + " missed", lines.join("\n"),
+                 { duration: 25000, actions: [{ label: "Lecture plan", icon: "event_note", run: () => Amazecc.launch("lectures:" + (c?.code ?? list[0].code)) }] });
+    }
+    function topicsCard(c) {
+        Study.run(["topics", c.code], r => {
+            const t = (r.topics ?? []).slice(0, 7);
+            if (!t.length) { root.say("insights", "No lecture plan to compare", c.title + " has no lecture plan on VTOP — open its past papers and ask me about them.",
+                                      { actions: [{ label: "Past papers", icon: "quiz", run: () => Amazecc.launch("papers:" + c.code) }] }); return; }
+            root.say("insights", "What comes up in " + c.title, t.map(x => x.papers + "/" + r.papersRead + " papers · " + x.topic).join("\n"),
+                     { duration: 25000, actions: [{ label: "Past papers", icon: "quiz", run: () => Amazecc.launch("papers:" + c.code) }] });
+        });
+    }
+
     function say(icon, title, text, extra) { Halo.say(Object.assign({ key: "extra", icon, title, text: text ?? "", level: "asked", duration: 12000 }, extra ?? {})); }
     function job(cmd, then) { const p = runner.createObject(root, { cb: then }); p.command = cmd; p.running = true; }
     Component {
@@ -94,6 +112,45 @@ Singleton {
     }
 
     // ── what Halo understands here (from Halo.intent) ──
+    // Study phrases — tried before Halo's general ones, and only when they name a
+    // course (or say "missed classes"): "quiz me on dbms" is the course's cards,
+    // "quiz me on photosynthesis" stays Halo's note quiz
+    function studyIntent(q) {
+        if (!Study.on) return null;
+        const l = q.toLowerCase().replace(/[?.!]+$/, "").trim();
+        let m;
+        // ── study (services/Study.qml) ──
+        // "past papers for dbms", "pyqs for os", "show me moc papers"
+        if ((m = /^(?:show (?:me )?)?(?:past papers?|pyqs?|previous year (?:questions|papers))\s+(?:for|of|in)\s+(.+)$|^(?:show (?:me )?)?(.+?)\s+(?:past papers?|pyqs?)$/.exec(l))) {
+            const c = Study.match(m[1] ?? m[2]);
+            if (c) return { glyph: "quiz", title: "Past papers · " + c.title, plain: true, run: () => Amazecc.launch("papers:" + c.code) };
+        }
+        // "what did I miss in os", "missed classes" (plain "what did I miss" stays Halo's catch-up)
+        if ((m = /^(?:what did i miss in|what i missed in|missed (?:classes|topics|lectures)(?: in)?)\s*(.*)$/.exec(l))) {
+            const c = m[1] ? Study.match(m[1]) : null;
+            if (c || !m[1]) return { glyph: "event_busy", title: "Classes you missed", own: () => root.missedCard(c) };
+        }
+        // "study dbms for 45 minutes", "revise os 30 min"
+        if ((m = /^(?:study|revise)\s+(.+?)(?:\s+for)?\s+(\d+)\s*(?:m|min|mins|minutes?)$|^(?:study|revise)\s+(.+)$/.exec(l))) {
+            const c = Study.match(m[1] ?? m[3]);
+            if (c) return { glyph: "timer", title: "Revising " + c.title, plain: true, run: () => Study.startSession(c.code, parseInt(m[2] ?? "45")) };
+        }
+        // "what comes up in the dbms fat", "important topics for os", "which topics repeat in moc"
+        if ((m = /^(?:what comes up in|important topics (?:for|in)|which topics (?:repeat|come up) (?:in|for)|most asked (?:topics|questions) (?:in|for))\s+(?:the\s+)?(.+?)(?:\s+(?:fat|cat ?1|cat ?2|exam|papers?))?$/.exec(l))) {
+            const c = Study.match(m[1]);
+            if (c) return { glyph: "insights", title: "What comes up in " + c.title, own: () => root.topicsCard(c) };
+        }
+        // "find deadlock in my notes", "search my notes for normal forms"
+        if ((m = /^(?:find|search(?: for)?)\s+(.+?)\s+in my (?:notes|academics|files)$|^search my (?:notes|academics) for\s+(.+)$/.exec(l)))
+            return { glyph: "manage_search", title: "Searching your notes", plain: true, run: () => Amazecc.launch("find:" + (m[1] ?? m[2])) };
+        // "quiz me on moc"
+        if ((m = /^quiz me (?:on|in|about)\s+(.+)$/.exec(l))) {
+            const c = Study.match(m[1]);
+            if (c) return { glyph: "style", title: "Flashcards · " + c.title, plain: true, run: () => Amazecc.launch("cards:" + c.code) };
+        }
+        return null;
+    }
+
     function intent(q) {
         const l = q.toLowerCase().replace(/[?.!]+$/, "").trim();
         let m;

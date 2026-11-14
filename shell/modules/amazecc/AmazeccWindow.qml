@@ -30,8 +30,18 @@ FloatingWindow {
         { id: "grades",     icon: "school",          label: "Grades" },
         { id: "laundry", icon: "local_laundry_service", label: "Laundry" },
         { id: "mess", icon: "restaurant", label: "Mess menu" },
-        { id: "campus",     icon: "account_balance", label: "Campus" }
+        { id: "campus",     icon: "account_balance", label: "Campus" },
+        // your studies (services/Study.qml · scripts/study.py)
+        { id: "study",      icon: "auto_stories",    label: "Study",         group: "Study" },
+        { id: "papers",     icon: "quiz",            label: "Past papers" },
+        { id: "lectures",   icon: "event_note",      label: "Lectures" },
+        { id: "cards",      icon: "style",           label: "Flashcards" },
+        { id: "find",       icon: "manage_search",   label: "Find notes" },
+        { id: "events",     icon: "event",           label: "Events & buses" }
     ]
+    // "papers:BACSE202" opens a page on one course
+    readonly property string pageId: page.split(":")[0]
+    readonly property string pageArg: page.split(":")[1] ?? ""
     SystemClock { id: clock; precision: SystemClock.Minutes }
     readonly property string ago: {
         clock.date;
@@ -47,7 +57,7 @@ FloatingWindow {
         anchors.fill: parent
         focus: true
         Keys.onPressed: e => {
-            const i = win.pages.findIndex(p => p.id === win.page);
+            const i = win.pages.findIndex(p => p.id === win.pageId);
             const ctrl = e.modifiers & Qt.ControlModifier;
             if (e.key === Qt.Key_Escape || (e.key === Qt.Key_W && ctrl)) Qt.quit();
             else if ((e.key === Qt.Key_Tab || e.key === Qt.Key_Backtab) && ctrl) { const delta = (e.modifiers & Qt.ShiftModifier) || e.key === Qt.Key_Backtab ? -1 : 1; win.page = win.pages[(i + delta + win.pages.length) % win.pages.length].id; }
@@ -84,10 +94,16 @@ FloatingWindow {
                 }
                 Repeater {
                     model: win.pages
-                    delegate: HoverTarget {
-                        required property var modelData
-                        readonly property bool on: win.page === modelData.id
-                        width: parent.width; height: 40
+                    delegate: Column {
+                    required property var modelData
+                    width: parent.width
+                    // a group's name above its first page
+                    LText { visible: !!modelData.group; leftPadding: Theme.space.s3; topPadding: Theme.space.s3; bottomPadding: Theme.space.s1
+                            role: "caption"; color: Theme.textMuted; font.letterSpacing: 1; text: (modelData.group ?? "").toUpperCase() }
+                    HoverTarget {
+                        readonly property var modelData: parent.modelData
+                        readonly property bool on: win.pageId === modelData.id
+                        width: parent.width; height: 34
                         radius: Theme.radius.sm
                         highlighted: on
                         activeFocusOnTab: true
@@ -103,6 +119,7 @@ FloatingWindow {
                             LIcon { icon: modelData.icon; size: Theme.size.iconSmall; fill: parent.parent.on ? 1 : 0; color: parent.parent.on ? Theme.accent : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
                             LText { role: parent.parent.on ? "bodyStrong" : "body"; text: modelData.label; color: parent.parent.on ? Theme.text : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
                         }
+                    }
                     }
                 }
             }
@@ -144,7 +161,7 @@ FloatingWindow {
             anchors { top: parent.top; bottom: parent.bottom; left: sidebar.right; right: parent.right }
             clip: true
 
-            readonly property bool publicPage: ["laundry", "mess"].includes(win.page)
+            readonly property bool publicPage: ["laundry", "mess", "find", "events"].includes(win.pageId)
             readonly property bool available: publicPage || Amazecc.ready || (["grades", "campus"].includes(win.page) && !!Amazecc.extra.updated)
             // Not connected: one clear way in
             Column {
@@ -176,7 +193,8 @@ FloatingWindow {
                 opacity: pageMotion.reveal
                 enabled: win.page === pageMotion.presentedKey
                 sourceComponent: ({ overview: overviewC, timetable: timetableC, attendance: attendanceC, marks: marksC,
-                                    exams: examsC, grades: gradesC, campus: campusC, laundry: laundryC, mess: messC })[pageMotion.presentedKey] ?? overviewC
+                                    exams: examsC, grades: gradesC, campus: campusC, laundry: laundryC, mess: messC,
+                                    study: studyC, papers: papersC, lectures: lecturesC, cards: cardsC, find: findC, events: eventsC })[pageMotion.presentedKey.split(":")[0]] ?? overviewC
                 transform: Translate { y: pageMotion.offset }
             }
         }
@@ -191,4 +209,10 @@ FloatingWindow {
     Component { id: laundryC; LaundryPage {} }
     Component { id: messC; MessPage {} }
     Component { id: campusC; CampusPage {} }
+    Component { id: studyC; StudyPage { onGo: p => win.page = p } }
+    Component { id: papersC; PapersPage { course: win.pageArg } }
+    Component { id: lecturesC; LecturesPage { course: win.pageArg } }
+    Component { id: cardsC; CardsPage { course: win.pageArg } }
+    Component { id: findC; FindPage { query: win.pageArg } }
+    Component { id: eventsC; EventsPage {} }
 }

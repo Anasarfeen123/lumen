@@ -185,6 +185,9 @@ Singleton {
              .replace(/^(?:(?:please|so|um+|uh+)[ ,]+)*(?:(?:can|could|would|will) you[ ,]+)?(?:please[ ,]+)?(?:tell me[ ,]+(?=(?:the|what|when|how|which|who)\b))?/i, "")
              .replace(/[ ,]+please$/i, "").replace(/[.!?]+$/, "").trim() || q;
         const lower = q.toLowerCase();
+        // Your courses (services/Study.qml): only when a course is named
+        const study = HaloExtras.studyIntent(q);
+        if (study) return study;
         // Halo's own abilities
         if (/^(what did i miss|catch me up|anything new|while i was away|what happened)\b/i.test(lower))
             return { glyph: "inbox", title: "Catching you up", own: () => Brief.away(true) };

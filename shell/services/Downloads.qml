@@ -66,8 +66,10 @@ Singleton {
         }
     }
     signal done(string name, real at)      // Halo's "while you were away" lists them
+    signal landed(string path)           // a finished download (Study offers to file it)
     function finished(name) {
         done(name, Date.now());
+        landed(root.dir + "/" + name);
         Sounds.play("done");
         Island.push({ kind: "system", key: "download", priority: Island.priority.system, duration: 4000, force: true, queueable: true,
                       data: { icon: "download_done", title: "Downloaded", detail: name, tone: "normal", path: root.dir + "/" + name } });

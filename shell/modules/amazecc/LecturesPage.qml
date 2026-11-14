@@ -1,0 +1,114 @@
+// Lectures: your teacher's lecture plan from VTOP (each class's date and
+// topic), what's been covered, the classes you missed and their topics; the
+// syllabus PDFs; a module checklist for revision.
+import QtQuick
+import Quickshell
+import Quickshell.Io
+import qs.theme
+import qs.components
+import qs.services
+
+AppPage {
+    id: page
+    property string course: Study.courses[0]?.code ?? ""
+    property var plan: ({})                 // lectures.json
+    property var syllabi: []
+    readonly property var c: Study.courses.find(x => x.code === course) ?? null
+    readonly property var rows: plan[course]?.rows ?? []
+    readonly property var missedTopics: [].concat(...Study.missed.filter(m => m.code === course).map(m => m.topics))
+    readonly property var modules: c?.modules ?? ({})
+    title: "Lectures"
+    subtitle: c ? c.title + " · " + (rows.length ? rows.filter(r => r.date <= today).length + " of " + rows.length + " classes covered" : (plan[course]?.missing ?? "No lecture plan yet")) : ""
+    readonly property string today: Qt.formatDate(new Date(), "yyyy-MM-dd")
+    onCourseChanged: findSyllabi()
+    onCChanged: findSyllabi()                // (the course list loads a moment after the page)
+    Component.onCompleted: { load(); findSyllabi(); }
+    function load() { reader.running = true; }
+    function findSyllabi() {
+        if (!c?.folder) { syllabi = []; return; }
+        finder.command = ["sh", "-c", 'ls -1 "$1"/Syllabus/*.pdf 2>/dev/null', "sh", c.folder];
+        finder.running = true;
+    }
+    Process {
+        id: reader
+        command: ["cat", (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/lumen/study/lectures.json"]
+        stdout: StdioCollector { onStreamFinished: { try { page.plan = JSON.parse(text); } catch (e) {} } }
+    }
+    Process {
+        id: finder
+        stdout: StdioCollector { onStreamFinished: page.syllabi = text.split("\n").filter(x => x) }
+    }
+
+    headerRight: [
+        CollegeButton { text: "Update from VTOP"; icon: "sync"; onActivated: Study.run(["lectures", "sync"], () => page.load()) }
+    ]
+
+    Flow {
+        width: parent.width; spacing: Theme.space.s2
+        Repeater {
+            model: Study.courses
+            CollegeButton { required property var modelData; text: modelData.title.replace(/^Fundamentals of /, ""); selected: page.course === modelData.code; onActivated: page.course = modelData.code }
+        }
+    }
+
+    // syllabus + modules
+    Card {
+        width: parent.width; title: "Syllabus"; icon: "list_alt"
+        Column {
+            width: parent.width; spacing: Theme.space.s2
+            Flow {
+                width: parent.width; spacing: Theme.space.s2
+                LText { visible: page.syllabi.length === 0; color: Theme.textMuted; text: "No syllabus PDF in this course's Syllabus folder yet — Update from VTOP fetches it." }
+                Repeater {
+                    model: page.syllabi
+                    CollegeButton { required property string modelData; icon: "picture_as_pdf"; text: modelData.replace(/^.*\//, "").replace(/\.pdf$/, ""); onActivated: Quickshell.execDetached(["xdg-open", modelData]) }
+                }
+            }
+            LText { role: "caption"; color: Theme.textMuted; text: "Modules revised — tick them as you go:" }
+            Flow {
+                width: parent.width; spacing: Theme.space.s2
+                Repeater {
+                    model: 7
+                    CollegeButton {
+                        required property int index
+                        readonly property bool on: !!page.modules[String(index + 1)]
+                        text: "Module " + (index + 1); icon: on ? "check_circle" : "radio_button_unchecked"; selected: on
+                        onActivated: Study.run(on ? ["module", page.course, String(index + 1), "--undo"] : ["module", page.course, String(index + 1)], () => Study.refresh())
+                    }
+                }
+            }
+        }
+    }
+
+    // the plan
+    Card {
+        width: parent.width; title: "Lecture plan"; icon: "event_note"
+        headerRight: LText { role: "caption"; color: Theme.textMuted; visible: page.missedTopics.length > 0; text: page.missedTopics.length + " missed — marked" }
+        Column {
+            width: parent.width; spacing: 1
+            LText { visible: page.rows.length === 0; width: parent.width; wrapMode: Text.Wrap; color: Theme.textMuted
+                    text: page.plan[page.course]?.missing ? page.plan[page.course].missing + " — your syllabus and past papers are still here." : "Not fetched yet — Update from VTOP." }
+            Repeater {
+                model: page.rows
+                Rectangle {
+                    required property var modelData
+                    required property int index
+                    readonly property bool past: modelData.date <= page.today
+                    readonly property bool missed: page.missedTopics.includes(modelData.topic)
+                    width: parent.width; height: Math.max(30, tl.implicitHeight + 10); radius: Theme.radius.sm
+                    color: missed ? Theme.withAlpha(Theme.warning, 0.1) : index % 2 ? Theme.withAlpha(Theme.text, 0.025) : "transparent"
+                    Row {
+                        anchors { left: parent.left; leftMargin: Theme.space.s2; right: parent.right; verticalCenter: parent.verticalCenter }
+                        spacing: Theme.space.s3
+                        LText { width: 88; role: "caption"; color: Theme.textMuted; text: Qt.formatDate(new Date(modelData.date + "T12:00"), "ddd d MMM") }
+                        LText { width: 46; role: "caption"; color: Theme.textMuted; text: modelData.slot }
+                        LText { id: tl; width: parent.width - 88 - 46 - 90 - 3 * Theme.space.s3; wrapMode: Text.Wrap; role: "body"
+                                color: past ? Theme.text : Theme.textMuted; text: modelData.topic }
+                        LText { width: 90; role: "caption"; horizontalAlignment: Text.AlignRight
+                                color: missed ? Theme.warning : Theme.textMuted; text: missed ? "you missed it" : modelData.kind === "lab" ? "lab" : "" }
+                    }
+                }
+            }
+        }
+    }
+}

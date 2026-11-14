@@ -41,6 +41,12 @@ Singleton {
         { title: "Export my setup", glyph: "ios_share", keys: "export setup backup settings move new computer lumen sync carry", cmd: ["sh", "-c", 'f=$("$0" export) && notify-send -a Lumen "Setup exported" "$f — lumen sync import <file> on the other computer"', Theme.lumenRoot + "/scripts/lumen-sync.sh"] },
         { title: "Continue on my phone", glyph: "phone_android", keys: "continue phone handoff send video music youtube playing to phone", fn: () => Handoff.toPhone() },
         { title: "Continue on this PC", glyph: "computer", keys: "continue pc computer handoff phone playing video music youtube from phone", fn: () => Handoff.toPc() },
+        { title: "Study", glyph: "auto_stories", keys: "study academics courses exams revise college amazecc hub", fn: () => Amazecc.launch("study") },
+        { title: "Past papers", glyph: "quiz", keys: "past papers pyq pyqs question papers previous year cat fat exam practice", fn: () => Amazecc.launch("papers") },
+        { title: "Lecture plan", glyph: "event_note", keys: "lecture plan lectures topics syllabus missed classes course plan", fn: () => Amazecc.launch("lectures") },
+        { title: "Flashcards", glyph: "style", keys: "flashcards cards revise quiz memorise spaced repetition cheat sheet", fn: () => Amazecc.launch("cards") },
+        { title: "Find in my notes", glyph: "manage_search", keys: "find notes academics search pdf slides documents", fn: () => Amazecc.launch("find") },
+        { title: "Campus events and buses", glyph: "event", keys: "events campus conferences workshops bus buses route stop", fn: () => Amazecc.launch("events") },
         { title: "AI limits", glyph: "hourglass_top", keys: "ai limits claude codex reset usage rate limit ccusage tokens when", fn: () => AiLimits.show() },
         { title: "Find my pointer", glyph: "my_location", keys: "find pointer cursor mouse where lost locate", fn: () => PointerFinder.find(), delay: true },
         { title: "All windows", glyph: "view_cozy", keys: "expose all windows every workspace grid overview mission control", fn: () => Expose.show(), delay: true },
@@ -49,6 +55,7 @@ Singleton {
         { title: "Mirror", glyph: "photo_camera_front", keys: "mirror webcam camera check myself selfie before call preview", cmd: [Theme.lumenRoot + "/scripts/mirror.sh"] },
         { title: "Turn the screen off", glyph: "desktop_access_disabled", keys: "screen off display off dpms blank monitor off keep awake music", cmd: ["sh", "-c", 'sleep 0.6; hyprctl dispatch "hl.dsp.dpms({ action = [[off]] })"'], delay: true },
         { title: "Bring back lost windows", glyph: "move_selection_left", keys: "lost windows off screen offscreen missing window gone recover rescue", cmd: [Theme.lumenRoot + "/scripts/lost-windows.sh"] },
+        { title: "AI usage & reset reminders", glyph: "hourglass_top", keys: "ccusage claude codex ai usage token reset quota limits reminder", fn: () => DesktopTools.show("usage") },
         { title: "AmazeCC", glyph: "school", keys: "amazecc college vtop vit app attendance timetable marks grades exams cgpa circulars library proctor", fn: () => Amazecc.launch("") },
         { title: "Laundry schedule", glyph: "local_laundry_service", keys: "laundry wash clothes hostel room collection amazecc", fn: () => Amazecc.launch("laundry") },
         { title: "Mess menu", glyph: "restaurant", keys: "mess menu breakfast lunch snacks dinner hostel food amazecc", fn: () => Amazecc.launch("mess") },
@@ -136,6 +143,8 @@ Singleton {
             if (/^(otp|2fa|code)\b/i.test(Overview.query.trim())) SearchMore.refreshOtp();
             const fq = /^f\s+(.+)$/i.exec(Overview.query.trim());
             if (fq) SearchMore.find(fq[1].trim());
+            const sq = /^s\s+(.+)$/i.exec(Overview.query.trim());
+            if (sq) Study.find(sq[1].trim());
         }
         function onModeChanged() {
             if (Overview.mode === "clipboard") { Clipboard.filter = "all"; Clipboard.refresh(); }
@@ -504,6 +513,36 @@ Singleton {
         if (/^=\s*$/.test(text))
             return [{ kind: "calc", group: "Calculator", title: "Type a calculation", glyph: "calculate", badge: "",
                       subtitle: "Maths, units (5 ft to cm), percentages, and money in ₹ ($100, 2 lakh / 12)", run: () => {} }];
+        // your Academics folder, names and contents: "s <words>" ("s deadlock")
+        {
+            const sm = /^s\s+(.+)$/i.exec(q);
+            if (sm) {
+                const rows = Study.findQuery === sm[1].trim() ? Study.found : [];
+                out.push(...rows.slice(0, 12).map(f => ({ kind: "file", group: "Academics", title: f.name.replace(/\.ocr\.txt$/, " (photo)"),
+                    subtitle: (f.course || "Academics").replace(/^[A-Z0-9]+ - /, "") + (f.snippet ? " · …" + f.snippet.slice(0, 80) + "…" : ""),
+                    glyph: /\.pdf$/i.test(f.name) ? "picture_as_pdf" : "description", badge: "Open", path: f.path, run: () => Quickshell.execDetached(["xdg-open", f.path]) })));
+                if (!rows.length) out.push({ kind: "command", group: "Academics", title: "Searching your notes…", glyph: "manage_search", badge: "",
+                                             subtitle: "Names and contents containing “" + sm[1].trim() + "”", run: () => {} });
+                out.push({ kind: "action", group: "Academics", title: "Open in Find notes", glyph: "manage_search", badge: "", subtitle: "", run: () => Amazecc.launch("find:" + sm[1].trim()) });
+                return out;
+            }
+        }
+        // past papers for a course: "pyq dbms", "papers os"; revise: "revise moc"
+        {
+            const pm = /^(pyqs?|papers?|past papers?)\s+(.+)$/i.exec(q), rm = /^(revise|study)\s+(.+?)(?:\s+(\d+)\s*(?:m|min|mins|minutes)?)?$/i.exec(q);
+            const c = pm ? Study.match(pm[2]) : rm ? Study.match(rm[2]) : null;
+            if (c && pm) {
+                out.push(...Study.papersFor(c.code).filter(p => p.exists).slice(0, 12).map(p => ({ kind: "file", group: "Past papers · " + c.title, title: p.exam + (p.year ? " " + p.year : "") + (p.slot ? " · slot " + p.slot : ""),
+                    subtitle: (p.done ? "done · " : "") + p.source, glyph: p.done ? "check_circle" : "quiz", badge: "Open", path: p.path, run: () => Quickshell.execDetached(["xdg-open", p.path]) })));
+                out.push({ kind: "action", group: "Past papers · " + c.title, title: "All past papers for " + c.title, glyph: "quiz", badge: "", subtitle: "", run: () => Amazecc.launch("papers:" + c.code) });
+                return out;
+            }
+            if (c && rm) {
+                const mins = parseInt(rm[3] ?? "45");
+                out.push({ kind: "action", group: "Study", title: "Revise " + c.title + " for " + mins + " min", glyph: "timer", badge: "Start",
+                           subtitle: "Study focus, a timer and the course folder; logged in Study", run: () => Study.startSession(c.code, mins) });
+            }
+        }
         // files anywhere in your home folder: "f <name>"
         {
             const fm = /^f\s+(.+)$/i.exec(q);
