@@ -43,12 +43,15 @@ Course folders are found by the code at the start of the folder's name
 **Study** (upcoming exams with seat and papers done; each course: papers, lectures covered,
 minutes studied this week, attendance and how many classes you can still miss, what you need
 in the FAT for S/A/B/C on VIT's absolute scale; missed classes and their topics; recent files;
-the backup; making the next semester's folders) · **Past papers** (filter by course and exam,
-tick what you've practised, count which lecture topics come up most, ask Halo about a paper)
-· **Lectures** (the plan, what's covered, what you missed; syllabus PDFs; a module checklist)
-· **Flashcards** (from `**Term:** meaning` lines and headed sections in your cheat sheets,
-plus a `flashcards.json` of `[{q, a}]`; Again / Hard / Good / Easy) · **Find notes** ·
-**Events & buses**.
+the backup; making the next semester's folders) · **Past papers** (search; filter by subject,
+exam, year, collection, practised or not, with an answer key; sort; every subject is listed
+with its count; tick what you've practised; **Add papers** or drop files on the page — copied
+into `Exams & Question Papers/Added`, never moved; count which lecture topics come up most;
+ask Halo about a paper) · **Lectures** (search topics; all / covered / coming / missed /
+theory / lab; syllabus PDFs; a module checklist) · **Flashcards** (from `**Term:** meaning`
+lines and headed sections in your cheat sheets, plus `flashcards.json`; **Add a card**;
+Again / Hard / Good / Easy) · **Find notes** (by subject, file type, and name vs contents)
+· **Events & buses** (search, kind, this week / month, free).
 
 ## Launcher and Halo
 
@@ -63,5 +66,6 @@ plus a `flashcards.json` of `[{q, a}]`; Again / Hard / Good / Easy) · **Find no
 - Faculty course **materials** can be listed on VTOP but your AmazeCC API has no route to
   download the files; the question bank (`/api/qbank`) needs the API's database; the class
   average (`marks/stats`) needs AmazeCC's class sharing; the teacher search returns nothing.
-- Java, AR/VR and Soft Skills have no papers in the MIC collection yet (checked daily).
+- AR/VR and Soft Skills have no papers in any of the collections yet (checked daily); Java's
+  come from the GitHub collections.
 - AR/VR's and Models of Computation's teachers haven't published lecture plans on VTOP.

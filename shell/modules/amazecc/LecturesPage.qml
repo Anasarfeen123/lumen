@@ -14,11 +14,19 @@ AppPage {
     property var plan: ({})                 // lectures.json
     property var syllabi: []
     readonly property var c: Study.courses.find(x => x.code === course) ?? null
-    readonly property var rows: plan[course]?.rows ?? []
+    readonly property var allRows: plan[course]?.rows ?? []
+    property string show: ""                 // "" | covered | coming | missed | theory | lab
+    property string query: ""
+    readonly property var rows: allRows.filter(r => {
+        const q = query.trim().toLowerCase();
+        return (!q || q.split(/\s+/).every(w => (r.topic + " " + r.slot + " " + r.date).toLowerCase().includes(w)))
+            && (show === "" || (show === "covered" && r.date <= today) || (show === "coming" && r.date > today)
+                || (show === "missed" && missedTopics.includes(r.topic)) || (show === r.kind));
+    })
     readonly property var missedTopics: [].concat(...Study.missed.filter(m => m.code === course).map(m => m.topics))
     readonly property var modules: c?.modules ?? ({})
     title: "Lectures"
-    subtitle: c ? c.title + " · " + (rows.length ? rows.filter(r => r.date <= today).length + " of " + rows.length + " classes covered" : (plan[course]?.missing ?? "No lecture plan yet")) : ""
+    subtitle: c ? c.title + " · " + (allRows.length ? allRows.filter(r => r.date <= today).length + " of " + allRows.length + " classes covered" : (plan[course]?.missing ?? "No lecture plan yet")) : ""
     readonly property string today: Qt.formatDate(new Date(), "yyyy-MM-dd")
     onCourseChanged: findSyllabi()
     onCChanged: findSyllabi()                // (the course list loads a moment after the page)
@@ -80,13 +88,24 @@ AppPage {
         }
     }
 
+    // search and filter the plan
+    Row {
+        visible: page.allRows.length > 0
+        width: parent.width; spacing: Theme.space.s2
+        LField { width: 300; icon: "search"; placeholder: "Search topics: normalization, B+ tree…"; clearOnAccept: false; input.onTextEdited: page.query = text }
+        Repeater {
+            model: [{ id: "", t: "All" }, { id: "covered", t: "Covered" }, { id: "coming", t: "Coming" }, { id: "missed", t: "You missed" }, { id: "theory", t: "Theory" }, { id: "lab", t: "Lab" }]
+            CollegeButton { required property var modelData; anchors.verticalCenter: parent.verticalCenter; text: modelData.t; selected: page.show === modelData.id; onActivated: page.show = modelData.id }
+        }
+    }
     // the plan
     Card {
-        width: parent.width; title: "Lecture plan"; icon: "event_note"
+        width: parent.width; title: page.rows.length === page.allRows.length ? "Lecture plan" : page.rows.length + " of " + page.allRows.length + " classes"; icon: "event_note"
         headerRight: LText { role: "caption"; color: Theme.textMuted; visible: page.missedTopics.length > 0; text: page.missedTopics.length + " missed — marked" }
         Column {
             width: parent.width; spacing: 1
-            LText { visible: page.rows.length === 0; width: parent.width; wrapMode: Text.Wrap; color: Theme.textMuted
+            LText { visible: page.allRows.length > 0 && page.rows.length === 0; color: Theme.textMuted; text: "Nothing matches." }
+            LText { visible: page.allRows.length === 0; width: parent.width; wrapMode: Text.Wrap; color: Theme.textMuted
                     text: page.plan[page.course]?.missing ? page.plan[page.course].missing + " — your syllabus and past papers are still here." : "Not fetched yet — Update from VTOP." }
             Repeater {
                 model: page.rows

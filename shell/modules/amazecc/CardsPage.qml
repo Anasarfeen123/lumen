@@ -13,6 +13,8 @@ AppPage {
     property var deck: ({ cards: [], total: 0, due: 0 })
     property int i: 0
     property bool shown: false
+    property bool adding: false
+    property string added: ""
     readonly property var card: deck.cards[i] ?? null
     readonly property var c: Study.courses.find(x => x.code === course) ?? null
     title: "Flashcards"
@@ -51,7 +53,7 @@ AppPage {
                     text: page.deck.total === 0 ? "Cards come from \"**Term:** meaning\" lines and headed sections in this course's Revision & Cheat Sheets (Markdown). Or ask Halo to quiz you."
                                                 : "Cards you got right come back in a few days; the ones you missed, sooner." }
             LText { visible: !!page.card; role: "caption"; color: Theme.textMuted; text: page.card ? "Card " + (page.i + 1) + " of " + page.deck.cards.length + " · from " + page.card.src.replace(/^.*\//, "") : "" }
-            LText { visible: !!page.card; width: parent.width; wrapMode: Text.Wrap; role: "heading"; font.pixelSize: 20; text: page.card?.q ?? "" }
+            LText { visible: !!page.card; width: parent.width; wrapMode: Text.Wrap; role: "heading"; font.pixelSize: 20; text: (page.card?.q ?? "").replace(/\$/g, "") }
             Rectangle { visible: page.shown; width: parent.width; height: 1; color: Theme.border }
             LText { visible: page.shown && !!page.card; width: parent.width; wrapMode: Text.Wrap; textFormat: Text.MarkdownText; text: page.card?.a ?? "" }
         }
@@ -65,8 +67,29 @@ AppPage {
             CollegeButton { required property var modelData; text: modelData.t; icon: modelData.i; onActivated: page.grade(modelData.g) }
         }
     }
+    // your own cards
+    Card {
+        visible: page.adding
+        width: parent.width; title: "Add a card to " + (page.c?.title ?? ""); icon: "add_card"
+        Column {
+            width: parent.width; spacing: Theme.space.s2
+            LField { id: qf; width: parent.width; icon: "help"; placeholder: "Question, e.g. What is a weak entity?"; clearOnAccept: false }
+            LField { id: af; width: parent.width; icon: "lightbulb"; placeholder: "Answer"; clearOnAccept: false
+                     onAccepted: t => addBtn.activated() }
+            Row {
+                spacing: Theme.space.s2
+                CollegeButton { id: addBtn; text: "Add card"; icon: "add"; enabled: qf.text.trim() !== "" && af.text.trim() !== ""
+                                onActivated: Study.run(["addcard", page.course, qf.text, af.text], r => {
+                                    page.added = r.ok ? "Added — " + r.total + " card" + (r.total === 1 ? "" : "s") + " of your own in this subject" : (r.error ?? "Couldn't add it");
+                                    if (r.ok) { qf.text = ""; af.text = ""; qf.input.forceActiveFocus(); page.load(); } }) }
+                CollegeButton { text: "Done"; onActivated: page.adding = false }
+                LText { anchors.verticalCenter: parent.verticalCenter; role: "caption"; color: Theme.textMuted; text: page.added }
+            }
+        }
+    }
     Row {
         spacing: Theme.space.s2
+        CollegeButton { text: "Add a card"; icon: "add_card"; enabled: !!page.c?.folder; selected: page.adding; onActivated: { page.adding = !page.adding; page.added = ""; } }
         CollegeButton { text: "Quiz me with Halo"; icon: "auto_awesome"; enabled: !!page.c?.folder
                         onActivated: { const files = [...new Set(page.deck.cards.map(x => x.src))].slice(0, 4);
                                        if (files.length) Ai.askAboutFiles(files); else Ai.show();

@@ -8,6 +8,10 @@ VTOP's lecture plans and syllabi, and your progress. Standard library only.
                                    <course>/Exams & Question Papers/PYQs/  → {new: [...]}
   study.py pyq list                every paper Lumen knows for your courses, with "done"
   study.py done <paper-id> [--undo]          mark a paper practised
+  study.py addpaper <code> <file>… [--exam CAT 1] [--year 2025] [--slot B2]
+                                   copy your own papers into <course>/Exams & Question Papers/Added
+  study.py addcard <code> <question> <answer>  a flashcard of your own (flashcards.json)
+  study.py pick [title] [--folder] a file picker (kdialog / zenity)
   study.py lectures sync           VTOP's lecture plan for each course (date, slot, topic)
                                    and its syllabus PDF (into <course>/Syllabus/) → lectures.json
   study.py missed                  classes you were marked absent for (from the attendance
@@ -379,13 +383,37 @@ def from_examcooker(st, known, hashes, cs, codes, budget):
     return new
 
 
-def from_github(st, known, hashes, cs, budget):
+def github_tree(repo, branch):
+    """a repo's PDF paths: cached a day; through your gh login when there is one (GitHub
+    allows 60 anonymous requests an hour, shared by everything on this computer)."""
+    cache = os.path.join(CACHE, "gh-" + repo.replace("/", "_") + ".json")
+    c = read_json(cache)
+    if c and time.time() - c.get("at", 0) < 20 * 3600:
+        return c["paths"]
+    api = "repos/%s/git/trees/%s?recursive=1" % (repo, branch)
+    data = None
+    if shutil.which("gh"):
+        try:
+            r = subprocess.run(["gh", "api", api], capture_output=True, text=True, timeout=90)
+            if r.returncode == 0:
+                data = json.loads(r.stdout)
+        except (OSError, subprocess.TimeoutExpired, ValueError):
+            data = None
+    if data is None:
+        body, _ = fetch("https://api.github.com/" + api, timeout=60)      # raises: reported by the caller
+        data = json.loads(body)
+    paths = [t["path"] for t in data.get("tree", []) if t.get("type") == "blob" and t["path"].lower().endswith(".pdf")]
+    write_json(cache, {"at": time.time(), "paths": paths})
+    return paths
+
+
+def from_github(st, known, hashes, cs, budget, errors):
     new = []
     for repo, branch, label in GITHUB:
         try:
-            body, _ = fetch("https://api.github.com/repos/%s/git/trees/%s?recursive=1" % (repo, branch), timeout=60)
-            tree = [t["path"] for t in json.loads(body).get("tree", []) if t.get("type") == "blob" and t["path"].lower().endswith(".pdf")]
-        except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+            tree = github_tree(repo, branch)
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
+            errors.append("%s: %s" % (label, getattr(e, "reason", e)))
             continue
         for c in cs:
             for path in tree:
@@ -426,7 +454,7 @@ def cmd_pyq_sync(force=False):
         errors.append(str(e))
         codes = {}
     for name, fn in (("ExamCooker", lambda: from_examcooker(st, known, hashes, cs, codes, budget)),
-                     ("GitHub", lambda: from_github(st, known, hashes, cs, budget))):
+                     ("GitHub", lambda: from_github(st, known, hashes, cs, budget, errors))):
         try:
             new += fn()
         except Exception as e:                               # one collection failing doesn't stop the others
@@ -463,7 +491,9 @@ def cmd_pyq_list():
             for f in files:
                 path = os.path.join(root, f)
                 # your own papers: the PDFs (photos and revision notes aren't papers to tick off)
-                if not f.lower().endswith(".pdf") or re.search(r"(?i)revision|notes|solution|plan|syllabus", f):
+                added = os.path.basename(root) == "Added"
+                if not (f.lower().endswith(".pdf") or (added and f.lower().endswith((".png", ".jpg", ".jpeg")))) \
+                        or re.search(r"(?i)revision|notes|solution|plan|syllabus", f):
                     continue
                 ex, yr, slot = paper_fields(path)
                 rec = {"code": c["code"], "course": c["title"], "exam": ex, "year": yr, "slot": slot, "path": path}
@@ -476,16 +506,76 @@ def cmd_pyq_list():
     mine = {sig(p) for p in own if p["year"] and p["slot"]}
     papers = []
     for p in st.get("papers", []):
+        if not p.get("path"):
+            continue                                      # a duplicate seen in another collection
         # a downloaded copy of a paper you already had: keep the file, don't list it twice
         if p["year"] and p["slot"] and sig(p) in mine:
             continue
         papers.append(dict(p, done=p["id"] in done, exists=os.path.exists(p["path"])))
     allp = papers + own
     for p in allp:
+        # one year per paper, four digits ("2025-26" → 2025; "year unknown", "Slot" → none)
+        y = (re.findall(r"20\d\d", str(p.get("year") or "")) or [""])[0]
+        p["year"] = y if y and 2015 <= int(y) <= time.localtime().tm_year + 1 else ""   # not a stray number from a file name
         k = next((k for k in keys if sig(k) == sig(p)), None)
         if k:
             p["key"] = k["path"]
     out({"ok": True, "papers": allp, "fetchedAt": st.get("fetchedAt", 0)})
+
+
+def cmd_add_paper(paths, code, exam="", year="", slot=""):
+    """your own papers (a PDF or photos): copied — never moved — into the course's PYQs folder
+    with a clean name; exam/year/slot read from the name when not given."""
+    c = course_of(code)
+    if not c or not c["folder"]:
+        return out({"ok": False, "error": "No folder for " + code})
+    added = []
+    for src in paths:
+        if not os.path.isfile(src):
+            continue
+        ext = os.path.splitext(src)[1].lower()
+        if ext not in (".pdf", ".png", ".jpg", ".jpeg"):
+            continue
+        ex, yr, sl = paper_fields(src)
+        ex, yr, sl = exam or ex, year or yr, (slot or sl).upper()
+        name = safe_name("%s %s%s" % (ex if ex != "Paper" else "Paper", yr or "year unknown", (" Slot " + sl) if sl else "")) + ext
+        dest = unique_path(os.path.join(c["folder"], "Exams & Question Papers", "Added", name))
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        shutil.copy2(src, dest)
+        added.append(dest)
+    out({"ok": bool(added), "added": added, "error": "" if added else "No PDF or image to add"})
+
+
+def cmd_add_card(code, q, a):
+    """a flashcard of your own, into the course's Revision & Cheat Sheets/flashcards.json."""
+    c = course_of(code)
+    if not c or not c["folder"]:
+        return out({"ok": False, "error": "No folder for " + code})
+    q, a = q.strip(), a.strip()
+    if not q or not a:
+        return out({"ok": False, "error": "A card needs a question and an answer"})
+    d = os.path.join(c["folder"], existing_sub(c["folder"], "Revision & Cheat Sheets"))
+    fj = os.path.join(d, "flashcards.json")
+    cards = read_json(fj, []) or []
+    cards.append({"q": q, "a": a, "added": now_ms()})
+    os.makedirs(d, exist_ok=True)
+    with open(fj + ".tmp", "w") as f:
+        json.dump(cards, f, ensure_ascii=False, indent=1)
+    os.replace(fj + ".tmp", fj)
+    out({"ok": True, "total": len(cards)})
+
+
+def cmd_pick(title, folders=False):
+    """a file (or folder) picker; prints the chosen paths."""
+    if shutil.which("kdialog"):
+        cmd = ["kdialog", "--title", title] + (["--getexistingdirectory", HOME] if folders else ["--multiple", "--separate-output", "--getopenfilename", HOME + "/Downloads", "*.pdf *.png *.jpg *.jpeg *.md *.pptx *.docx|Documents and images"])
+    else:
+        cmd = ["zenity", "--file-selection", "--title=" + title] + (["--directory"] if folders else ["--multiple", "--separator=\n"])
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    except (OSError, subprocess.TimeoutExpired):
+        return out({"ok": False, "paths": []})
+    out({"ok": r.returncode == 0, "paths": [p for p in r.stdout.splitlines() if p.strip()]})
 
 
 def cmd_done(pid, undo=False):
@@ -816,7 +906,7 @@ def cmd_search(q):
             res.append({"path": path, "name": os.path.basename(path), "course": course_for_path(path), "kind": "text",
                         "snippet": snip, "hits": sum(low.count(t) for t in terms)})
     res.sort(key=lambda r: (r["kind"] != "name", -r.get("hits", 0)))
-    out({"ok": True, "results": res[:40], "indexed": len(idx)})
+    out({"ok": True, "results": res[:150], "indexed": len(idx)})      # (the app filters further)
 
 
 # ── filing ──────────────────────────────────────────────────────────────────
@@ -1202,6 +1292,18 @@ def main():
             cmd_done(rest[0], undo)
         elif cmd == "lectures" and rest[:1] == ["sync"]:
             cmd_lectures_sync()
+        elif cmd == "addpaper" and len(rest) >= 2:
+            # study.py addpaper <code> <file>… [--exam E] [--year Y] [--slot S]
+            opts = {}
+            for k in ("--exam", "--year", "--slot"):
+                if k in rest:
+                    i = rest.index(k); opts[k[2:]] = rest[i + 1] if i + 1 < len(rest) else ""; del rest[i:i + 2]
+            cmd_add_paper(rest[1:], rest[0], opts.get("exam", ""), opts.get("year", ""), opts.get("slot", ""))
+        elif cmd == "addcard" and len(rest) == 3:
+            cmd_add_card(rest[0], rest[1], rest[2])
+        elif cmd == "pick":
+            folders = flag("--folder")
+            cmd_pick(" ".join(rest) or "Choose files", folders)
         elif cmd == "missed":
             cmd_missed()
         elif cmd == "attendance":

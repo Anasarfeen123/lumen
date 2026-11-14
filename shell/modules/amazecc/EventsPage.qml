@@ -11,6 +11,8 @@ AppPage {
     property var events: Study.events
     property var buses: []
     property string kind: ""
+    property string query: ""
+    property string when: ""                 // "" | week | month | free
     title: "Events & buses"
     subtitle: events.length + " upcoming events"
     Component.onCompleted: {
@@ -28,9 +30,21 @@ AppPage {
                 CollegeButton { text: "All"; selected: page.kind === ""; onActivated: page.kind = "" }
                 Repeater { model: page.kinds; CollegeButton { required property string modelData; text: modelData; selected: page.kind === modelData; onActivated: page.kind = modelData } }
             }
+            Row {
+                spacing: Theme.space.s2
+                LField { width: 300; icon: "search"; placeholder: "Search events: AI, workshop, auditorium…"; clearOnAccept: false; input.onTextEdited: page.query = text }
+                Repeater {
+                    model: [{ id: "", t: "Any time" }, { id: "week", t: "This week" }, { id: "month", t: "This month" }, { id: "free", t: "Free" }]
+                    CollegeButton { required property var modelData; anchors.verticalCenter: parent.verticalCenter; text: modelData.t; selected: page.when === modelData.id; onActivated: page.when = modelData.id }
+                }
+            }
             LText { visible: page.events.length === 0; color: Theme.textMuted; text: "No upcoming events (or the API couldn't be reached)." }
             Repeater {
-                model: page.events.filter(e => !page.kind || e.type === page.kind).slice(0, 30)
+                model: page.events.filter(e => {
+                    const days = (new Date(e.date + "T12:00") - Date.now()) / 86400000, q = page.query.trim().toLowerCase();
+                    return (!page.kind || e.type === page.kind) && (!q || (e.title + " " + e.where + " " + e.type).toLowerCase().includes(q))
+                        && (page.when === "" || (page.when === "week" && days <= 7) || (page.when === "month" && days <= 31) || (page.when === "free" && (!e.price || /^(0|free)$/i.test(e.price))));
+                }).slice(0, 40)
                 Row {
                     required property var modelData
                     width: parent.width; spacing: Theme.space.s3
@@ -43,7 +57,7 @@ AppPage {
                         width: parent.width - 58 - Theme.space.s3
                         LText { width: parent.width; wrapMode: Text.Wrap; role: "bodyStrong"; text: modelData.title }
                         LText { width: parent.width; elide: Text.ElideRight; role: "caption"; color: Theme.textMuted
-                                text: [modelData.where, modelData.type, modelData.price && modelData.price !== "0" ? "₹" + modelData.price : "free"].filter(x => x).join(" · ") }
+                                text: [modelData.where, modelData.type, !modelData.price || /^(0|free)$/i.test(modelData.price) ? "free" : "₹" + modelData.price].filter(x => x).join(" · ") }
                     }
                 }
             }
