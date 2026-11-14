@@ -68,10 +68,10 @@ Page {
         SetRow {
             icon: "queue_music"
             title: "Music app"
-            description: "Opens in the music scratchpad (Super+Shift+M). YouTube Music runs as a web app in your browser, signed in."
+            description: "Opens in the music scratchpad (Super+Shift+M). ytm-rs is the native YouTube Music app; YouTube Music (web) runs in your browser, signed in."
             Segmented {
-                width: 330
-                options: [{ id: "auto", label: "Auto" }, { id: "ytmusic", label: "YouTube Music" }, { id: "spotify", label: "Spotify" }]
+                width: 420
+                options: [{ id: "auto", label: "Auto" }, { id: "ytmrs", label: "ytm-rs" }, { id: "ytmusic", label: "YT Music (web)" }, { id: "spotify", label: "Spotify" }]
                 current: Persist.data.musicApp ?? "auto"
                 onPicked: id => Persist.data.musicApp = id
             }

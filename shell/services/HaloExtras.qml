@@ -334,6 +334,8 @@ Singleton {
     }
 
     // ── music ──
+    property bool hasYtmRs: false
+    Process { running: true; command: ["sh", "-c", 'command -v ytm-rs || test -x "$HOME/.local/lib/ytm-rs/ytm-rs"']; onExited: code => root.hasYtmRs = code === 0 }
     readonly property var moods: ({ studying: "lofi study beats", study: "lofi study beats", focus: "deep focus instrumental", focusing: "deep focus instrumental",
         coding: "synthwave coding music", code: "synthwave coding music", chill: "chill vibes", relaxing: "relaxing music", relax: "relaxing music",
         sleep: "sleep ambient music", sleeping: "sleep ambient music", workout: "workout hits", gym: "gym workout music", running: "running music",
@@ -341,6 +343,12 @@ Singleton {
     function dj(mood) {
         const q = moods[mood] ?? (mood + " music");
         const app = Persist.data.musicApp ?? "auto";
+        if (app === "ytmrs" || (app === "auto" && root.hasYtmRs)) {
+            // ytm-rs takes no search from outside: open it in the music scratchpad, the search goes on the clipboard
+            Quickshell.execDetached(["sh", "-c", 'printf %s "$1" | wl-copy; hyprctl dispatch "hl.dsp.workspace.toggle_special([[music]])"', "sh", q]);
+            say("queue_music", "Something for " + mood, "Search ytm-rs for “" + q + "” — it's on your clipboard, paste it with Ctrl+V.", { tone: "happy", duration: 7000, speak: false });
+            return;
+        }
         Qt.openUrlExternally(app === "spotify" ? "spotify:search:" + encodeURIComponent(q) : "https://music.youtube.com/search?q=" + encodeURIComponent(q));
         say("queue_music", "Something for " + mood, "“" + q + "” on " + (app === "spotify" ? "Spotify" : "YouTube Music") + " — pick one and press play.", { tone: "happy", duration: 6000, speak: false });
     }
