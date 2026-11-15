@@ -6,8 +6,11 @@ pragma Singleton
 //   email       IMAP with an app password → "any new emails?", "emails from
 //               Arya", a quiet card when something new arrives, the count in
 //               "while you were away". Headers only, nothing marked read.
-//               "email arya@… about the lab report" opens Gmail's compose page
-//               filled in — you press Send (scripts/halo-mail.py)
+//               "email arya@… about the lab report" opens a draft filled in — you
+//               press Send (scripts/halo-mail.py)
+//   your email app  Settings → Default apps → Email (Persist.mailApp): Aerion
+//               (io.github.hkdb.Aerion, Flathub) when installed, else Gmail in the
+//               browser. "Open inbox" and drafts go there.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -67,7 +70,7 @@ Singleton {
                 if (fresh.length && root.active)
                     Halo.say({ key: "mail", icon: "mail", title: fresh.length === 1 ? "Email from " + fresh[0].from : fresh.length + " new emails",
                                text: fresh.slice(0, 4).map(m => (fresh.length > 1 ? m.from + ": " : "") + m.subject).join("\n"), level: "chatter", duration: 9000,
-                               actions: [{ label: "Open Gmail", icon: "open_in_new", run: () => root.openInbox() }] });
+                               actions: [{ label: "Open " + root.mailAppName, icon: "open_in_new", run: () => root.openInbox() }] });
             }
         }
     }
@@ -88,9 +91,20 @@ Singleton {
         stdout: StdioCollector { onStreamFinished: { let r = {}; try { r = JSON.parse(text); } catch (e) {} const f = mailSet.cb; mailSet.cb = null; root.refreshMail(); if (f) f(r); } }
     }
     function removeMail() { job([scripts + "/halo-mail.py", "remove"], () => { unread = []; refreshMail(); }); }
-    function openInbox() { Qt.openUrlExternally(/gmail/.test(mail.host) ? "https://mail.google.com/mail/u/0/#inbox" : "mailto:"); }
+    // ── the email app ──
+    property bool aerionInstalled: false
+    Process { running: true; command: ["sh", "-c", "flatpak info io.github.hkdb.Aerion >/dev/null 2>&1 && echo yes"]
+              stdout: StdioCollector { onStreamFinished: root.aerionInstalled = text.trim() === "yes" } }
+    readonly property string mailApp: { const p = Persist.data.mailApp ?? "auto"; return p === "auto" ? (aerionInstalled ? "aerion" : "web") : p; }
+    readonly property string mailAppName: mailApp === "aerion" ? "Aerion" : /gmail/.test(mail.host) || !mail.configured ? "Gmail" : "your email"
+    function aerion(arg) { Quickshell.execDetached(["flatpak", "run", "io.github.hkdb.Aerion"].concat(arg ? [arg] : [])); }
+    function openInbox() {
+        if (mailApp === "aerion") { aerion(""); return; }
+        Qt.openUrlExternally(/gmail/.test(mail.host) ? "https://mail.google.com/mail/u/0/#inbox" : "mailto:");
+    }
     // a draft in your mail, to send yourself
     function compose(to, subject, body) {
+        if (mailApp === "aerion") { aerion("mailto:" + encodeURIComponent(to) + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body)); return; }
         if (/gmail/.test(mail.host) || !mail.configured)
             Qt.openUrlExternally("https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(to) + "&su=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body));
         else Qt.openUrlExternally("mailto:" + encodeURIComponent(to) + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body));
@@ -107,7 +121,7 @@ Singleton {
             if (!mail.configured) return { glyph: "mail", title: "Email isn't set up", own: () => Halo.say({ key: "mail", icon: "mail", title: "Email isn't set up", text: "Add your inbox in Settings → Halo → Calendar & email (read-only, with an app password).", level: "asked", actions: [{ label: "Set it up", icon: "settings", run: () => SettingsState.launch("ai") }] }) };
             return { glyph: "mail", title: "Your inbox", own: () => { checkMail(); Halo.say({ key: "mail", icon: "mail", title: unread.length ? unread.length + " unread" : "No unread email",
                 text: unread.slice(0, 6).map(m => m.from + ": " + m.subject).join("\n"), level: "asked", duration: 14000,
-                actions: [{ label: "Open Gmail", icon: "open_in_new", run: () => root.openInbox() }].concat(unread.length > 2 && Ai.configured ? [{ label: "Summarise", icon: "auto_awesome", run: () => root.summariseMail() }] : []) }); } };
+                actions: [{ label: "Open " + root.mailAppName, icon: "open_in_new", run: () => root.openInbox() }].concat(unread.length > 2 && Ai.configured ? [{ label: "Summarise", icon: "auto_awesome", run: () => root.summariseMail() }] : []) }); } };
         }
         if ((m = /^(?:any )?(?:e-?mails?|mail) from (.+)$/.exec(l)) && mail.configured) {
             const who = m[1].trim();

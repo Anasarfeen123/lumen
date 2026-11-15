@@ -57,6 +57,34 @@ Page {
         }
     }
     Group {
+        title: "Email"
+        SetRow {
+            icon: "mail"
+            title: "Email app"
+            description: "Where \"open inbox\" and Halo's drafts (\"email Arya about…\") go. "
+                       + (Accounts.aerionInstalled ? "Aerion is installed." : "Aerion isn't installed — flatpak install flathub io.github.hkdb.Aerion")
+            Segmented {
+                width: 300
+                options: [{ id: "auto", label: "Automatic" }].concat(Accounts.aerionInstalled ? [{ id: "aerion", label: "Aerion" }] : []).concat([{ id: "web", label: "Gmail (web)" }])
+                current: Persist.data.mailApp ?? "auto"
+                onPicked: id => Persist.data.mailApp = id
+            }
+        }
+        SetRow {
+            visible: Accounts.aerionInstalled
+            icon: "alternate_email"
+            title: "Email links"
+            description: page.mailto === "io.github.hkdb.Aerion.desktop" ? "Aerion opens mailto: links everywhere"
+                       : "mailto: links open in " + (page.mailto ? page.mailto.replace(/\.desktop$/, "") : "nothing yet") + " — a choice your whole desktop shares, KDE too"
+            Button { visible: page.mailto !== "io.github.hkdb.Aerion.desktop"; text: "Use Aerion"
+                     onActivated: { setMailto.running = true; } }
+        }
+    }
+    property string mailto: ""
+    Process { id: getMailto; running: true; command: ["xdg-mime", "query", "default", "x-scheme-handler/mailto"]
+              stdout: StdioCollector { onStreamFinished: page.mailto = text.trim() } }
+    Process { id: setMailto; command: ["xdg-mime", "default", "io.github.hkdb.Aerion.desktop", "x-scheme-handler/mailto"]; onExited: getMailto.running = true }
+    Group {
         title: "Files and links"
         SetRow {
             icon: "link"
