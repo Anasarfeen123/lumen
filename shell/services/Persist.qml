@@ -102,6 +102,7 @@ Singleton {
             property bool musicPip: true          // hiding the music scratchpad while music plays opens the music PiP
             property string musicPipCorner: "br"
             property string mailApp: "auto"       // email: "auto" | "aerion" | "web" (services/Accounts.qml)
+            property bool findMy: false           // Find my laptop listens for your phone (services/FindMy.qml)
             property bool batteryAware: true      // unplugged: services/LowPower.qml's battery step
             property int batteryDim: 15           // …dims the screen this many percent (0: no)
             property bool batteryCalm: true       // …calmer animations
