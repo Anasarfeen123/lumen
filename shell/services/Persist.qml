@@ -101,6 +101,11 @@ Singleton {
             property bool studyMusic: true        // a study session resumes your music; its end pauses it
             property bool musicPip: true          // hiding the music scratchpad while music plays opens the music PiP
             property string musicPipCorner: "br"
+            property bool batteryAware: true      // unplugged: services/LowPower.qml's battery step
+            property int batteryDim: 15           // …dims the screen this many percent (0: no)
+            property bool batteryCalm: true       // …calmer animations
+            property bool batteryDefer: true      // …heavy background jobs wait for the charger
+            property bool batteryVisualizer: true // …the music visualiser rests
             property var wallpaperSlots: ({ dawn: "", day: "", dusk: "", night: "" })
             // Lock screen widgets (Lumen Settings → Lock screen)
             property bool lockMedia: true

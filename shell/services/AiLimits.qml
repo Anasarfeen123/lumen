@@ -39,7 +39,7 @@ Singleton {
         command: [Theme.lumenRoot + "/scripts/ai-limits.py"]
         stdout: StdioCollector { onStreamFinished: { try { root.data = JSON.parse(text); } catch (e) {} if (root.showing) { root.showing = false; root.card(); } } }
     }
-    Timer { interval: 5 * 60000; repeat: true; triggeredOnStart: true; running: root.on; onTriggered: root.refresh() }
+    Timer { interval: LowPower.defer ? 20 * 60000 : 5 * 60000; repeat: true; triggeredOnStart: true; running: root.on; onTriggered: root.refresh() }
 
     // once a reminder has been said, never again (kept across reloads)
     function said(key) {

@@ -119,7 +119,11 @@ Singleton {
         onTriggered: root.daily()
     }
     Timer { interval: 10 * 60000; running: root.automates; onTriggered: root.daily() }
+    // on battery the heavy part (downloads, OCR, VTOP) waits for the charger
+    property bool dailyWaiting: false
+    Connections { target: LowPower; function onDeferChanged() { if (!LowPower.defer && root.dailyWaiting) { root.dailyWaiting = false; root.daily(); } } }
     function daily() {
+        if (LowPower.defer) { dailyWaiting = true; backupCheck(); return; }
         const now = Date.now();
         if (now - (overview.pyqFetchedAt ?? 0) > 20 * 3600000) syncPapers(false);
         if (now - (overview.lecturesAt ?? 0) > 3 * 86400000) syncLectures();

@@ -156,7 +156,8 @@ Singleton {
     readonly property int edgeGap: space.s2      // shell surfaces ↔ screen edge
 
     // ── Motion (DESIGN.md §7) ──
-    readonly property bool reducedMotion: _motion.reduced ?? false
+    property bool calm: false                   // on battery (services/LowPower.qml): motion as if reduced
+    readonly property bool reducedMotion: (_motion.reduced ?? false) || calm
     readonly property QtObject motion: QtObject {
         readonly property real _pace: root.evening ? 1.15 : 1
         readonly property int micro: root.reducedMotion ? 0 : Math.round((root._motion.micro ?? 120) * _pace)

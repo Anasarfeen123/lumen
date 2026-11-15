@@ -40,6 +40,45 @@ Page {
                        : Battery.forecastText ? "About " + Battery.forecastText + " left at this rate" : "On battery"
         }
         SetRow {
+            icon: "battery_change"
+            title: "On battery"
+            description: "When you unplug, Lumen goes easy on the battery; it all comes back when you plug in. (At 20 % it also lightens blur.)"
+            LSwitch { checked: Persist.data.batteryAware ?? true; onToggled: Persist.data.batteryAware = !checked }
+        }
+        SetRow {
+            visible: Persist.data.batteryAware ?? true
+            icon: "brightness_low"
+            title: "Dim the screen"
+            description: (Persist.data.batteryDim ?? 15) > 0 ? "By " + (Persist.data.batteryDim ?? 15) + " % — your brightness comes back on the charger, unless you change it meanwhile" : "Off"
+            Segmented {
+                width: 260
+                options: [{ id: "0", label: "Off" }, { id: "10", label: "10 %" }, { id: "15", label: "15 %" }, { id: "25", label: "25 %" }]
+                current: String(Persist.data.batteryDim ?? 15)
+                onPicked: id => Persist.data.batteryDim = parseInt(id)
+            }
+        }
+        SetRow {
+            visible: Persist.data.batteryAware ?? true
+            icon: "animation"
+            title: "Calmer animations"
+            description: "Short, simple motion — less work for the GPU"
+            LSwitch { checked: Persist.data.batteryCalm ?? true; onToggled: Persist.data.batteryCalm = !checked }
+        }
+        SetRow {
+            visible: Persist.data.batteryAware ?? true
+            icon: "schedule"
+            title: "Background jobs wait"
+            description: "Past papers, the notes index and VTOP syncs run when you're plugged in again; AI limits check less often"
+            LSwitch { checked: Persist.data.batteryDefer ?? true; onToggled: Persist.data.batteryDefer = !checked }
+        }
+        SetRow {
+            visible: Persist.data.batteryAware ?? true
+            icon: "graphic_eq"
+            title: "Rest the music visualiser"
+            description: "It runs cava all the time it's on screen"
+            LSwitch { checked: Persist.data.batteryVisualizer ?? true; onToggled: Persist.data.batteryVisualizer = !checked }
+        }
+        SetRow {
             icon: "insights"
             title: "Usual battery life"
             description: Battery.usualText ? "A full charge usually lasts about " + Battery.usualText + ", from your last 7 days. Lumen warns when you should plug in (45 and 15 minutes left)."
