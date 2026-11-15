@@ -12,10 +12,24 @@ Singleton {
     id: root
     signal toggleRequested(string monitor)
     signal menuRequested(int index)
+    // The apps in the tray, once each. An app that restarts (ytm-rs after an
+    // update) can leave its old entry behind in the shell's list after its
+    // registration is gone, so the same icon showed up three times: the
+    // newest entry per app wins.
+    readonly property var items: {
+        const all = SystemTray.items.values, seen = new Set(), out = [];
+        for (let i = all.length - 1; i >= 0; i--) {
+            const it = all[i], key = (it.id || it.title || it.tooltipTitle || "") + "";
+            if (key && seen.has(key)) continue;
+            seen.add(key);
+            out.unshift(it);
+        }
+        return out;
+    }
     // Empty monitor → the focused one
     function toggle(monitor) {
         // Say so rather than do nothing
-        if (SystemTray.items.values.length === 0) { Island.system("apps", "Nothing in the background", "No app is using the tray"); return; }
+        if (root.items.length === 0) { Island.system("apps", "Nothing in the background", "No app is using the tray"); return; }
         root.toggleRequested(monitor || (Hyprland.focusedMonitor?.name ?? ""));
     }
     GlobalShortcut { appid: "lumen"; name: "tray"; description: "Apps running in the background"; onPressed: root.toggle("") }
@@ -23,5 +37,7 @@ Singleton {
         target: "tray"
         function toggle(): void { root.toggle(""); }
         function menu(index: int): void { root.menuRequested(index); }      // open app #index's menu in the drawer
+        // what the shell holds, duplicates included: [{ id, title, status }]
+        function list(): string { return JSON.stringify(SystemTray.items.values.map(i => ({ id: i.id, title: i.title || i.tooltipTitle, status: i.status }))); }
     }
 }

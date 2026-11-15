@@ -19,7 +19,7 @@ HoverTarget {
     id: root
     required property var window
 
-    readonly property var items: SystemTray.items.values
+    readonly property var items: TrayState.items
     readonly property bool attention: items.some(i => i.status === Status.NeedsAttention)
     visible: items.length > 0
     width: visible ? peek.width + Theme.space.s2 * 2 : 0
@@ -34,7 +34,7 @@ HoverTarget {
     Connections {
         target: TrayState
         function onMenuRequested(index) {
-            const it = SystemTray.items.values[index];
+            const it = TrayState.items[index];
             if (it && it.hasMenu && root.window.screen === Quickshell.screens[0]) drawer.menuFor(it);
         }
         function onToggleRequested(monitor) {
@@ -118,7 +118,7 @@ HoverTarget {
                 }
 
                 Repeater {
-                    model: SystemTray.items
+                    model: TrayState.items
                     delegate: HoverTarget {
                         id: row
                         required property SystemTrayItem modelData
