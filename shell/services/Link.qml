@@ -246,6 +246,20 @@ Singleton {
     // become the default route is used (link.sh pan up refuses otherwise).
     property var pan: null                   // link.sh pan status
     readonly property bool panAuto: Persist.data.linkBluetoothAuto ?? true
+    // One Bluetooth radio can't stream to headphones and carry a network link
+    // well: the headphones' audio link drops (seen as "Failure in Bluetooth audio
+    // transport" a few seconds after the network starts moving data). So while
+    // Bluetooth headphones are connected, Lumen doesn't link over Bluetooth by
+    // itself, and takes its own link down when headphones connect. "Connect now"
+    // still works; Settings → Phone can allow both.
+    readonly property bool btAudio: Bluetooth.connectedDevices.some(d => /^audio-|headset|headphone/.test(d.icon ?? ""))
+    readonly property bool panYield: btAudio && !(Persist.data.linkBluetoothWithAudio ?? false)
+    onPanYieldChanged: {
+        if (!panYield || !pan?.active || !Persist.automates || mock) return;
+        Quickshell.execDetached(["sh", "-c", '"$0" pan down', script]);
+        panSafeCheck.restart();
+        Island.system("headphones", "Phone link paused for your headphones", "Bluetooth can't carry both well. It comes back when they disconnect.");
+    }
     property int panFails: 0
     property bool panHinted: false
     property bool panTetherOff: false        // the phone said tethering is off: stop retrying until it comes back or you ask
@@ -296,7 +310,7 @@ Singleton {
         interval: root.panFails >= 3 ? 300000 : 60000
         repeat: true
         triggeredOnStart: true
-        running: Persist.automates && root.panAuto && root.available && !root.connected && !!root.pan?.profile && root.pan.safe && !root.panTetherOff && !root.mock
+        running: Persist.automates && root.panAuto && root.available && !root.connected && !!root.pan?.profile && root.pan.safe && !root.panTetherOff && !root.panYield && !root.mock
         onTriggered: root.panUp(false)
     }
     // The phone's Bluetooth just connected (it came into range): link now.
@@ -315,7 +329,7 @@ Singleton {
             const was = root.panPhoneOn;
             root.panPhoneOn = on;
             if (!on) { if (was) root.panPhoneLeft = Date.now(); return; }
-            if (was || !Persist.automates || !root.panAuto || root.connected) return;
+            if (was || !Persist.automates || !root.panAuto || root.connected || root.panYield) return;
             if (Date.now() - root.panPhoneLeft > 120000) { root.panFails = 0; root.panTetherOff = false; }
             else if (root.panFails >= 3 || root.panTetherOff) return;
             root.panUp(false);

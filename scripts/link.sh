@@ -18,6 +18,8 @@
 #   link.sh pan up                          bring it up (Bluetooth connect first); refuses unless it can never
 #                                           become the default route, so the internet stays on Wi-Fi
 #   link.sh pan safe                        set ipv4/ipv6.never-default on that profile (asks NetworkManager)
+#   link.sh pan down                        take it down (Bluetooth headphones need the radio)
+#   link.sh pan nudge                       tell the phone, over that link, that this laptop is there
 #   link.sh from-phone                      exit 0 if KDE Connect received data in the last 2.5 s
 #                                           (tells a clipboard change that came from the phone apart)
 # Everything goes through kdeconnect-cli / the daemon's D-Bus; no network
@@ -47,6 +49,26 @@ tether_iface() {
 # panu): a private link to the phone on networks that keep devices apart,
 # while the internet stays on Wi-Fi (the profile must never be the default route).
 pan_profile() { nmcli -t -f UUID,TYPE connection show 2>/dev/null | awk -F: '$2 == "bluetooth" { print $1; exit }'; }
+# KDE Connect only announces itself by broadcast, which leaves through the Wi-Fi
+# (the default route), so over the Bluetooth link the phone never hears it.
+# Send our hello to the phone's address on that link instead; the phone then
+# connects back to kdeconnectd (the hello names kdeconnectd's own id and port).
+# The address is the tether's DHCP server, and changes every time.
+pan_nudge() {
+    mac=$(pan_status | jq -r '.bdaddr // empty'); [ -n "$mac" ] || return 1
+    ip=$(nmcli -g DHCP4.OPTION device show "$mac" 2>/dev/null | tr '|' '\n' | sed -n 's/^ *dhcp_server_identifier = \([^ ]*\).*/\1/p' | head -1)
+    valid_ip "$ip" || return 1
+    id=$(kdeconnect-cli --my-id 2>/dev/null); [ -n "$id" ] || return 1
+    python3 -I - "$ip" "$id" "$(hostname -s 2>/dev/null || hostname)" <<'PY'
+import json, socket, sys, time
+ip, dev, name = sys.argv[1:4]
+pkt = {"id": int(time.time() * 1000), "type": "kdeconnect.identity",
+       "body": {"deviceId": dev, "deviceName": name, "deviceType": "laptop", "protocolVersion": 8,
+                "incomingCapabilities": [], "outgoingCapabilities": [], "tcpPort": 1716}}
+socket.socket(socket.AF_INET, socket.SOCK_DGRAM).sendto((json.dumps(pkt) + "\n").encode(), (ip, 1716))
+PY
+    echo "$ip"
+}
 pan_status() {
     uuid=$(pan_profile)
     [ -n "$uuid" ] || { echo '{"profile":""}'; return 0; }
@@ -214,13 +236,13 @@ pan)
         uuid=$(printf '%s' "$st" | jq -r .profile)
         [ -n "$uuid" ] || { echo '{"ok":false,"reason":"no-profile"}'; exit 1; }
         [ "$(printf '%s' "$st" | jq -r .safe)" = true ] || { echo '{"ok":false,"reason":"unsafe"}'; exit 1; }
-        [ "$(printf '%s' "$st" | jq -r .active)" = true ] && { kdeconnect-cli --refresh >/dev/null 2>&1; echo '{"ok":true,"reason":"already"}'; exit 0; }
+        [ "$(printf '%s' "$st" | jq -r .active)" = true ] && { pan_nudge >/dev/null 2>&1; echo '{"ok":true,"reason":"already"}'; exit 0; }
         mac=$(printf '%s' "$st" | jq -r .bdaddr)
         if ! bluetoothctl info "$mac" 2>/dev/null | grep -q "Connected: yes"; then
             timeout 12 bluetoothctl connect "$mac" >/dev/null 2>&1 || { echo '{"ok":false,"reason":"away"}'; exit 1; }
         fi
         if out=$(timeout 25 nmcli connection up "$uuid" 2>&1); then
-            kdeconnect-cli --refresh >/dev/null 2>&1
+            sleep 2; pan_nudge >/dev/null 2>&1 || { sleep 3; pan_nudge >/dev/null 2>&1; }
             echo '{"ok":true,"reason":"up"}'
         else
             # Usually: the phone's Bluetooth tethering is off
@@ -228,7 +250,11 @@ pan)
                 && echo '{"ok":false,"reason":"tethering"}' || echo '{"ok":false,"reason":"failed"}'
             exit 1
         fi ;;
-    *) echo "usage: link.sh pan status|up|safe" >&2; exit 2 ;;
+    down)
+        uuid=$(pan_profile); [ -n "$uuid" ] || exit 1
+        nmcli connection down "$uuid" >/dev/null 2>&1; echo ok ;;
+    nudge) pan_nudge || { echo "no Bluetooth link to the phone" >&2; exit 1; } ;;
+    *) echo "usage: link.sh pan status|up|down|safe|nudge" >&2; exit 2 ;;
     esac ;;
 refresh)
     exec kdeconnect-cli --refresh ;;

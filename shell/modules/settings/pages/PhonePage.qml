@@ -109,7 +109,7 @@ Page {
     }
 
     // ── Point the phone's camera: the app, then this computer's address ──
-    // KDE Connect itself has no QR pairing; these save typing (scripts/qr.py)
+    // KDE Connect itself has no QR pairing; these save typing (scripts/qr-make.py; scripts/qr.py reads them)
     property string myAddress: ""
     property int qrStamp: 0
     readonly property string qrDir: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp")
@@ -119,7 +119,7 @@ Page {
             'ip=$(ip -4 -o addr show scope global 2>/dev/null | awk \'$2 !~ /^(lo|docker|br-|veth|virbr|tun|wg|CloudflareWARP)/ {sub(/\\/.*/, "", $4); print $4; exit}\'); '
             + '"$1" "https://kdeconnect.kde.org/download.html" "$2/lumen-link-app.png" >/dev/null; '
             + '[ -n "$ip" ] && "$1" "$ip" "$2/lumen-link-address.png" >/dev/null; printf "%s" "$ip"',
-            "sh", Theme.lumenRoot + "/scripts/qr.py", page.qrDir]
+            "sh", Theme.lumenRoot + "/scripts/qr-make.py", page.qrDir]
         stdout: StdioCollector { onStreamFinished: { page.myAddress = text.trim(); page.qrStamp++; } }
     }
     component QrTile: Column {
@@ -204,6 +204,15 @@ Page {
                 Button { visible: !!Link.pan?.profile && Link.pan.safe && !Link.pan.active; text: Link.panBusy ? "Connecting…" : "Connect now"; onActivated: { Link.panFails = 0; Link.panUp(true); } }
                 LSwitch { visible: !!Link.pan?.profile && Link.pan.safe; checked: Link.panAuto; onToggled: Persist.data.linkBluetoothAuto = !checked }
             }
+        }
+        SetRow {
+            visible: !!Link.pan?.profile && Link.pan.safe && Link.panAuto
+            icon: "headphones"
+            title: "Also while Bluetooth headphones are on"
+            description: (Persist.data.linkBluetoothWithAudio ?? false)
+                ? "On — the phone links over Bluetooth even while you listen. If your headphones cut out, turn this off."
+                : "Off — while Bluetooth headphones are connected, Lumen waits (one radio can't do both well; the audio drops)." + (Link.panYield ? " Waiting now." : "")
+            LSwitch { checked: Persist.data.linkBluetoothWithAudio ?? false; onToggled: Persist.data.linkBluetoothWithAudio = !checked }
         }
         SetRow {
             icon: "bluetooth"
