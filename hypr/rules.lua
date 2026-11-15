@@ -63,6 +63,8 @@ rule({ fullscreen = true }, { opaque = true })
 rule({ class = "^(Spotify|spotify|com\\.spotify\\.Client)$" }, { workspace = "special:music silent" })
 -- YouTube Music as a browser web app (Brave / Chrome / Chromium --app window)
 rule({ class = "^(brave|brave-origin|chrome|chromium|google-chrome)-music\\.youtube\\.com.*$" }, { workspace = "special:music silent" })
+-- WhatsApp lives in its scratchpad (Super+Shift+Z): ZapFast, Whatsie, or WhatsApp Web as a browser app window
+rule({ class = "^(zapfast|me\\.paolino\\.zapfast|.*[Ww]hatsie.*|(brave|brave-origin|chrome|chromium|google-chrome)-web\\.whatsapp\\.com.*)$" }, { workspace = "special:whatsapp silent" })
 -- ytm-rs, the native YouTube Music app (github.com/grapedjuice/ytm-rs)
 rule({ class = "^(ytm-rs|ytm_rs)$" }, { workspace = "special:music silent" })
 rule({ class = "^(steam)$" }, { workspace = "9 silent" })

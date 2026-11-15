@@ -136,7 +136,7 @@ Singleton {
         if (!c) return;
         dismiss(key);
         const live = Notifications.live[c.nid];
-        if (live && live.actions.some(a => a.identifier === "default")) { Notifications.activate(c.nid); return; }
+        if (live && live.actions.some(a => a.identifier === "default")) { Notifications.activate(c.nid); provider(c.provider)?.reveal?.(); return; }
         provider(c.provider)?.openChat(c.title, "");
     }
     function focusApp(providerId) { provider(providerId ?? "whatsapp")?.focusClient(); }

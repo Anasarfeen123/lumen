@@ -80,12 +80,25 @@ Singleton {
     readonly property bool running: window !== null
 
     function focusClient() {
-        if (window) { Hypr.focusWindow(window.lastIpcObject?.address ?? "0x" + window.address); return true; }
+        if (window) { reveal(); Hypr.focusWindow(window.lastIpcObject?.address ?? "0x" + window.address); return true; }
         launch("");
         return false;
     }
+    // The app lives in the WhatsApp scratchpad (Super+Shift+Z, hypr/rules.lua):
+    // opening a chat shows the scratchpad if it's hidden.
+    property bool scratchVisible: false
+    Connections {
+        target: Hyprland
+        function onRawEvent(ev) { if (ev.name === "activespecial") root.scratchVisible = ev.data.split(",")[0] === "special:whatsapp"; }
+    }
+    function reveal() {
+        const ws = window?.lastIpcObject?.workspace?.name ?? window?.workspace?.name ?? "";
+        if (ws === "special:whatsapp" && !scratchVisible)
+            Quickshell.execDetached(["hyprctl", "dispatch", "hl.dsp.workspace.toggle_special([[whatsapp]])"]);
+    }
     // Opens WhatsApp, optionally at a deep link (https://web.whatsapp.com/send?…)
     function launch(url) {
+        reveal();
         if (clientKind === "zapfast") {
             // one window: a second launch hands the link to the running one
             const deep = url ? url.replace("https://web.whatsapp.com/send?", "whatsapp://send?") : "";

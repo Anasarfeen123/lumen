@@ -174,6 +174,7 @@ key("F12", hl.dsp.workspace.toggle_special("term"), "Drop-down terminal")
 key("SUPER + grave", hl.dsp.workspace.toggle_special("term"))
 key("SUPER + SHIFT + M", hl.dsp.workspace.toggle_special("music"), "Music scratchpad (opens your music app)")
 key("SUPER + SHIFT + grave", hl.dsp.workspace.toggle_special("music"))
+key("SUPER + SHIFT + Z", hl.dsp.workspace.toggle_special("whatsapp"), "WhatsApp scratchpad (opens your WhatsApp app)")
 
 -- ── Media & hardware keys (work on the lock screen) ──
 -- These only change state; the shell listens to PipeWire / backlight and
