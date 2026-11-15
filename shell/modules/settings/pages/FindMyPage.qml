@@ -12,6 +12,7 @@ Page {
     title: "Find my laptop"
     subtitle: "Ring it, lock it and see where it is from your phone — near or far. Messages go through ntfy.sh, a free public relay, sealed end to end: the relay sees only scrambled text."
     property bool armed: false              // "New keys" asks twice (DESIGN §0)
+    property string sent: ""                // what "Send" did, said here (this app's island isn't on screen)
     Timer { id: disarm; interval: 5000; onTriggered: page.armed = false }
 
     Group {
@@ -30,8 +31,12 @@ Page {
             icon: "phonelink"
             title: "Your phone's remote"
             description: "A web page with this laptop's key inside — open it in your phone's browser (and bookmark it). Anyone with it can ring and lock the laptop: keep it on your phone only."
-                       + (FindMy.info.remote ? " Made before; send it again any time." : "")
-            Button { text: Link.connected ? "Send to my phone" : "Make it"; onActivated: FindMy.sendRemote() }
+                       + (page.sent ? "\n" + page.sent : FindMy.info.remote ? " Made before; send it again any time." : "")
+            Row {
+                spacing: Theme.space.s2
+                Button { text: "Show file"; visible: !!FindMy.info.remote; onActivated: FindMy.showRemote() }
+                Button { primary: true; text: Link.connected ? "Send to my phone" : "Make it"; onActivated: { page.sent = "Working…"; FindMy.sendRemote(t => page.sent = t); } }
+            }
         }
         SetRow {
             visible: FindMy.enabled

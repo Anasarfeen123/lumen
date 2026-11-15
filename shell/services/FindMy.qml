@@ -103,13 +103,19 @@ Singleton {
         run(["setup"], r => { root.info = r; Persist.data.findMy = true; });
     }
     function rotate() { run(["setup", "--rotate"], r => { root.info = r; daemon.running = false; restart.start(); }); }
-    function sendRemote() {
+    // cb(text) lets the Settings app (its own process, whose island isn't on screen) say what happened
+    function sendRemote(cb) {
+        const say = (icon, title, detail) => { if (cb) cb(title + ". " + detail); else Island.system(icon, title, detail); };
         run(["remote"], r => {
-            if (!r.ok) { Island.system("error", "Couldn't make the remote", r.error ?? ""); return; }
+            if (!r.ok) { say("error", "Couldn't make the remote", r.error ?? ""); return; }
             refresh();
-            if (Link.available && Link.connected) { Link.sendFiles([r.path]); Island.system("phonelink", "Remote sent to your phone", "Open it from your phone's downloads, in the browser"); }
-            else Island.system("phonelink_off", "Your phone isn't connected", "Connect it in Lumen Link, or copy " + r.path + " yourself");
+            if (Link.available && Link.connected) { Link.sendFiles([r.path]); say("phonelink", "Sent to your phone", "Open it from the phone's downloads, in its browser"); }
+            else say("phonelink_off", "Made, but your phone isn't nearby", "Open Lumen Link on the phone (same Wi-Fi) and press Send again, or use Show file and move it over yourself");
         });
+    }
+    // the file manager, with the remote selected
+    function showRemote() {
+        Quickshell.execDetached(["sh", "-c", 'f="$1"; gdbus call --session --dest org.freedesktop.FileManager1 --object-path /org/freedesktop/FileManager1 --method org.freedesktop.FileManager1.ShowItems "[\'file://$f\']" "" >/dev/null 2>&1 || dolphin --select "$f" >/dev/null 2>&1 || xdg-open "${f%/*}"', "sh", root.stateDir + "/findmy-remote.html"]);
     }
 
     function run(args, cb) {
