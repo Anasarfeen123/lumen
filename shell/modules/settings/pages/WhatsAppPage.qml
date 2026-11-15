@@ -30,22 +30,29 @@ Page {
         SetRow {
             icon: "forum"
             title: "Work with WhatsApp"
-            description: !WhatsApp.available ? "WhatsApp isn't installed — install Whatsie, or use the web app below"
-                       : WhatsApp.running ? "Connected to " + (WhatsApp.clientKind === "whatsie" ? "Whatsie" : "WhatsApp Web") + " — it's open"
-                       : "Using " + (WhatsApp.clientKind === "whatsie" ? "Whatsie" : "WhatsApp Web") + " · it isn't open right now"
+            description: !WhatsApp.available ? "WhatsApp isn't installed — install ZapFast or Whatsie, or use the web app below"
+                       : WhatsApp.running ? "Connected to " + WhatsApp.clientName + " — it's open"
+                       : "Using " + WhatsApp.clientName + " · it isn't open right now"
             LSwitch { checked: page.cfg.enabled; onToggled: page.cfg.enabled = !checked }
         }
         SetRow {
             visible: page.cfg.enabled
             icon: "apps"
             title: "WhatsApp app"
-            description: "Whatsie is a desktop app for WhatsApp Web; the web app opens WhatsApp Web in your browser as its own window"
+            description: "ZapFast is a native app linked to your phone (unofficial — see zapfast.rocks on account safety); Whatsie wraps WhatsApp Web; the web app opens WhatsApp Web in your browser"
             Segmented {
-                width: 300
-                options: [{ id: "auto", label: "Automatic" }, { id: "whatsie", label: "Whatsie" }, { id: "web", label: "Web app" }]
+                width: 380
+                options: [{ id: "auto", label: "Automatic" }, { id: "zapfast", label: "ZapFast" }, { id: "whatsie", label: "Whatsie" }, { id: "web", label: "Web app" }]
                 current: page.cfg.client
                 onPicked: id => page.cfg.client = id
             }
+        }
+        SetRow {
+            visible: page.cfg.enabled && WhatsApp.clientKind === "zapfast"
+            icon: "palette"
+            title: "ZapFast follows Lumen's colours"
+            description: "Lumen keeps a theme called \"lumen\" in ZapFast's themes folder up to date. Pick it once in ZapFast → Settings → Theme."
+            LSwitch { checked: page.cfg.zapfastTheme ?? true; onToggled: page.cfg.zapfastTheme = !checked }
         }
         SetRow {
             visible: page.cfg.enabled
