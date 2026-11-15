@@ -51,7 +51,7 @@ Page {
             visible: page.cfg.enabled && WhatsApp.clientKind === "zapfast"
             icon: "palette"
             title: "ZapFast follows Lumen's colours"
-            description: "Lumen keeps a theme called \"lumen\" in ZapFast's themes folder up to date. Pick it once in ZapFast → Settings → Theme."
+            description: "Lumen keeps a theme called \"Lumen\" in ZapFast's themes folder up to date. Pick it once in ZapFast → Settings → Theme."
             LSwitch { checked: page.cfg.zapfastTheme ?? true; onToggled: page.cfg.zapfastTheme = !checked }
         }
         SetRow {

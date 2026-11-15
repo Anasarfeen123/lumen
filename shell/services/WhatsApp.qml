@@ -10,7 +10,7 @@ pragma Singleton
 //   • its window (focus it)
 // The app is ZapFast (zapfast.rocks, a native client, linked to your phone as a
 // device), Whatsie, or WhatsApp Web in a browser window. ZapFast takes the same
-// whatsapp://send links and follows Lumen's colours (a "lumen" theme Lumen
+// whatsapp://send links and follows Lumen's colours (a "Lumen" theme Lumen
 // writes into its themes folder).
 // So: Lumen never sends anything itself, can't mark chats read inside
 // WhatsApp, can't answer calls, and can't see messages from before it
@@ -177,8 +177,8 @@ Singleton {
         cfg.focusAllow = all;
     }
 
-    // ── ZapFast's colours: a "lumen" theme in its themes folder, rewritten when
-    // Lumen's colours change (pick "lumen" once in ZapFast → Settings → Theme).
+    // ── ZapFast's colours: a "Lumen" theme in its themes folder, rewritten when
+    // Lumen's colours change (pick "Lumen" once in ZapFast → Settings → Theme).
     // Only once ZapFast has made its config folder; the main shell only. ──
     readonly property string zapThemes: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/zapfast/themes"
     function hex(c) { const h = v => ("0" + Math.round(v * 255).toString(16)).slice(-2); return "#" + h(c.r) + h(c.g) + h(c.b); }
@@ -196,7 +196,7 @@ Singleton {
     Timer { id: zapSoon; interval: 1500; running: Persist.automates; onTriggered: root.writeZapTheme() }
     function writeZapTheme() {
         if (!Persist.automates || !cfg.zapfastTheme || !zapfastInstalled) return;
-        zapWriter.command = ["sh", "-c", 'd="$1"; [ -d "${d%/themes}" ] || exit 0; mkdir -p "$d"; f="$d/lumen.json"; ' +
+        zapWriter.command = ["sh", "-c", 'd="$1"; [ -d "${d%/themes}" ] || exit 0; mkdir -p "$d"; f="$d/Lumen.json"; ' +
                              'printf "%s" "$2" | cmp -s - "$f" 2>/dev/null && exit 0; printf "%s" "$2" > "$f.tmp" && mv -f "$f.tmp" "$f"', "sh", zapThemes, zapTheme];
         zapWriter.running = true;
     }
