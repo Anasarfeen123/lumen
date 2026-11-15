@@ -185,6 +185,9 @@ Singleton {
              .replace(/^(?:(?:please|so|um+|uh+)[ ,]+)*(?:(?:can|could|would|will) you[ ,]+)?(?:please[ ,]+)?(?:tell me[ ,]+(?=(?:the|what|when|how|which|who)\b))?/i, "")
              .replace(/[ ,]+please$/i, "").replace(/[.!?]+$/, "").trim() || q;
         const lower = q.toLowerCase();
+        // WhatsApp (services/Inbox.qml): "any messages?", "what did Arya say", "message Arya: …"
+        const wa = Inbox.haloIntent(q);
+        if (wa) return wa;
         // Your courses (services/Study.qml): only when a course is named
         const study = HaloExtras.studyIntent(q);
         if (study) return study;

@@ -3,8 +3,10 @@
 //   listening → "Listening…" (the ring follows your voice; click to stop)
 //   thinking  → what you said
 //   writing   → the answer as it arrives, then the answer with Open in Halo
-//   info: { key, icon, title, text, tone, actions: [{ label, icon, run }], live? }
+//   info: { key, icon, image?, title, text, tone, actions: [{ label, icon, run }], live? }
+//   image: a picture (a chat's profile photo) shown round beside the title
 import QtQuick
+import Quickshell.Widgets
 import qs.theme
 import qs.components
 import qs.services
@@ -115,10 +117,18 @@ Item {
         Row {
             spacing: 6
             width: parent.width
-            LIcon { visible: Halo.present && !root.live && (root.info.icon ?? "") !== ""; icon: root.info.icon ?? ""; size: 15; fill: 1
+            LIcon { visible: Halo.present && !root.live && (root.info.icon ?? "") !== "" && !pic.shown; icon: root.info.icon ?? ""; size: 15; fill: 1
                     color: root.info.tone === "concerned" ? Theme.warning : Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+            ClippingRectangle {
+                id: pic
+                readonly property bool shown: !root.live && (root.info.image ?? "") !== "" && picImg.status === Image.Ready
+                visible: shown
+                width: 22; height: 22; radius: 11; color: "transparent"
+                anchors.verticalCenter: parent.verticalCenter
+                Image { id: picImg; anchors.fill: parent; source: root.live ? "" : (root.info.image ?? ""); sourceSize: Qt.size(44, 44); fillMode: Image.PreserveAspectCrop; asynchronous: true }
+            }
             LText {
-                width: parent.width - (x > 0 ? 21 : 0)
+                width: parent.width - (x > 0 ? 28 : 0)
                 role: "bodyStrong"; text: root.title; textFormat: Text.PlainText
                 elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.Wrap
             }

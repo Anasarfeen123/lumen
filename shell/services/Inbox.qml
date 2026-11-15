@@ -47,7 +47,8 @@ Singleton {
             c.nid = nid;
             // Only a real picture (a file or inline image data) is a photo —
             // an app-icon name is WhatsApp's logo, not the sender
-            if (image && !/^image:\/\/icon\//.test(image) && !/^[\w.-]+$/.test(image)) c.avatar = image;
+            if (image && !/^image:\/\/icon\//.test(image) && !/^[\w.-]+$/.test(image)) { c.avatar = image; p.rememberAvatar?.(m.chat, image); }
+            else if (!c.avatar) c.avatar = p.avatarFor?.(m.chat) ?? "";
             c.isGroup = c.isGroup || m.isGroup;
             const previewText = m.kind === "message" ? m.text : (m.kind === "call" ? "Incoming " + (m.video ? "video" : "voice") + " call" : "Missed " + (m.video ? "video" : "voice") + " call");
             if (m.kind !== "call") c.unread += 1;
@@ -102,13 +103,19 @@ Singleton {
         all[key] = Object.assign({}, c, { unread: 0 });
         convs = all;
     }
-    // Lumen can't see you read a chat in WhatsApp, so: opening WhatsApp clears
-    // the unread counts (you've seen them), and counts older than 2 hours fade.
+    // Reading a chat in ZapFast takes back its notifications: that chat is read
+    // here too (services/Notifications.qml). Other apps say nothing, so there
+    // opening WhatsApp clears the unread counts (you've seen them); with any
+    // app, counts older than 2 hours fade.
+    function withdrawn(nid) {
+        const c = Object.values(convs).find(c => c.nid === nid);
+        if (c && c.unread > 0) dismiss(c.key);
+    }
     Connections {
         target: Hyprland
         function onActiveToplevelChanged() {
             const w = WhatsApp.window;
-            if (w && Hyprland.activeToplevel === w && root.unreadTotal > 0) root.dismissAll();
+            if (WhatsApp.clientKind !== "zapfast" && w && Hyprland.activeToplevel === w && root.unreadTotal > 0) root.dismissAll();
         }
     }
     Timer {
@@ -192,6 +199,75 @@ Singleton {
         return { ok: true, source: "WhatsApp notifications seen this session", title: c.title,
                  messages: (c.previews ?? []).map(p => ({ sender: p.sender || c.title, text: p.text, time: p.time })) };
     }
+    // ── Halo, without the AI (services/Halo.qml asks here first) ──
+    //   "any messages?" "who messaged me" · "what did Arya say" · "open WhatsApp"
+    //   "open the chat with Arya" · "message Arya: on my way" · "mark my messages read"
+    function haloIntent(q) {
+        if (!WhatsApp.enabled) return null;
+        const l = q.toLowerCase().replace(/[?.!]+$/, "").trim();
+        let m;
+        if (/^(?:(?:do i have |are there )?any (?:new |unread )?(?:whatsapp )?messages|(?:new|unread) (?:whatsapp )?messages|who (?:messaged|texted|whatsapped) me|check (?:my )?(?:whatsapp|messages)|(?:my )?unread chats)$/.test(l))
+            return { glyph: "forum", title: "Your messages", own: () => root.haloUnread() };
+        if ((m = /^(?:what did|what has|what's) (.+?) (?:say|said|send|sent|write|wrote|text|texted)(?: me)?$|^read (?:me )?(.+?)'?s? messages$|^(?:any )?messages from (.+)$/.exec(l))) {
+            const name = m[1] ?? m[2] ?? m[3];
+            if (find(name) || WhatsApp.numberFor(name))                  // only a chat or contact you have
+                return { glyph: "forum", title: "Messages from " + name, own: () => root.haloChat(name) };
+        }
+        if (/^(?:open|show|go to) (?:my )?(?:whatsapp|zapfast|chats)$/.test(l))
+            return { glyph: "forum", title: "WhatsApp", plain: true, run: () => WhatsApp.focusClient() };
+        if ((m = /^(?:open|show) (?:the |my )?chat with (.+)$|^open (.+?)'s chat$/.exec(l))) {
+            const name = m[1] ?? m[2], c = find(name);
+            return { glyph: "chat", title: "Chat with " + (c?.title ?? name), plain: true, run: () => WhatsApp.openChat(c?.title ?? name, "") };
+        }
+        if ((m = /^(?:message|text|whatsapp|tell) (.+?)(?::|,| that| saying) (.+)$/i.exec(q.trim().replace(/[.!]+$/, "")))) {
+            const name = m[1], text = m[2];
+            if (!/^(?:me|us|him|her|them|it|you|a|the)\b/i.test(name) && name.split(/\s+/).length <= 4)
+                return { glyph: "send", title: "Message for " + name, own: () => root.haloDraft(name, text) };
+        }
+        if (/^(?:mark|set) (?:all |my |all my )?(?:messages|chats|whatsapp)(?: messages)? (?:as )?read$/.test(l))
+            return { glyph: "done_all", title: "Marked read", plain: true, run: () => root.dismissAll() };
+        return null;
+    }
+    function lastFrom(c) { return (c.previews ?? []).slice(-Math.max(1, Math.min(c.unread || 1, 3))); }
+    function haloUnread() {
+        const u = unreadConversations;
+        if (!u.length) { Halo.say({ key: "wa", icon: "forum", title: "No new messages", text: conversations.length ? "You're caught up." : "Nothing since Lumen started.", level: "asked" }); return; }
+        if (u.length === 1) { haloChat(u[0].title); return; }      // one chat: what they said
+        const ctx = WhatsApp.cfg.haloContext && WhatsApp.cfg.previews;
+        const lines = u.slice(0, 4).map(c => c.title + (c.unread > 1 ? " (" + c.unread + ")" : "")
+            + (ctx && c.previews?.length ? ": " + c.previews[c.previews.length - 1].text.slice(0, 70) : ""));
+        Halo.say({ key: "wa", icon: "forum", image: u[0].avatar || "", level: "asked", duration: 16000,
+                   title: u.length === 1 ? u[0].title + " messaged you" : u.length + " chats unread",
+                   text: lines.join("\n") + (u.length > 4 ? "\n…and " + (u.length - 4) + " more" : ""),
+                   speak: u.length === 1 ? u[0].title + " messaged you" : u.length + " chats have new messages: " + u.slice(0, 4).map(c => c.title).join(", "),
+                   actions: [{ label: "Reply", icon: "reply", run: () => root.showPanel(u.length === 1 ? u[0].key : "") },
+                             { label: "Open", icon: "open_in_new", run: () => root.open(u[0].key) },
+                             { label: "Mark read", icon: "done_all", run: () => root.dismissAll() }] });
+    }
+    function haloChat(name) {
+        const c = find(name);
+        if (!c) { Halo.say({ key: "wa", icon: "forum", title: "Nothing from " + name, text: "No messages from them since Lumen started.", level: "asked" }); return; }
+        const ctx = WhatsApp.cfg.haloContext && WhatsApp.cfg.previews;
+        const last = lastFrom(c);
+        Halo.say({ key: "wa", icon: "forum", image: c.avatar || "", level: "asked", duration: 18000,
+                   title: c.title + (c.unread ? " · " + c.unread + " unread" : ""),
+                   text: !ctx ? "Halo message context is off — turn it on in Settings → WhatsApp to hear what they said."
+                       : last.length ? last.map(p => (c.isGroup && p.sender ? p.sender + ": " : "") + p.text).join("\n") : "No text this session.",
+                   speak: ctx && last.length ? c.title + " said: " + last.map(p => p.text).join(". ") : c.title,
+                   actions: [{ label: "Reply", icon: "reply", run: () => root.showPanel(c.key) },
+                             { label: "Open chat", icon: "open_in_new", run: () => root.open(c.key) },
+                             { label: "Mark read", icon: "done", run: () => root.dismiss(c.key) }] });
+    }
+    // You always send it yourself: the chat opens in WhatsApp with the text typed in
+    function haloDraft(name, text) {
+        const r = draftFromHalo(name, text);
+        if (!r.ok) { Halo.say({ key: "wa", icon: "error", title: "Couldn't prepare that", text: r.reason ?? "Unknown chat", level: "asked" }); return; }
+        const c = find(name);
+        Halo.say({ key: "wa", icon: "send", image: c?.avatar || "", level: "asked", duration: 20000, speak: false,
+                   title: "To " + r.draft.title, text: "“" + text + "”" + (r.needsNumber ? "\nNo number for them in your contact book — WhatsApp will ask you to pick the chat." : ""),
+                   actions: [{ label: "Open to send", icon: "send", run: () => root.send(r.draft) }, { label: "Cancel", icon: "close", run: () => {} }] });
+    }
+
     // For "what happened while I was away?"
     function unreadSummaryText() {
         if (!WhatsApp.cfg.haloContext) return "";
@@ -237,7 +313,7 @@ Singleton {
         function share(text: string): void { root.share(text, []); }
         function shareFile(path: string): void { root.share("", [path]); }
         function shareClipboard(): void { root.shareClipboard(); }
-        function state(): string { return JSON.stringify({ unread: root.unreadTotal, chats: root.conversations.map(c => ({ title: c.title, unread: c.unread })) }); }
+        function state(): string { return JSON.stringify({ unread: root.unreadTotal, chats: root.conversations.map(c => ({ title: c.title, unread: c.unread, avatar: c.avatar ? c.avatar.replace(/^.*\//, "…/") : "" })) }); }
     }
 
     // ── dev only (LUMEN_DEV): notifications shaped like WhatsApp Web's ──

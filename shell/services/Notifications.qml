@@ -61,8 +61,18 @@ Singleton {
     function shellCall(fn) { Quickshell.execDetached([Theme.lumenRoot + "/bin/lumen-shell-ipc", "notifications", fn]); }
 
     // ── intake ──
-    function iconSource(n) {
+    // Quickshell hands an image-path hint over as a theme-icon address, even when it's
+    // a file ("image://icon//home/…/avatar.jpg" — ZapFast's profile pictures): a file
+    // is a file
+    function imageOf(n) {
         const img = n.image || "";
+        const m = /^image:\/\/icon\/(\/.+|file:\/\/.+)$/.exec(img);
+        if (!m) return img;
+        const path = decodeURIComponent(m[1]).replace(/\?.*$/, "");
+        return path.startsWith("file://") ? path : "file://" + path;
+    }
+    function iconSource(n) {
+        const img = imageOf(n);
         // a theme icon by name (image://icon/…): through the launcher's icon index, as
         // app icons are — Qt's icon provider drew it blank after a shell reload
         if (img.startsWith("image://icon/")) return Apps.iconNamed(decodeURIComponent(img.slice(13)).replace(/\?.*$/, ""), "dialog-information");
@@ -127,7 +137,14 @@ Singleton {
 
         // Messaging apps (WhatsApp…) belong to Lumen Inbox: grouped per chat,
         // its own banner, and never written to disk
-        if (claimByInbox(entry, n.desktopEntry ?? "", n.image ? (n.image.startsWith("/") ? "file://" + n.image : n.image) : "", n.id)) { if (!n.transient) insertGrouped(entry); return; }
+        const pic = imageOf(n);
+        if (claimByInbox(entry, n.desktopEntry ?? "", pic ? (pic.startsWith("/") ? "file://" + pic : pic) : "", n.id)) {
+            // the app took it back itself (ZapFast does when you read the chat): read in Lumen too
+            const nid = n.id;
+            n.closed.connect(reason => { if (reason === NotificationCloseReason.CloseRequested) Inbox.withdrawn(nid); });
+            if (!n.transient) insertGrouped(entry);
+            return;
+        }
 
         if (!n.transient) insertGrouped(entry);
 

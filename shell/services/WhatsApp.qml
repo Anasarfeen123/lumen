@@ -54,6 +54,7 @@ Singleton {
             property var muted: []                // chat names: history only, no banner
             property var focusAllow: ({})         // Focus mode id → [chat names] that may interrupt it
             property var contacts: []             // [{ name, number }] — digits with country code
+            property var avatars: ({})            // chat name → its picture's file (ZapFast's cache), never message text
         }
     }
     readonly property bool enabled: cfg.enabled
@@ -171,12 +172,19 @@ Singleton {
         else if ((m = /^~?\s*([^:\n]{1,40}):\s+([\s\S]+)$/.exec(text)) && !/https?$/i.test(m[1])) { sender = m[1].trim(); text = m[2]; isGroup = true; }
         // "3 new messages" style summaries carry no chat
         if (!chat || /^WhatsApp$/i.test(chat)) chat = sender || "WhatsApp";
-        const kind = /incoming (voice|video) call|is calling|calling you/i.test(text + " " + summary) ? "call"
+        const kind = /incoming (voice |video )?call|is calling|calling you/i.test(text + " " + summary) ? "call"
                    : /missed (voice|video) call/i.test(text + " " + summary) ? "missed"
                    : "message";
         return { provider: id, chat, sender, isGroup, text, kind,
                  video: /video/i.test(text + " " + summary) };
     }
+
+    // a chat's picture, remembered across restarts (only local files)
+    function rememberAvatar(chat, url) {
+        if (!/^file:\/\//.test(url ?? "") || (cfg.avatars ?? {})[chat] === url) return;
+        const a = Object.assign({}, cfg.avatars ?? {}); a[chat] = url; cfg.avatars = a;
+    }
+    function avatarFor(chat) { return (cfg.avatars ?? {})[chat] ?? ""; }
 
     // Lumen-side per-chat choices
     function isMuted(chat) { return (cfg.muted ?? []).includes(chat); }
