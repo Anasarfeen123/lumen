@@ -123,4 +123,15 @@ Singleton {
         const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
         return `${m}:${s < 10 ? "0" : ""}${s}`;
     }
+
+    // the media keys (hypr/keybinds.lua): the player Lumen shows, not whichever one
+    // playerctl saw last (a paused browser tab could take a key meant for your music)
+    IpcHandler {
+        target: "media"
+        function toggle(): void { root.toggle(); }
+        function next(): void { root.next(); }
+        function previous(): void { root.previous(); }
+        function stop(): void { if (root.active?.canControl) root.active.stop(); }
+        function state(): string { return JSON.stringify({ player: root.playerName(root.active), title: root.title, playing: root.playing }); }
+    }
 }

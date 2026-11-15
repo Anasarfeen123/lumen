@@ -21,7 +21,7 @@ Item {
     Behavior on implicitHeight { enabled: !Theme.reducedMotion; NumberAnimation { duration: Theme.motion.normal; easing.type: Easing.Bezier; easing.bezierCurve: Theme.curveEmphasized } }
 
     // Lyrics are looked up only while this view is on screen
-    Binding { target: Lyrics; property: "wanted"; value: root.visible || MusicApp.pipVisible }
+    Binding { target: Lyrics; property: "wanted"; value: root.visible || MusicApp.pipVisible || MusicApp.lockShowing }
     readonly property bool showLyrics: Lyrics.mode && Lyrics.available
 
     // Position only needs refreshing while this view is on screen.

@@ -60,6 +60,7 @@ Singleton {
             "sh", dataDir, marker, conf];
         writer.running = true;
     }
+    property bool lockShowing: false         // the lock screen's player is up (it shows the lyric line)
     // ── the music PiP ──
     property bool pipShown: false
     readonly property bool pipVisible: pipShown && Media.present && !Pip.videoShown && !scratchVisible
