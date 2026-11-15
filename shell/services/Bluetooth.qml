@@ -39,8 +39,11 @@ Singleton {
     // Devices in range that aren't paired yet (only while someone is looking:
     // discovery costs radio time). Nameless beacons are left out.
     property bool scanning: false
-    onScanningChanged: if (adapter && enabled) adapter.discovering = scanning
+    onScanningChanged: { if (adapter && enabled) adapter.discovering = scanning; if (scanning) scanLimit.restart(); else scanLimit.stop(); }
     onEnabledChanged: if (adapter && enabled && scanning) adapter.discovering = true
+    // never more than a minute at a time: discovery takes radio time from
+    // Bluetooth headphones (their audio drops) and from the phone link
+    Timer { id: scanLimit; interval: 60000; onTriggered: { root.scanning = false; if (root.adapter?.discovering) root.adapter.discovering = false; } }
     readonly property bool discovering: adapter?.discovering ?? false
     readonly property var nearby: (adapter?.devices?.values ?? []).filter(d => !d.paired && d.name && !/^([0-9A-F]{2}[-:]){5}[0-9A-F]{2}$/i.test(d.name))
 

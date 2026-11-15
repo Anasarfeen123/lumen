@@ -34,11 +34,19 @@ Item {
         else event.accepted = false;
     }
 
-    onDetailChanged: { Network.scanning = detail === "wifi"; Bluetooth.scanning = detail === "bluetooth"; }
+    // Scanning only while the panel is on screen: a Bluetooth discovery left
+    // running (the sidebar closed on the Bluetooth panel) keeps the radio
+    // searching, and Bluetooth headphones drop out.
+    function rescan() {
+        Network.scanning = Sidebar.open && detail === "wifi";
+        Bluetooth.scanning = Sidebar.open && detail === "bluetooth";
+    }
+    onDetailChanged: rescan()
     Connections {
         target: Sidebar
         function onOpenChanged() {
             if (Sidebar.open) { Vpn.refresh(); Warp.refresh(); }
+            root.rescan();
         }
     }
     Connections {
