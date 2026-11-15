@@ -40,6 +40,7 @@ Singleton {
         { group: "Privacy", id: "lock", icon: "lock",                label: "Lock screen",         keys: "widgets password unlock" },
         { group: "Privacy", id: "faceid", icon: "face",                label: "Face ID",             keys: "face unlock gaze camera liveness anti photo calibrate strictness" },
         { group: "Privacy", id: "security", icon: "shield",              label: "Security",            keys: "security firewall ssh secure boot encryption selinux logins privacy" },
+        { group: "Privacy", id: "findmy", icon: "travel_explore",      label: "Find my laptop",      keys: "find my laptop device lost stolen ring locate location lock remote phone theft ntfy" },
         { group: "System", id: "system", icon: "monitor_heart",       label: "System",              keys: "system inspector hardware cpu gpu nvidia amd memory ram disk storage battery temperature kernel" },
         { group: "System", id: "updates", icon: "system_update",       label: "Updates",             keys: "update upgrade dnf flatpak packages security software" },
         { group: "System", id: "backup", icon: "backup",              label: "Backup & recovery",   keys: "backup restore snapshot rsync drive usb external files recovery safe mode reset settings config" },

@@ -30,6 +30,7 @@ import qs.modules.welcome
 import qs.modules.lens
 import qs.modules.hands
 import qs.modules.pip
+import qs.modules.findmy
 import qs.modules.snap
 import qs.modules.captions
 import qs.modules.expose
@@ -267,6 +268,13 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: MusicPip {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    Variants {
+        model: Quickshell.screens
+        delegate: RingOverlay {
             required property var modelData
             screen: modelData
         }

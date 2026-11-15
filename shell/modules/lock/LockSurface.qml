@@ -287,13 +287,14 @@ Item {
             y: Math.round(root.height * 0.46)
             spacing: Theme.space.s4
 
+            LostCard { frost: frost; visible: (FindMy.lost.on ?? false) || FindMy.ringing }
             MediaCard { frost: frost; visible: Media.present && Persist.data.lockMedia; opacity: root.stagger(0); transform: Translate { y: (1 - root.stagger(0)) * 22 } }
             BatteryCard { frost: frost; visible: Battery.available && Persist.data.lockBattery; opacity: root.stagger(1); transform: Translate { y: (1 - root.stagger(1)) * 22 } }
             TimerCard { frost: frost; visible: Persist.data.lockTimer ?? true; opacity: root.stagger(2); transform: Translate { y: (1 - root.stagger(2)) * 22 } }
-            CalendarCard { frost: frost; today: clock.date; visible: Persist.data.lockCalendar; opacity: root.stagger(3); transform: Translate { y: (1 - root.stagger(3)) * 22 } }
-            NotificationsCard { frost: frost; visible: Notifications.count > 0 && Persist.data.lockNotifications; opacity: root.stagger(4); transform: Translate { y: (1 - root.stagger(4)) * 22 } }
-            ClassCard { id: classCard; frost: frost; visible: classCard.wanted; opacity: root.stagger(5); transform: Translate { y: (1 - root.stagger(5)) * 22 } }
-            GlanceCard { id: glance; frost: frost; visible: glance.wanted; opacity: root.stagger(6); transform: Translate { y: (1 - root.stagger(6)) * 22 } }
+            CalendarCard { frost: frost; today: clock.date; visible: Persist.data.lockCalendar && !(FindMy.lost.on ?? false); opacity: root.stagger(3); transform: Translate { y: (1 - root.stagger(3)) * 22 } }
+            NotificationsCard { frost: frost; visible: Notifications.count > 0 && Persist.data.lockNotifications && !(FindMy.lost.on ?? false); opacity: root.stagger(4); transform: Translate { y: (1 - root.stagger(4)) * 22 } }
+            ClassCard { id: classCard; frost: frost; visible: classCard.wanted && !(FindMy.lost.on ?? false); opacity: root.stagger(5); transform: Translate { y: (1 - root.stagger(5)) * 22 } }
+            GlanceCard { id: glance; frost: frost; visible: glance.wanted && !(FindMy.lost.on ?? false); opacity: root.stagger(6); transform: Translate { y: (1 - root.stagger(6)) * 22 } }
         }
 
         // Who + password
