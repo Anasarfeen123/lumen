@@ -14,12 +14,14 @@ Singleton {
     signal menuRequested(int index)
     // The apps in the tray, once each. An app that restarts (ytm-rs after an
     // update) can leave its old entry behind in the shell's list after its
-    // registration is gone, so the same icon showed up three times: the
-    // newest entry per app wins.
+    // registration is gone (ytm-rs showed three times: two entries from a
+    // process that had exited, one live): the newest entry per app wins.
     readonly property var items: {
         const all = SystemTray.items.values, seen = new Set(), out = [];
         for (let i = all.length - 1; i >= 0; i--) {
-            const it = all[i], key = (it.id || it.title || it.tooltipTitle || "") + "";
+            // by app: ids can carry the process ("tray-icon tray app 494113-1"), so the
+            // title, or the id without its numbers
+            const it = all[i], key = String(it.title || it.tooltipTitle || String(it.id ?? "").replace(/[\s\d_-]+$/, "")).toLowerCase();
             if (key && seen.has(key)) continue;
             seen.add(key);
             out.unshift(it);
